@@ -1,0 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400;1,700&family=Quicksand:wght@500;600;700;800&family=Nunito:wght@600;700;800;900&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;600;800&family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=Montserrat:ital,wght@0,600;0,800;1,600&family=Fira+Code:wght@400;600;700&display=swap');
+
+body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: #020617;
+    color: #f8fafc;
+}
+.code-font {
+    font-family: 'Fira Code', 'Courier Prime', monospace;
+}
+::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+::-webkit-scrollbar-track {
+    background: #0f172a;
+}
+::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 4px;
+}
+.btn-tb-active {
+    background-color: #3b82f6 !important;
+    color: #ffffff !important;
+}
+.tab-sub-active {
+    background-color: #4f46e5 !important;
+    color: #ffffff !important;
+}
+.subtab-active {
+    background-color: #f59e0b !important;
+    color: #020617 !important;
+    font-weight: 800 !important;
+}
+.floating-popover {
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.timeline-track-bar {
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+.timeline-track-bar:active {
+    cursor: grabbing;
+}
+.resizer-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    cursor: ew-resize;
+    background-color: rgba(255, 255, 255, 0.4);
+    border-radius: 2px;
+}
+.resizer-left { left: 0; }
+.resizer-right { right: 0; }
+.timeline-ruler-tick {
+    border-left: 1px solid rgba(148, 163, 184, 0.2);
+}
+.playhead-needle {
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: #ef4444;
+    z-index: 20;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+}
+.audio-waveform-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    opacity: 0.55;
+}
+.col-transition {
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}

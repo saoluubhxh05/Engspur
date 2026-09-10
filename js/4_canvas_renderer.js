@@ -1,0 +1,507 @@
+/**
+ * 4_canvas_renderer.js
+ * Lõi render đồ họa 1920x1080, bố cục lưới cột, card box auto-flow và khung ảnh
+ */
+
+function drawParagraphCanvasFrame() {
+    if (!pCanvas || !pCtx) return;
+    renderSingleFrameToContext(pCtx, pCanvas.width, pCanvas.height, false);
+    syncToMiniBatchCanvas();
+
+    // Nếu đang trong chế độ Render kép thì vẽ song song lên Canvas sạch (nền trắng tinh khiết, không ảnh nền, không logo)
+    if (isBatchRunning && batchExecutionMode === 'dual_parallel' && pCleanCtx && pCleanCanvas) {
+        renderSingleFrameToContext(pCleanCtx, pCleanCanvas.width, pCleanCanvas.height, true);
+    }
+}
+
+function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, width, height);
+
+    if (!isCleanMode) {
+        if (canvasBgImage) {
+            ctx.save();
+            const bgSt = videoConfig.bgImageStyle || { widthPct: 100, heightPct: 100, posX: 0, posY: 0, opacity: 100 };
+            ctx.globalAlpha = (bgSt.opacity !== undefined ? bgSt.opacity : 100) / 100;
+            const bgW = (width * (bgSt.widthPct || 100)) / 100;
+            const bgH = (height * (bgSt.heightPct || 100)) / 100;
+            const bgX = (width * (bgSt.posX || 0)) / 100;
+            const bgY = (height * (bgSt.posY || 0)) / 100;
+            ctx.drawImage(canvasBgImage, bgX, bgY, bgW, bgH);
+            ctx.restore();
+        } else {
+            drawThemeBlobs(ctx, width, height);
+        }
+    }
+
+    const matrix = paragraphGridConfig.gridMatrix || { 
+        columnCount: 3, 
+        columnWidths: [36, 40, 20], 
+        paddingTopPct: 8, 
+        paddingBottomPct: 8, 
+        paddingLeftPct: 4, 
+        paddingRightPct: 4, 
+        columnGapPct: 2, 
+        showGridOverlay: false,
+        colSyncSettings: { 1: { locked: true }, 2: { locked: true }, 3: { locked: false, freeMode: 'center' } }
+    };
+
+    const colCount = matrix.columnCount || 3;
+    const paddingTop = (height * (matrix.paddingTopPct !== undefined ? matrix.paddingTopPct : 8)) / 100;
+    const paddingBottom = (height * (matrix.paddingBottomPct !== undefined ? matrix.paddingBottomPct : 8)) / 100;
+    const paddingLeft = (width * (matrix.paddingLeftPct !== undefined ? matrix.paddingLeftPct : 4)) / 100;
+    const paddingRight = (width * (matrix.paddingRightPct !== undefined ? matrix.paddingRightPct : 4)) / 100;
+    const colGap = (width * (matrix.columnGapPct !== undefined ? matrix.columnGapPct : 2)) / 100;
+    const blockGap = paragraphGridConfig.loopBlockGap !== undefined ? paragraphGridConfig.loopBlockGap : 24;
+
+    const effectiveHeight = height - paddingTop - paddingBottom;
+    const colLayouts = [];
+    let currentX = paddingLeft;
+
+    for (let i = 0; i < colCount; i++) {
+        const wPct = (matrix.columnWidths && matrix.columnWidths[i] !== undefined) ? matrix.columnWidths[i] : (90 / colCount);
+        const colW = (width * wPct) / 100;
+        colLayouts.push({ colIndex: i + 1, x: currentX, w: colW });
+        currentX += colW + colGap;
+    }
+
+    if (matrix.showGridOverlay && !isCleanMode) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(99, 102, 241, 0.35)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 6]);
+        colLayouts.forEach(cl => ctx.strokeRect(cl.x, paddingTop, cl.w, effectiveHeight));
+        ctx.restore();
+    }
+
+    const activeTopicList = getParagraphFilteredDatasets();
+    const totalSentences = activeTopicList.length;
+
+    const sentenceDataMaps = activeTopicList.map((ds, sIdx) => {
+        const drill = (ds && ds.drills && ds.drills[0]) ? ds.drills[0] : {};
+        const baseMap = {
+            "STT": drill.stt || (sIdx + 1),
+            "STT Mẫu": ds.sttMau || (sIdx + 1),
+            "Chủ đề": ds.topic || "",
+            "Mẫu câu": ds.pattern || "",
+            "Câu hỏi cho mẫu câu": ds.question || "",
+            "Từ nối": drill.tuNoi !== undefined ? drill.tuNoi : "",
+            "Substitution words": drill.cueWord || "",
+            "Dịch Substitution words": drill.dichCueWord || "",
+            "Substitution Drills": drill.drillText || "",
+            "Phiên âm IPA": drill.ipa || "",
+            "Dịch Substitution Drills": drill.dichDrillText || "",
+            "ten_file_dinh_kem": drill.imageName || "",
+            "Minh họa": drill.imageName || ""
+        };
+        if (drill.rawRow) {
+            Object.keys(drill.rawRow).forEach(k => {
+                if (baseMap[k] === undefined) {
+                    baseMap[k] = String(drill.rawRow[k] || "").trim();
+                }
+            });
+        }
+        return baseMap;
+    });
+
+    const activeSentenceIdx = isParagraphRunning ? pCurrentSentenceIndex : 0;
+    const currentSentenceData = sentenceDataMaps[activeSentenceIdx] || sentenceDataMaps[0] || {};
+    const currentActiveImage = currentSentenceData["ten_file_dinh_kem"] || "";
+    const currentActiveFallbackWord = currentSentenceData["Substitution words"] || "";
+
+    const isSingleMode = (paragraphGridConfig.presentationMode === 'single');
+    const startSentenceIdx = isSingleMode ? (isParagraphRunning ? pCurrentSentenceIndex : 0) : 0;
+    const maxSentencesToDraw = isSingleMode ? (startSentenceIdx + 1) : (isParagraphRunning ? Math.min(pCurrentSentenceIndex + 1, totalSentences) : totalSentences);
+
+    let colVerticalPositions = new Array(colCount + 1).fill(paddingTop);
+    let totalLockedBlockTop = paddingTop;
+    let totalLockedBlockBottom = paddingTop;
+
+    for (let sIdx = startSentenceIdx; sIdx < maxSentencesToDraw; sIdx++) {
+        const dataMap = sentenceDataMaps[sIdx];
+        if (!dataMap) continue;
+
+        const isCurrentSentence = (sIdx === (isParagraphRunning ? pCurrentSentenceIndex : 0));
+        let maxLockedRowHeight = 0;
+        let lockedColumnsInRow = [];
+
+        paragraphGridConfig.groups.forEach(grp => {
+            const targetColIdx = Math.max(1, Math.min(grp.targetColumn || 1, colCount));
+            const isColLocked = matrix.colSyncSettings && matrix.colSyncSettings[targetColIdx] ? matrix.colSyncSettings[targetColIdx].locked : true;
+
+            if (isColLocked) {
+                lockedColumnsInRow.push(targetColIdx);
+                const colLayout = colLayouts[targetColIdx - 1] || colLayouts[0];
+                const groupW = colLayout.w;
+                const customSpacing = (grp.fieldSpacing !== undefined ? grp.fieldSpacing : 12);
+                let estimatedGroupH = 0;
+
+                grp.fields.forEach(item => {
+                    const itemType = item.type || 'field';
+                    if (itemType === 'field') {
+                        const fKey = typeof item === 'string' ? item : item.key;
+                        const st = paragraphFieldStyles[fKey];
+                        if (st && st.type !== 'image') {
+                            const rawVal = dataMap[fKey];
+                            const val = (rawVal !== undefined && rawVal !== null) ? String(rawVal).trim() : '';
+                            if (!val) return;
+                            let size = st.size || 28;
+                            const pad = st.boxPadding !== undefined ? st.boxPadding : 12;
+                            const effectiveW = Math.max(40, groupW - pad * 2);
+                            ctx.font = `${st.style === 'bold' || st.style === 'extrabold' ? 'bold' : 'normal'} ${size}px "${st.font || 'Quicksand'}", sans-serif`;
+                            let lines = calculateTextLines(ctx, val, effectiveW, size, st.font);
+                            let h = lines.length * (size * (st.lineSpacing || 1.25)) + pad * 2 + (st.spaceBefore || 0) + (st.spaceAfter || 0);
+                            estimatedGroupH += h + customSpacing;
+                        }
+                    } else if (itemType === 'custom_text') {
+                        estimatedGroupH += 40 + customSpacing;
+                    }
+                });
+
+                if (grp.customHeightPx && grp.customHeightPx > 0) estimatedGroupH = Math.max(estimatedGroupH, grp.customHeightPx);
+                if (estimatedGroupH > maxLockedRowHeight) maxLockedRowHeight = estimatedGroupH;
+            }
+        });
+
+        paragraphGridConfig.groups.forEach(grp => {
+            if (isCurrentSentence) {
+                const start = grp.startTime || 0;
+                const end = start + (grp.duration || masterTimelineDuration);
+                if (currentTimelinePlayTime < start || currentTimelinePlayTime > end) return;
+            }
+
+            const targetColIdx = Math.max(1, Math.min(grp.targetColumn || 1, colCount));
+            const colLayout = colLayouts[targetColIdx - 1] || colLayouts[0];
+            const isColLocked = matrix.colSyncSettings && matrix.colSyncSettings[targetColIdx] ? matrix.colSyncSettings[targetColIdx].locked : true;
+            const freeMode = matrix.colSyncSettings && matrix.colSyncSettings[targetColIdx] ? matrix.colSyncSettings[targetColIdx].freeMode : 'center';
+
+            const offX = grp.offsetX || 0;
+            const offY = grp.offsetY || 0;
+            const originX = colLayout.x + offX;
+            const groupW = colLayout.w;
+            const rowOffsetPx = (grp.startRowOffset || 0) * 45;
+
+            let currentFieldY = (isSingleMode ? paddingTop : colVerticalPositions[targetColIdx]) + rowOffsetPx + offY;
+
+            ctx.save();
+            const frameOpacity = grp.opacity !== undefined ? grp.opacity : 100;
+            ctx.globalAlpha = Math.max(0, Math.min(100, frameOpacity)) / 100;
+            const customSpacing = (grp.fieldSpacing !== undefined ? grp.fieldSpacing : 12);
+
+            grp.fields.forEach(item => {
+                const itemType = item.type || 'field';
+
+                if (itemType === 'field') {
+                    const fKey = typeof item === 'string' ? item : item.key;
+                    const st = paragraphFieldStyles[fKey];
+                    if (!st) return;
+
+                    if (st.type === 'image') {
+                        let imgX = st.posX !== undefined ? st.posX : originX;
+                        let imgY = st.posY !== undefined ? st.posY : currentFieldY;
+                        let imgW = st.width !== undefined ? st.width : groupW;
+                        let imgH = st.height !== undefined ? st.height : Math.max(260, effectiveHeight - 60);
+
+                        if (!isColLocked) {
+                            if (freeMode === 'center') {
+                                imgX = originX;
+                                imgY = paddingTop + (effectiveHeight - imgH) / 2;
+                            } else if (freeMode === 'span') {
+                                imgX = originX;
+                                imgY = totalLockedBlockTop;
+                                imgH = Math.max(200, totalLockedBlockBottom - totalLockedBlockTop);
+                            }
+                        }
+
+                        const customR = st.boxRadius !== undefined ? st.boxRadius : 20;
+                        const customOp = st.opacity !== undefined ? st.opacity : 100;
+                        drawRect916PhotoFrame(ctx, imgX, imgY, imgW, imgH, currentActiveImage, currentActiveFallbackWord, true, customR, customOp);
+                        currentFieldY += imgH + customSpacing;
+                    } else {
+                        const rawVal = dataMap[fKey];
+                        const val = (rawVal !== undefined && rawVal !== null) ? String(rawVal).trim() : '';
+                        if (val !== '') {
+                            const renderedHeight = drawAutoFlowCardBox(ctx, originX, currentFieldY, groupW, val, st);
+                            currentFieldY += renderedHeight + customSpacing;
+                        }
+                    }
+                } else if (itemType === 'custom_text') {
+                    const st = paragraphFieldStyles["Substitution words"];
+                    const renderedHeight = drawAutoFlowCardBox(ctx, originX, currentFieldY, groupW, item.text || "", st);
+                    currentFieldY += renderedHeight + customSpacing;
+                } else if (itemType === 'countdown') {
+                    if ((isParagraphRunning || isTimelinePlaying) && currentTimelinePlayTime < (grp.startTime + (grp.duration || 3.0))) {
+                        const countVal = Math.max(1, Math.ceil((grp.startTime + (grp.duration || 3.0)) - currentTimelinePlayTime));
+                        drawCountdownOverlay(ctx, width, height, item, countVal);
+                    }
+                }
+            });
+
+            ctx.restore();
+
+            if (!isColLocked && !isSingleMode) {
+                colVerticalPositions[targetColIdx] = currentFieldY;
+            }
+        });
+
+        if (!isSingleMode) {
+            const nextRowStartY = (lockedColumnsInRow.length > 0 ? colVerticalPositions[lockedColumnsInRow[0]] : paddingTop) + maxLockedRowHeight + blockGap;
+            for (let c = 1; c <= colCount; c++) {
+                const isLocked = matrix.colSyncSettings && matrix.colSyncSettings[c] ? matrix.colSyncSettings[c].locked : true;
+                if (isLocked) {
+                    colVerticalPositions[c] = nextRowStartY;
+                }
+            }
+            totalLockedBlockBottom = nextRowStartY;
+        }
+    }
+
+    // BẢN SẠCH: KHÔNG VẼ LOGO / BADGE THƯƠNG HIỆU
+    if (!isCleanMode && canvasBadgeImage) {
+        ctx.save();
+        const bdSt = videoConfig.badgeStyle || { widthPct: 15, heightPct: 10, posX: 82, posY: 4, opacity: 100, borderRadius: 20 };
+        ctx.globalAlpha = (bdSt.opacity !== undefined ? bdSt.opacity : 100) / 100;
+        const bdW = (width * (bdSt.widthPct || 15)) / 100;
+        const aspect = canvasBadgeImage.height / canvasBadgeImage.width;
+        const bdH = bdW * aspect;
+        const bdX = (width * (bdSt.posX !== undefined ? bdSt.posX : 82)) / 100;
+        const bdY = (height * (bdSt.posY !== undefined ? bdSt.posY : 4)) / 100;
+        const radius = bdSt.borderRadius !== undefined ? bdSt.borderRadius : 20;
+
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(bdX, bdY, bdW, bdH, radius);
+        else ctx.rect(bdX, bdY, bdW, bdH);
+        ctx.clip();
+        ctx.drawImage(canvasBadgeImage, bdX, bdY, bdW, bdH);
+        ctx.restore();
+    }
+}
+
+function drawAutoFlowCardBox(ctx, startX, startY, maxGroupW, textVal, st) {
+    if (!textVal || String(textVal).trim() === "") {
+        return 0;
+    }
+    ctx.save();
+    let size = st.size || 28;
+    const pad = st.boxPadding !== undefined ? st.boxPadding : 12;
+    const indentL = st.indentLeft || 0;
+    const indentR = st.indentRight || 0;
+    const spaceB = st.spaceBefore || 0;
+    const spaceA = st.spaceAfter || 0;
+
+    const effectiveW = Math.max(40, maxGroupW - pad * 2 - indentL - indentR);
+    
+    ctx.font = `${st.style === 'bold' || st.style === 'extrabold' ? 'bold' : (st.style === 'italic' ? 'italic' : 'normal')} ${size}px "${st.font || 'Quicksand'}", sans-serif`;
+    let lines = calculateTextLines(ctx, textVal, effectiveW, size, st.font);
+    
+    if (st.shrinkToFit !== false && lines.length > 3) {
+        size = Math.max(16, Math.round(size * 0.85));
+        ctx.font = `${st.style === 'bold' || st.style === 'extrabold' ? 'bold' : (st.style === 'italic' ? 'italic' : 'normal')} ${size}px "${st.font || 'Quicksand'}", sans-serif`;
+        lines = calculateTextLines(ctx, textVal, effectiveW, size, st.font);
+    }
+
+    let actualBoxW = maxGroupW;
+    const actualBoxH = lines.length * (size * (st.lineSpacing || 1.25)) + pad * 2 + spaceB + spaceA;
+    let actualBoxX = startX;
+
+    if (st.shrinkToFit !== false) {
+        let maxLineW = 0;
+        lines.forEach(l => {
+            const lw = ctx.measureText(l).width;
+            if (lw > maxLineW) maxLineW = lw;
+        });
+        actualBoxW = Math.min(maxGroupW, maxLineW + pad * 2 + indentL + indentR + 16);
+        if (st.hAlign === 'center') actualBoxX = startX + (maxGroupW - actualBoxW) / 2;
+        else if (st.hAlign === 'right') actualBoxX = startX + maxGroupW - actualBoxW;
+    }
+
+    if (st.boxBgColor && st.boxBgColor !== 'transparent') {
+        ctx.fillStyle = st.boxBgColor;
+        ctx.beginPath();
+        const radius = Math.round(st.boxRadius !== undefined ? st.boxRadius : 18);
+        if (ctx.roundRect) ctx.roundRect(actualBoxX, startY + spaceB, actualBoxW, actualBoxH - spaceB - spaceA, radius);
+        else ctx.rect(actualBoxX, startY + spaceB, actualBoxW, actualBoxH - spaceB - spaceA);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(15, 23, 42, 0.08)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+    }
+
+    let textY = startY + spaceB + pad + size * 0.85;
+
+    const hlPadX = st.highlightPaddingX !== undefined ? st.highlightPaddingX : 8;
+    const hlPadY = st.highlightPaddingY !== undefined ? st.highlightPaddingY : 4;
+
+    lines.forEach(lineText => {
+        const lineW = ctx.measureText(lineText).width;
+        let textX = actualBoxX + pad + indentL;
+        if (st.hAlign === 'center') textX = actualBoxX + actualBoxW / 2;
+        else if (st.hAlign === 'right') textX = actualBoxX + actualBoxW - pad - indentR;
+
+        if (st.highlightColor && st.highlightColor !== 'transparent') {
+            ctx.save();
+            ctx.fillStyle = st.highlightColor;
+            let hlX = textX;
+            if (st.hAlign === 'center') hlX = textX - lineW / 2 - hlPadX;
+            else if (st.hAlign === 'right') hlX = textX - lineW - hlPadX;
+            else hlX = textX - hlPadX / 2;
+
+            const hlW = lineW + hlPadX * 2;
+            const hlH = size * 1.05 + hlPadY * 2;
+            const hlY = textY - size * 0.8 - hlPadY;
+
+            ctx.fillRect(hlX, hlY, hlW, hlH);
+            ctx.restore();
+        }
+
+        ctx.fillStyle = st.color || '#000000';
+        ctx.font = `${st.style === 'bold' || st.style === 'extrabold' ? 'bold' : (st.style === 'italic' ? 'italic' : 'normal')} ${size}px "${st.font || 'Quicksand'}", sans-serif`;
+        ctx.textAlign = st.hAlign || 'left';
+        ctx.fillText(lineText, textX, textY);
+
+        if (st.underline) {
+            ctx.save();
+            ctx.strokeStyle = st.color || '#000000';
+            ctx.lineWidth = Math.max(1, size / 15);
+            let startUlX = textX;
+            if (st.hAlign === 'center') startUlX = textX - lineW / 2;
+            else if (st.hAlign === 'right') startUlX = textX - lineW;
+            ctx.beginPath();
+            ctx.moveTo(startUlX, textY + 4);
+            ctx.lineTo(startUlX + lineW, textY + 4);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        textY += size * (st.lineSpacing || 1.25);
+    });
+
+    ctx.restore();
+    return actualBoxH;
+}
+
+function calculateTextLines(ctx, text, maxW, fontSize, fontFam) {
+    if (!text) return [];
+    ctx.save();
+    ctx.font = `bold ${fontSize}px "${fontFam || 'Quicksand'}", sans-serif`;
+    const words = String(text).split(' ');
+    let line = '';
+    const lines = [];
+
+    for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + ' ';
+        if (ctx.measureText(testLine).width > maxW && n > 0) {
+            lines.push(line.trim());
+            line = words[n] + ' ';
+        } else {
+            line = testLine;
+        }
+    }
+    lines.push(line.trim());
+    ctx.restore();
+    return lines;
+}
+
+function drawCountdownOverlay(ctx, width, height, item, countVal) {
+    ctx.save();
+    const radius = 28;
+    let cx = width - 60, cy = 60;
+
+    if (item.position === 'center') {
+        cx = width / 2; cy = height / 2;
+    } else if (item.position === 'bottom_center') {
+        cx = width / 2; cy = height - 70;
+    }
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fillStyle = '#ef4444';
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `900 28px "Plus Jakarta Sans"`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(countVal.toString(), cx, cy + 2);
+    ctx.restore();
+}
+
+function drawThemeBlobs(ctx, width, height) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(99, 102, 241, 0.04)';
+    ctx.beginPath();
+    ctx.arc(width * 0.9, height * 0.1, Math.min(width, height) * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
+function drawRect916PhotoFrame(ctx, x, y, w, h, imgFileName, fallbackKeyword, drawBorder = true, customRadius = 24, customOpacity = 100) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(100, customOpacity)) / 100;
+
+    const radius = Math.min(customRadius, Math.min(w, h) / 2);
+
+    ctx.beginPath();
+    if (ctx.roundRect) {
+        ctx.roundRect(x, y, w, h, radius);
+    } else {
+        ctx.rect(x, y, w, h);
+    }
+    ctx.clip();
+
+    if (drawBorder) {
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(x, y, w, h);
+    }
+
+    const imgKey = (imgFileName || '').toLowerCase();
+    if (localPCImageMap[imgKey]) {
+        try {
+            const img = localPCImageMap[imgKey];
+            const scale = Math.max(w / img.width, h / img.height);
+            const drawW = img.width * scale;
+            const drawH = img.height * scale;
+            const drawX = x + (w - drawW) / 2;
+            const drawY = y + (h - drawH) / 2;
+            ctx.drawImage(img, drawX, drawY, drawW, drawH);
+        } catch(e) {
+            drawFallbackVectorIcon(ctx, x + w / 2, y + h / 2, fallbackKeyword);
+        }
+    } else {
+        drawFallbackVectorIcon(ctx, x + w / 2, y + h / 2, fallbackKeyword);
+    }
+
+    if (drawBorder) {
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x, y, w, h, radius);
+        else ctx.rect(x, y, w, h);
+        ctx.stroke();
+    }
+    ctx.restore();
+}
+
+function drawFallbackVectorIcon(ctx, cx, cy, keyword) {
+    ctx.save();
+    ctx.fillStyle = '#e2e8f0';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 45, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#64748b';
+    ctx.font = 'bold 18px "Plus Jakarta Sans"';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(keyword || "IMAGE", cx, cy);
+    ctx.restore();
+}
+
+function syncToMiniBatchCanvas() {
+    const miniCanvas = document.getElementById('batch-mini-preview-canvas');
+    if (miniCanvas && pCanvas) {
+        const mCtx = miniCanvas.getContext('2d');
+        mCtx.clearRect(0, 0, miniCanvas.width, miniCanvas.height);
+        mCtx.drawImage(pCanvas, 0, 0, miniCanvas.width, miniCanvas.height);
+    }
+}

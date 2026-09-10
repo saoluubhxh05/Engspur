@@ -1,0 +1,6 @@
+{
+  "name": "EngSpur Studio",
+  "description": "Hệ thống tạo video tự động từ file Excel & ảnh, hỗ trợ timeline và render hàng loạt",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
