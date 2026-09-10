@@ -3,14 +3,27 @@
  * Lõi render đồ họa 1920x1080, bố cục lưới cột, card box auto-flow và khung ảnh
  */
 
+var miniBatchFrameCounter = 0;
+
 function drawParagraphCanvasFrame() {
     if (!pCanvas || !pCtx) return;
-    renderSingleFrameToContext(pCtx, pCanvas.width, pCanvas.height, false);
-    syncToMiniBatchCanvas();
 
-    // Nếu đang trong chế độ Render kép thì vẽ song song lên Canvas sạch (nền trắng tinh khiết, không ảnh nền, không logo)
-    if (isBatchRunning && batchExecutionMode === 'dual_parallel' && pCleanCtx && pCleanCanvas) {
-        renderSingleFrameToContext(pCleanCtx, pCleanCanvas.width, pCleanCanvas.height, true);
+    // Khi đang ở pha quay bản Clean (Render Kép pha 2): chỉ vẽ lên pCleanCanvas để giải phóng GPU và đạt chuẩn 30fps
+    if (isBatchRunning && typeof batchExecutionMode !== 'undefined' && batchExecutionMode === 'dual_parallel' && typeof batchCurrentSubPhase !== 'undefined' && batchCurrentSubPhase === 'clean') {
+        if (pCleanCtx && pCleanCanvas) {
+            renderSingleFrameToContext(pCleanCtx, pCleanCanvas.width, pCleanCanvas.height, true);
+        }
+        if (!isBatchRunning || (miniBatchFrameCounter++ % 2 === 0)) {
+            syncToMiniBatchCanvas(true);
+        }
+        return;
+    }
+
+    // Pha quay bản Full (hoặc Preview / Render đơn): chỉ vẽ lên pCanvas chính, giải phóng 100% tài nguyên dư thừa
+    renderSingleFrameToContext(pCtx, pCanvas.width, pCanvas.height, false);
+
+    if (!isBatchRunning || (miniBatchFrameCounter++ % 2 === 0)) {
+        syncToMiniBatchCanvas(false);
     }
 }
 
@@ -497,11 +510,12 @@ function drawFallbackVectorIcon(ctx, cx, cy, keyword) {
     ctx.restore();
 }
 
-function syncToMiniBatchCanvas() {
+function syncToMiniBatchCanvas(isClean = false) {
     const miniCanvas = document.getElementById('batch-mini-preview-canvas');
-    if (miniCanvas && pCanvas) {
+    const sourceCanvas = (isClean && pCleanCanvas) ? pCleanCanvas : pCanvas;
+    if (miniCanvas && sourceCanvas) {
         const mCtx = miniCanvas.getContext('2d');
         mCtx.clearRect(0, 0, miniCanvas.width, miniCanvas.height);
-        mCtx.drawImage(pCanvas, 0, 0, miniCanvas.width, miniCanvas.height);
+        mCtx.drawImage(sourceCanvas, 0, 0, miniCanvas.width, miniCanvas.height);
     }
 }

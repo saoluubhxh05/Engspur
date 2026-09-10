@@ -102,6 +102,75 @@ async function fetchEdgeTtsAudioBuffer(text, voice = 'edge:en-US-JennyNeural', r
     }
 }
 
+function getCachedAudioBuffer(text, voice = 'edge:en-US-JennyNeural', rate = 0.95) {
+    if (!text || !text.trim()) return null;
+    const cleanVoice = (voice || 'edge:en-US-JennyNeural').replace(/^edge:/, '');
+    const cacheKey = `${cleanVoice}__${rate}__${text.trim()}`;
+    return clientAudioBufferCache.get(cacheKey) || null;
+}
+
+function playAudioBufferDirectly(buffer, callback) {
+    if (!buffer) {
+        if (callback) callback();
+        return;
+    }
+    const audioCtx = getSharedAudioContext();
+    if (currentPlayingAudioSource) {
+        try {
+            currentPlayingAudioSource.stop();
+            currentPlayingAudioSource.disconnect();
+        } catch (e) {}
+        currentPlayingAudioSource = null;
+    }
+
+    try {
+        const source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+
+        // Kết nối tới loa ngoài người dùng
+        source.connect(audioCtx.destination);
+
+        // Luôn kết nối trực tiếp vào studio bus để MediaRecorder thu âm trong veo, không độ trễ
+        if (batchStudioAudioDest) {
+            try {
+                source.connect(batchStudioAudioDest);
+            } catch (e) {
+                console.warn("Không thể kết nối vào batchStudioAudioDest", e);
+            }
+        }
+
+        currentPlayingAudioSource = source;
+        let finished = false;
+        const onFinished = () => {
+            if (!finished) {
+                finished = true;
+                currentPlayingAudioSource = null;
+                if (callback) callback();
+            }
+        };
+
+        source.onended = onFinished;
+        source.start(0);
+
+        // ĐỒNG BỘ 100% VỚI MINI LIVE MONITOR:
+        // Ghi lại mốc mili-giây chính xác khi âm thanh bắt đầu phát ra loa và vào luồng MediaRecorder
+        if (typeof isBatchRunning !== 'undefined' && isBatchRunning && typeof batchCurrentVideoStartTime !== 'undefined' && batchCurrentVideoStartTime > 0) {
+            const actualAudioTimeMs = Math.max(0, Math.round(performance.now() - batchCurrentVideoStartTime));
+            if (typeof batchTopicScheduledAudioList !== 'undefined' && Array.isArray(batchTopicScheduledAudioList)) {
+                batchTopicScheduledAudioList.push({
+                    timeMs: actualAudioTimeMs,
+                    audioBuffer: buffer
+                });
+            }
+        }
+
+        setTimeout(onFinished, Math.max(2000, buffer.duration * 1000 + 500));
+    } catch (err) {
+        console.error("Lỗi phát audio qua AudioContext:", err);
+        if (callback) callback();
+    }
+}
+
 function speakTTS(text, callback) {
     if (!text || !text.trim()) {
         if (callback) callback();
@@ -113,59 +182,19 @@ function speakTTS(text, callback) {
 
     // DÙNG GIỌNG MICROSOFT EDGE NEURAL TRỰC TIẾP QUA WEB AUDIO API
     if (typeof currentVoice === 'string' && currentVoice.startsWith('edge:')) {
-        const audioCtx = getSharedAudioContext();
-        
-        // Ngắt âm thanh trước nếu đang phát
-        if (currentPlayingAudioSource) {
-            try {
-                currentPlayingAudioSource.stop();
-                currentPlayingAudioSource.disconnect();
-            } catch (e) {}
-            currentPlayingAudioSource = null;
+        // Kiểm tra tức thì trong cache để phát với độ trễ 0ms (Zero Latency Sync)
+        const cached = getCachedAudioBuffer(text, currentVoice, currentRate);
+        if (cached) {
+            playAudioBufferDirectly(cached, callback);
+            return;
         }
 
         fetchEdgeTtsAudioBuffer(text, currentVoice, currentRate).then(buffer => {
             if (!buffer) {
-                // Fallback nếu không tải được buffer
                 speakWithSpeechSynthesisFallback(text, callback);
                 return;
             }
-
-            try {
-                const source = audioCtx.createBufferSource();
-                source.buffer = buffer;
-
-                // Kết nối tới loa người dùng
-                source.connect(audioCtx.destination);
-
-                // Nếu đang trong tiến trình Render Batch có studio destination, kết nối thêm vào để thu âm MP4
-                if (batchStudioAudioDest) {
-                    try {
-                        source.connect(batchStudioAudioDest);
-                    } catch (e) {
-                        console.warn("Không thể kết nối vào batchStudioAudioDest", e);
-                    }
-                }
-
-                currentPlayingAudioSource = source;
-                let finished = false;
-                const onFinished = () => {
-                    if (!finished) {
-                        finished = true;
-                        currentPlayingAudioSource = null;
-                        if (callback) callback();
-                    }
-                };
-
-                source.onended = onFinished;
-                source.start(0);
-
-                // Watchdog an toàn phòng trường hợp kết thúc chậm
-                setTimeout(onFinished, Math.max(2000, buffer.duration * 1000 + 500));
-            } catch (err) {
-                console.error("Lỗi phát audio qua AudioContext:", err);
-                speakWithSpeechSynthesisFallback(text, callback);
-            }
+            playAudioBufferDirectly(buffer, callback);
         }).catch(err => {
             console.error("Lỗi fetch audio:", err);
             speakWithSpeechSynthesisFallback(text, callback);
@@ -309,11 +338,19 @@ function updateParagraphConfig() {
  * Ghép nối các đoạn AudioBuffer thành một file WAV chuẩn Studio 44.1kHz Stereo 16-bit
  * Khớp chuẩn từng mili-giây với timeline kịch bản, không lẫn tạp âm, không phụ thuộc loa máy
  */
-function createMasterWavBlobFromSentenceAudios(scheduledAudios, totalDurationMs = 0, sampleRate = 44100) {
+function createMasterWavBlobFromSentenceAudios(scheduledAudios, totalDurationMs = 0, targetSampleRate = 44100) {
     const numChannels = 2;
     const bitsPerSample = 16;
     const bytesPerSample = bitsPerSample / 8;
     const blockAlign = numChannels * bytesPerSample;
+
+    // Tự động nhận diện sample rate của AudioBuffer thực tế (thường là 48000Hz hoặc 44100Hz của phần cứng)
+    let sampleRate = targetSampleRate;
+    if (scheduledAudios && scheduledAudios.length > 0 && scheduledAudios[0].audioBuffer) {
+        sampleRate = scheduledAudios[0].audioBuffer.sampleRate || targetSampleRate;
+    } else if (typeof sharedStudioAudioCtx !== 'undefined' && sharedStudioAudioCtx && sharedStudioAudioCtx.sampleRate) {
+        sampleRate = sharedStudioAudioCtx.sampleRate;
+    }
 
     const totalSamples = Math.max(
         Math.round(sampleRate * 0.5),
@@ -331,12 +368,30 @@ function createMasterWavBlobFromSentenceAudios(scheduledAudios, totalDurationMs 
             const bufLen = buffer.length;
             const bL = buffer.getChannelData(0);
             const bR = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : bL;
+            const bufRate = buffer.sampleRate || sampleRate;
 
-            for (let i = 0; i < bufLen; i++) {
-                const targetIdx = startSample + i;
-                if (targetIdx >= totalSamples) break;
-                masterLeft[targetIdx] += bL[i];
-                masterRight[targetIdx] += bR[i];
+            if (bufRate === sampleRate) {
+                for (let i = 0; i < bufLen; i++) {
+                    const targetIdx = startSample + i;
+                    if (targetIdx >= totalSamples) break;
+                    masterLeft[targetIdx] += bL[i];
+                    masterRight[targetIdx] += bR[i];
+                }
+            } else {
+                const ratio = bufRate / sampleRate;
+                const effectiveLen = Math.round(bufLen / ratio);
+                for (let i = 0; i < effectiveLen; i++) {
+                    const targetIdx = startSample + i;
+                    if (targetIdx >= totalSamples) break;
+                    const srcIdx = i * ratio;
+                    const i0 = Math.floor(srcIdx);
+                    const i1 = Math.min(bufLen - 1, i0 + 1);
+                    const frac = srcIdx - i0;
+                    const sL = bL[i0] + frac * ((bL[i1] || 0) - bL[i0]);
+                    const sR = bR[i0] + frac * ((bR[i1] || 0) - bR[i0]);
+                    masterLeft[targetIdx] += sL;
+                    masterRight[targetIdx] += sR;
+                }
             }
         });
     }

@@ -69,10 +69,16 @@ var batchCompletedReports = [];
 var batchCurrentVideoStartTime = 0;
 var batchSharedAudioTrack = null;
 var batchExecutionMode = 'combined';
+var batchCurrentSubPhase = 'full'; // 'full' | 'clean'
 var batchAudioContext = null;
 var batchAudioSourceNode = null;
 var batchAudioProcessorNode = null;
 var batchCurrentTopicPcmChunks = [];
+var batchTopicScheduledAudioList = [];
+var batchCurrentTopicRealSentenceLogs = [];
+var currentBatchSentenceLog = null;
+var currentSentenceStartWallTime = 0;
+var currentSentenceTriggeredAudioGroups = new Set();
 var batchAudioSampleRate = 44100;
 
 var selectedFieldKeysList = ["Substitution words"];

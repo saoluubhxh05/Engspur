@@ -109,15 +109,29 @@
             </button>
         </nav>
 
-        <div class="flex items-center space-x-1 bg-slate-950 p-1 rounded-xl border border-emerald-900/60 shadow-lg">
-            <button onclick="saveFullSystemState()" class="px-2.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-xs font-black transition flex items-center space-x-1.5 shadow-md active:scale-95">
+        <div class="flex items-center space-x-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 shadow-lg">
+            <span id="hdr-autosave-status" class="text-[10px] text-emerald-400 font-semibold px-2 py-1 rounded bg-emerald-950/80 border border-emerald-800/60 transition-opacity duration-300 opacity-0 whitespace-nowrap">Đã tự động lưu</span>
+            
+            <button onclick="loadRichDemoDataset(true)" class="px-2.5 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 rounded-lg text-xs font-black transition flex items-center space-x-1.5 shadow-md active:scale-95" title="Nạp sẵn 3 chủ đề tiếng Anh và 6 ảnh mẫu 9:16 để chạy thử ngay lập tức">
+                <i data-lucide="zap" class="w-3.5 h-3.5 fill-slate-950"></i>
+                <span>Nạp Mẫu Thử</span>
+            </button>
+
+            <button onclick="saveFullSystemState()" class="px-2.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-xs font-black transition flex items-center space-x-1.5 shadow-md active:scale-95" title="Lưu thủ công toàn bộ dữ liệu & cấu hình vào máy">
                 <i data-lucide="save" class="w-3.5 h-3.5"></i>
-                <span>Lưu Hệ Thống</span>
+                <span>Lưu Máy</span>
             </button>
-            <button onclick="loadFullSystemState(true)" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-bold transition flex items-center space-x-1" title="Tải lại toàn bộ dữ liệu">
-                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-                <span>Tải lại</span>
+
+            <button onclick="exportFullWorkspaceToJSON()" class="px-2 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/80 rounded-lg text-xs font-bold transition flex items-center space-x-1" title="Xuất toàn bộ Excel, ảnh local và kịch bản ra 1 file JSON duy nhất để lưu trữ">
+                <i data-lucide="download" class="w-3.5 h-3.5 text-indigo-400"></i>
+                <span>Xuất File</span>
             </button>
+
+            <button onclick="document.getElementById('full-workspace-file-input').click()" class="px-2 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/80 rounded-lg text-xs font-bold transition flex items-center space-x-1" title="Khôi phục toàn bộ không gian làm việc từ file sao lưu JSON">
+                <i data-lucide="upload" class="w-3.5 h-3.5 text-emerald-400"></i>
+                <span>Nhập File</span>
+            </button>
+            <input type="file" id="full-workspace-file-input" accept=".json" onchange="handleImportFullWorkspaceJSON(event)" class="hidden">
         </div>
     </header>
 
@@ -138,16 +152,45 @@
             <div id="col-left-scroll-container" class="flex-grow overflow-y-auto p-3 space-y-3">
                 <!-- TAB 1: UPLOAD EXCEL & ẢNH -->
                 <div id="subtab-panel-1" class="space-y-3">
+                    <!-- KHỐI NẠP MẪU CHẠY THỬ NHANH -->
+                    <div class="bg-gradient-to-br from-amber-950/50 to-slate-950 p-3 rounded-xl border border-amber-500/40 space-y-2 shadow-lg">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-6 h-6 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h3 class="text-xs font-black text-amber-300 truncate">Thử Nghiệm Siêu Tốc (Không Cần Up File)</h3>
+                                <p class="text-[10px] text-slate-400">Tự nạp 3 chủ đề tiếng Anh & 6 ảnh minh họa 9:16 sắc nét.</p>
+                            </div>
+                        </div>
+                        <button onclick="loadRichDemoDataset(true)" class="w-full py-1.5 px-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 rounded-lg text-[11px] font-black flex items-center justify-center space-x-1.5 transition shadow active:scale-95">
+                            <i data-lucide="zap" class="w-3.5 h-3.5 fill-slate-950"></i>
+                            <span>Nạp Sẵn Kịch Bản & Ảnh Mẫu Thử Ngay</span>
+                        </button>
+                    </div>
+
                     <!-- KHỐI QUẢN LÝ LƯU & XÓA SẠCH DỮ LIỆU ĐÃ UP -->
-                    <div class="bg-slate-950/90 p-2.5 rounded-xl border border-indigo-500/40 flex items-center justify-between gap-2 shadow">
-                        <button onclick="saveUploadedDataPermanently()" class="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[11px] font-extrabold flex items-center justify-center space-x-1 transition shadow active:scale-95" title="Lưu lại toàn bộ Excel và ảnh để lần sau mở ra dùng ngay">
-                            <i data-lucide="save" class="w-3.5 h-3.5"></i>
-                            <span>Lưu Dữ Liệu Đã Up</span>
-                        </button>
-                        <button onclick="clearAllUploadedData()" class="py-1.5 px-2 bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800/80 rounded-lg text-[11px] font-bold flex items-center justify-center space-x-1 transition active:scale-95" title="Xóa sạch file Excel và toàn bộ ảnh local">
-                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                            <span>Xóa Sạch</span>
-                        </button>
+                    <div class="bg-slate-950/90 p-2.5 rounded-xl border border-indigo-500/40 space-y-2 shadow">
+                        <div class="flex items-center justify-between gap-2">
+                            <button onclick="saveUploadedDataPermanently()" class="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[11px] font-extrabold flex items-center justify-center space-x-1 transition shadow active:scale-95" title="Lưu lại toàn bộ Excel và ảnh vào trình duyệt để lần sau mở ra dùng ngay">
+                                <i data-lucide="save" class="w-3.5 h-3.5"></i>
+                                <span>Lưu Dữ Liệu Đã Up</span>
+                            </button>
+                            <button onclick="clearAllUploadedData()" class="py-1.5 px-2 bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800/80 rounded-lg text-[11px] font-bold flex items-center justify-center space-x-1 transition active:scale-95" title="Xóa sạch file Excel và toàn bộ ảnh local">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                <span>Xóa Sạch</span>
+                            </button>
+                        </div>
+                        <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-800 text-[10px]">
+                            <button onclick="exportFullWorkspaceToJSON()" class="flex-1 py-1 px-2 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 rounded font-bold flex items-center justify-center space-x-1">
+                                <i data-lucide="download" class="w-3 h-3 text-indigo-400"></i>
+                                <span>Xuất File (.JSON)</span>
+                            </button>
+                            <button onclick="document.getElementById('full-workspace-file-input').click()" class="flex-1 py-1 px-2 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 rounded font-bold flex items-center justify-center space-x-1">
+                                <i data-lucide="upload" class="w-3 h-3 text-emerald-400"></i>
+                                <span>Khôi Phục (.JSON)</span>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-2.5 shadow">
@@ -719,8 +762,8 @@
             </div>
 
             <div class="overflow-y-auto flex-grow grid grid-cols-1 lg:grid-cols-12 gap-3 pr-1">
-                <div class="lg:col-span-8 space-y-3">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
+                <div class="lg:col-span-8 flex flex-col space-y-3">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs shrink-0">
                         <div class="bg-slate-950 p-2.5 rounded-xl border border-indigo-500/40 space-y-1">
                             <label class="text-[10px] text-indigo-400 font-bold flex items-center space-x-1">
                                 <i data-lucide="git-branch" class="w-3.5 h-3.5"></i>
@@ -758,7 +801,7 @@
                         </div>
                     </div>
 
-                    <div id="batch-chain-selector-panel" class="bg-slate-950 p-3 rounded-xl border border-indigo-500/60 space-y-2.5 hidden">
+                    <div id="batch-chain-selector-panel" class="bg-slate-950 p-3 rounded-xl border border-indigo-500/60 space-y-2.5 hidden shrink-0">
                         <div class="flex items-center justify-between border-b border-slate-800/80 pb-1.5">
                             <span class="text-[11px] font-extrabold text-indigo-300 flex items-center space-x-1.5">
                                 <i data-lucide="link" class="w-3.5 h-3.5 text-indigo-400"></i>
@@ -784,10 +827,20 @@
                         </div>
                     </div>
 
-                    <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-800">
-                        <div class="flex items-center space-x-1.5">
-                            <button onclick="toggleSelectAllBatchTopics(true)" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] font-bold">Chọn Tất Cả Chủ Đề</button>
-                            <button onclick="toggleSelectAllBatchTopics(false)" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] font-bold">Bỏ Chọn Hết</button>
+                    <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-800 shrink-0">
+                        <div class="flex items-center flex-wrap gap-2 text-xs font-semibold">
+                            <span class="text-slate-300">Hàng đợi bài học cần Render:</span>
+                            <span id="batch-queue-count-badge" class="text-[10px] text-emerald-300 font-bold bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/80">Đã chọn: 0/0 bài học</span>
+                            <div class="flex items-center space-x-1">
+                                <button type="button" onclick="toggleSelectAllBatchQueueRows(true)" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 border border-slate-700 hover:border-emerald-500/50 rounded-lg text-[10px] font-bold transition flex items-center space-x-1 shadow-sm active:scale-95" title="Chọn tất cả bài học trong hàng đợi">
+                                    <i data-lucide="check-square" class="w-3 h-3"></i>
+                                    <span>Chọn hết</span>
+                                </button>
+                                <button type="button" onclick="toggleSelectAllBatchQueueRows(false)" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-500/50 rounded-lg text-[10px] font-bold transition flex items-center space-x-1 shadow-sm active:scale-95" title="Bỏ chọn tất cả bài học">
+                                    <i data-lucide="square" class="w-3 h-3"></i>
+                                    <span>Bỏ chọn hết</span>
+                                </button>
+                            </div>
                         </div>
 
                         <div class="flex items-center gap-1.5">
@@ -814,11 +867,11 @@
                         </div>
                     </div>
 
-                    <div class="overflow-x-auto border border-slate-800 rounded-xl max-h-56 overflow-y-auto">
+                    <div class="overflow-x-auto border border-slate-800 rounded-xl flex-grow overflow-y-auto min-h-[300px]">
                         <table class="w-full text-left border-collapse text-xs">
                             <thead>
-                                <tr class="bg-slate-950 text-[10px] font-bold text-slate-400 uppercase border-b border-slate-800">
-                                    <th class="p-2.5 w-8 text-center"><input type="checkbox" id="batch-master-checkbox" checked onchange="toggleSelectAllBatchTopics(this.checked)" class="rounded bg-slate-900 border-slate-700 text-emerald-500 focus:ring-0 cursor-pointer"></th>
+                                <tr class="bg-slate-950 text-[10px] font-bold text-slate-400 uppercase border-b border-slate-800 sticky top-0 z-10">
+                                    <th class="p-2.5 w-8 text-center"><input type="checkbox" id="batch-master-checkbox" checked onchange="toggleSelectAllBatchQueueRows(this.checked)" class="rounded bg-slate-900 border-slate-700 text-emerald-500 focus:ring-0 cursor-pointer" title="Chọn/Bỏ chọn tất cả"></th>
                                     <th class="p-2.5"># STT</th>
                                     <th class="p-2.5">Kịch Bản</th>
                                     <th class="p-2.5">Chủ Đề</th>

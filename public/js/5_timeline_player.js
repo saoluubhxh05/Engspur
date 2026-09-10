@@ -15,6 +15,7 @@ function updateMasterLoopDuration(val) {
     renderTimelineLayersListUI();
     seekTimeline(currentTimelinePlayTime);
     showToast(`Tổng thời lượng 1 câu: ${masterTimelineDuration.toFixed(1)}s`);
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
 }
 
 function setTimelineTrackDensity(density) {
@@ -262,6 +263,7 @@ function onTimelineBarMouseUp() {
         window.removeEventListener('mousemove', onTimelineBarMouseMove);
         window.removeEventListener('mouseup', onTimelineBarMouseUp);
         renderTimelineLayersListUI();
+        if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
     }
 }
 
@@ -338,12 +340,14 @@ function timelinePlaybackLoop(timestamp) {
             if (window.lucide && lucide.createIcons) lucide.createIcons();
             seekTimeline(0);
             activePlayingAudioGroupIdx = -1;
+            if (currentSentenceTriggeredAudioGroups) currentSentenceTriggeredAudioGroups.clear();
             const statusBadge = document.getElementById('p-status-badge-text');
             if (statusBadge) statusBadge.innerText = "Trạng thái: Đã phát xong câu!";
             return;
         } else {
             currentTimelinePlayTime = 0;
             activePlayingAudioGroupIdx = -1;
+            if (currentSentenceTriggeredAudioGroups) currentSentenceTriggeredAudioGroups.clear();
         }
     }
 
@@ -386,18 +390,40 @@ function checkAndTriggerTimelineAudio(curTime) {
 
     paragraphGridConfig.groups.forEach((grp, gIdx) => {
         const start = grp.startTime || 0;
-        if (curTime >= start && curTime < (start + 0.35) && activePlayingAudioGroupIdx !== gIdx) {
+        // Kích hoạt chuẩn xác khi playhead chạm tới mốc bắt đầu layer và chưa từng trigger trong câu này
+        const isAlreadyTriggered = currentSentenceTriggeredAudioGroups ? currentSentenceTriggeredAudioGroups.has(gIdx) : (activePlayingAudioGroupIdx === gIdx);
+        if (curTime >= start && !isAlreadyTriggered) {
+            // Khi đang ở pha quay bản Clean (Render Kép pha 2): tuyệt đối không phát âm thanh để tiết kiệm tài nguyên
+            if (isBatchRunning && typeof batchCurrentSubPhase !== 'undefined' && batchCurrentSubPhase === 'clean') {
+                return;
+            }
+
+            // ĐẢM BẢO CHẶT CHẼ: Nếu có bất kỳ layer nào đứng trước chứa đồng hồ đếm ngược (countdown) mà thời gian đếm ngược chưa xong,
+            // TUYỆT ĐỐI KHÔNG kích hoạt âm thanh của layer này (loại bỏ triệt để hiện tượng tiếng câu sau phát đè lên lúc đếm ngược)
+            const hasPendingCountdownBefore = paragraphGridConfig.groups.some((otherGrp, otherIdx) => {
+                if (otherIdx >= gIdx) return false;
+                const hasCountdown = (otherGrp.fields || []).some(f => f.type === 'countdown');
+                if (!hasCountdown) return false;
+                const otherEnd = (otherGrp.startTime || 0) + (otherGrp.duration || 3.0);
+                return curTime < otherEnd;
+            });
+            if (hasPendingCountdownBefore) {
+                return;
+            }
+
             const ttsItem = (grp.fields || []).find(f => f.type === 'tts');
             if (ttsItem) {
+                if (currentSentenceTriggeredAudioGroups) currentSentenceTriggeredAudioGroups.add(gIdx);
                 activePlayingAudioGroupIdx = gIdx;
                 let textToRead = "";
                 const fields = ttsItem.ttsSpeakFields || ["Substitution Drills"];
                 fields.forEach(fk => {
                     if (dataMap[fk]) textToRead += dataMap[fk] + ". ";
                 });
+                textToRead = textToRead.trim();
 
-                if (textToRead.trim()) {
-                    speakTTS(textToRead.trim());
+                if (textToRead) {
+                    speakTTS(textToRead);
                 }
             }
         }
@@ -455,6 +481,28 @@ function runUnifiedSentenceSequence() {
     seekTimeline(0.0);
     updateParagraphProgressBar();
     activePlayingAudioGroupIdx = -1;
+    if (currentSentenceTriggeredAudioGroups) currentSentenceTriggeredAudioGroups.clear();
+
+    // Ghi nhận mốc thời gian bắt đầu câu thực tế cho Báo cáo Sheet 2 của Batch Render
+    if (isBatchRunning && batchCurrentVideoStartTime > 0) {
+        const curDs = activeTopicList[pCurrentSentenceIndex] || importedDatasets[0] || {};
+        const drill = (curDs && curDs.drills && curDs.drills[0]) ? curDs.drills[0] : {};
+        const currentItem = (typeof batchRenderQueue !== 'undefined' && batchRenderQueue[currentBatchQueueIndex]) ? batchRenderQueue[currentBatchQueueIndex] : null;
+        const startMs = Math.round(performance.now() - batchCurrentVideoStartTime);
+
+        currentBatchSentenceLog = {
+            stt: (batchTimelineSentenceLogs ? batchTimelineSentenceLogs.length : 0) + (batchCurrentTopicRealSentenceLogs ? batchCurrentTopicRealSentenceLogs.length : 0) + 1,
+            scriptName: currentItem ? currentItem.scriptTag : "",
+            topic: currentItem ? currentItem.topic : "",
+            sentenceIdx: pCurrentSentenceIndex + 1,
+            cueWord: drill.cueWord || "",
+            drillText: drill.drillText || "",
+            startMs: startMs,
+            endMs: startMs + Math.round(masterTimelineDuration * 1000),
+            durationMs: Math.round(masterTimelineDuration * 1000)
+        };
+    }
+
     resumeUnifiedSentenceSequence();
 }
 
@@ -528,16 +576,17 @@ function stopStudioRenderClock() {
 }
 
 function resumeUnifiedSentenceSequence() {
-    let lastTs = performance.now();
+    let sentenceStartTs = performance.now() - (currentTimelinePlayTime * 1000);
     let isTransitioningToNext = false;
 
     const sentenceStep = (nowTs) => {
         if (!isParagraphRunning || isParagraphPaused || isTransitioningToNext) return;
-        const rawDelta = (nowTs - lastTs) / 1000;
-        const delta = Math.min(0.05, Math.max(0.001, rawDelta));
-        lastTs = nowTs;
 
-        currentTimelinePlayTime += delta;
+        // ĐỒNG BỘ THỜI GIAN THEO ĐỒNG HỒ THỜI GIAN THỰC (REAL-TIME CLOCK SYNCHRONIZATION)
+        // 1 giây đời thực = 1 giây timeline, loại bỏ triệt để hiện tượng hình chạy chậm hơn tiếng
+        const elapsedSec = (nowTs - sentenceStartTs) / 1000;
+        currentTimelinePlayTime = Math.max(0, elapsedSec);
+
         if (currentTimelinePlayTime < masterTimelineDuration) {
             const timeDisplay = document.getElementById('timeline-current-time-display');
             if (timeDisplay) timeDisplay.innerText = `${currentTimelinePlayTime.toFixed(1)}s`;
@@ -547,13 +596,40 @@ function resumeUnifiedSentenceSequence() {
         } else {
             isTransitioningToNext = true;
             stopStudioRenderClock();
-            setTimeout(() => {
-                if (!isParagraphPaused && isParagraphRunning) {
-                    pCurrentSentenceIndex++;
-                    currentTimelinePlayTime = 0.0;
-                    runUnifiedSentenceSequence();
+
+            // Chốt mốc kết thúc câu thực tế cho Báo cáo Sheet 2 của Batch Render
+            if (isBatchRunning && currentBatchSentenceLog) {
+                const endMs = Math.round(performance.now() - batchCurrentVideoStartTime);
+                currentBatchSentenceLog.endMs = endMs;
+                currentBatchSentenceLog.durationMs = endMs - currentBatchSentenceLog.startMs;
+                if (batchCurrentTopicRealSentenceLogs) {
+                    batchCurrentTopicRealSentenceLogs.push(currentBatchSentenceLog);
                 }
-            }, 800);
+                currentBatchSentenceLog = null;
+            }
+
+            // DUY TRÌ VẼ CANVAS 30FPS LIÊN TỤC TRONG KHOẢNG NGHỈ GIỮA 2 CÂU (INTER-SENTENCE TRANSITION)
+            // Đảm bảo captureStream không bị khựng hoặc lệch timestamp so với luồng AudioTrack trong file Full.mp4
+            const transitionStartTs = performance.now();
+            const pauseDurationMs = 500; // Khoảng dừng 0.5s tự nhiên giữa các câu
+
+            const transitionStep = () => {
+                if (!isParagraphRunning || isParagraphPaused) {
+                    stopStudioRenderClock();
+                    return;
+                }
+                drawParagraphCanvasFrame();
+
+                if (performance.now() - transitionStartTs >= pauseDurationMs) {
+                    stopStudioRenderClock();
+                    if (!isParagraphPaused && isParagraphRunning) {
+                        pCurrentSentenceIndex++;
+                        currentTimelinePlayTime = 0.0;
+                        runUnifiedSentenceSequence();
+                    }
+                }
+            };
+            startStudioRenderClock(transitionStep);
         }
     };
 
@@ -561,29 +637,38 @@ function resumeUnifiedSentenceSequence() {
 }
 
 function finishParagraphExport() {
-    setTimeout(() => {
-        stopStudioRenderClock();
-        if (pMediaRecorder && pMediaRecorder.state !== 'inactive') try { pMediaRecorder.stop(); } catch(e){}
-        if (pCleanMediaRecorder && pCleanMediaRecorder.state !== 'inactive') try { pCleanMediaRecorder.stop(); } catch(e){}
-        if (pRenderTimer) cancelAnimationFrame(pRenderTimer);
+    // Duy trì vẽ canvas 400ms cuối trước khi dừng MediaRecorder để không bị ngắt cụt đuôi video
+    const finishStartTs = performance.now();
+    const finishStep = () => {
+        drawParagraphCanvasFrame();
+        if (performance.now() - finishStartTs >= 500) {
+            stopStudioRenderClock();
+            if (isBatchRunning && typeof batchExecutionMode !== 'undefined' && batchExecutionMode === 'dual_parallel' && typeof batchCurrentSubPhase !== 'undefined' && batchCurrentSubPhase === 'clean') {
+                if (pCleanMediaRecorder && pCleanMediaRecorder.state !== 'inactive') try { pCleanMediaRecorder.stop(); } catch(e){}
+            } else {
+                if (pMediaRecorder && pMediaRecorder.state !== 'inactive') try { pMediaRecorder.stop(); } catch(e){}
+            }
+            if (pRenderTimer) cancelAnimationFrame(pRenderTimer);
 
-        isParagraphRunning = false;
-        isParagraphPaused = false;
-        const btnIcon = document.getElementById('p-preview-btn-icon');
-        const btnText = document.getElementById('p-preview-btn-text');
-        if (btnIcon) btnIcon.setAttribute('data-lucide', 'play-circle');
-        if (btnText) btnText.innerText = "Chạy Thử Toàn Bộ (Preview)";
-        if (window.lucide && lucide.createIcons) lucide.createIcons();
+            isParagraphRunning = false;
+            isParagraphPaused = false;
+            const btnIcon = document.getElementById('p-preview-btn-icon');
+            const btnText = document.getElementById('p-preview-btn-text');
+            if (btnIcon) btnIcon.setAttribute('data-lucide', 'play-circle');
+            if (btnText) btnText.innerText = "Chạy Thử Toàn Bộ (Preview)";
+            if (window.lucide && lucide.createIcons) lucide.createIcons();
 
-        const statusBadge = document.getElementById('p-status-badge-text');
-        if (statusBadge) statusBadge.innerText = "Trạng thái: Hoàn Tất!";
-        const pBar = document.getElementById('p-render-progress-bar');
-        if (pBar) pBar.style.width = '100%';
-        const pPct = document.getElementById('p-render-percentage-text');
-        if (pPct) pPct.innerText = '100%';
-        seekTimeline(0);
-        if (!isBatchRunning) showToast("Đã xem thử hoàn tất toàn bộ video!");
-    }, 800);
+            const statusBadge = document.getElementById('p-status-badge-text');
+            if (statusBadge) statusBadge.innerText = "Trạng thái: Hoàn Tất!";
+            const pBar = document.getElementById('p-render-progress-bar');
+            if (pBar) pBar.style.width = '100%';
+            const pPct = document.getElementById('p-render-percentage-text');
+            if (pPct) pPct.innerText = '100%';
+            seekTimeline(0);
+            if (!isBatchRunning) showToast("Đã xem thử hoàn tất toàn bộ video!");
+        }
+    };
+    startStudioRenderClock(finishStep);
 }
 
 function resetParagraphEngine() {

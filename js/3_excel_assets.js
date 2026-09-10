@@ -104,6 +104,7 @@ function processImportedExcelRows(rows) {
         autoRecalculateAudioLayersDuration();
         drawParagraphCanvasFrame();
         showToast(`Đã import ${rows.length} dòng thành ${parsed.length} Mẫu câu!`);
+        if (typeof triggerAutoSave === 'function') triggerAutoSave(true);
     }
 }
 
@@ -149,6 +150,10 @@ function handleLocalImagesUpload(e) {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    let loadedCount = 0;
+    const totalImageFiles = Array.from(files).filter(f => f.type.startsWith('image/')).length;
+    if (totalImageFiles === 0) return;
+
     for (let i = 0; i < files.length; i++) {
         const f = files[i];
         if (f.type.startsWith('image/')) {
@@ -161,15 +166,20 @@ function handleLocalImagesUpload(e) {
                 img.src = base64;
                 img.onload = () => {
                     localPCImageMap[key] = img;
+                    loadedCount++;
                     const pcBadge = document.getElementById('pc-image-badge');
                     if (pcBadge) pcBadge.innerText = `${Object.keys(localPCImageMap).length} Ảnh Local`;
                     drawParagraphCanvasFrame();
+
+                    if (loadedCount >= totalImageFiles) {
+                        if (typeof triggerAutoSave === 'function') triggerAutoSave(true);
+                    }
                 };
             };
             reader.readAsDataURL(f);
         }
     }
-    showToast("Đã nạp thư mục ảnh thành công!");
+    showToast(`Đang nạp ${totalImageFiles} ảnh từ thư mục...`);
 }
 
 function updateTopicDropdown() {
@@ -214,6 +224,7 @@ function handleCanvasBgUpload(e) {
             if (document.getElementById('p-bg-file-name-badge')) document.getElementById('p-bg-file-name-badge').innerText = file.name;
             drawParagraphCanvasFrame();
             showToast("Đã tải ảnh nền Canvas!");
+            if (typeof triggerAutoSave === 'function') triggerAutoSave(true);
         };
     };
     reader.readAsDataURL(file);
@@ -225,6 +236,7 @@ function clearCanvasBgImage() {
     if (document.getElementById('p-bg-file-name-badge')) document.getElementById('p-bg-file-name-badge').innerText = "Chưa chọn ảnh nền";
     drawParagraphCanvasFrame();
     showToast("Đã xóa ảnh nền Canvas!");
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(true);
 }
 
 function handleCanvasBadgeUpload(e) {
@@ -240,6 +252,7 @@ function handleCanvasBadgeUpload(e) {
             if (document.getElementById('p-badge-file-name-info')) document.getElementById('p-badge-file-name-info').innerText = file.name;
             drawParagraphCanvasFrame();
             showToast("Đã tải Logo/Badge!");
+            if (typeof triggerAutoSave === 'function') triggerAutoSave(true);
         };
     };
     reader.readAsDataURL(file);
@@ -251,18 +264,21 @@ function clearCanvasBadgeImage() {
     if (document.getElementById('p-badge-file-name-info')) document.getElementById('p-badge-file-name-info').innerText = "Chưa tải Logo/Badge";
     drawParagraphCanvasFrame();
     showToast("Đã xóa Logo/Badge!");
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(true);
 }
 
 function updateCanvasBgProp(prop, val) {
     if (!videoConfig.bgImageStyle) videoConfig.bgImageStyle = { widthPct: 100, heightPct: 100, posX: 0, posY: 0, opacity: 100 };
     videoConfig.bgImageStyle[prop] = isNaN(val) ? 0 : val;
     drawParagraphCanvasFrame();
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
 }
 
 function updateCanvasBadgeProp(prop, val) {
     if (!videoConfig.badgeStyle) videoConfig.badgeStyle = { widthPct: 15, heightPct: 10, posX: 82, posY: 4, opacity: 100, borderRadius: 20 };
     videoConfig.badgeStyle[prop] = isNaN(val) ? 0 : val;
     drawParagraphCanvasFrame();
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
 }
 
 function switchParagraphFrameSubTab(subKey) {

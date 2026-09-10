@@ -427,6 +427,7 @@ function applyPresetToSelectedFields(presetType) {
     renderInspectorRibbon();
     drawParagraphCanvasFrame();
     showToast(`Đã áp dụng mẫu màu: ${presetType}!`);
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
 }
 
 function applyMultiFieldProp(prop, val) {
@@ -436,6 +437,7 @@ function applyMultiFieldProp(prop, val) {
     });
     renderInspectorRibbon();
     drawParagraphCanvasFrame();
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
 }
 
 function toggleMultiFieldStyle(styleType) {
@@ -448,6 +450,7 @@ function toggleMultiFieldStyle(styleType) {
     });
     renderInspectorRibbon();
     drawParagraphCanvasFrame();
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
 }
 
 function renderMailMergeFieldChips() {
@@ -506,6 +509,7 @@ function onMailMergeChipClicked(fieldKey) {
     renderInspectorRibbon();
     drawParagraphCanvasFrame();
     showToast(`Đã thêm {{${fieldKey}}} vào Lớp ${paragraphSelectedGroupIdx + 1}!`);
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
 }
 
 function toggleAllFieldChipsVisibility() {
@@ -956,6 +960,7 @@ function updateSingleColumnWidth(colIdx, val) {
     if (!paragraphGridConfig.gridMatrix.columnWidths) paragraphGridConfig.gridMatrix.columnWidths = [60, 36];
     paragraphGridConfig.gridMatrix.columnWidths[colIdx] = isNaN(val) ? 20 : val;
     drawParagraphCanvasFrame();
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
 }
 
 function updateGridGlobalPadding() {
@@ -965,6 +970,7 @@ function updateGridGlobalPadding() {
     matrix.paddingLeftPct = parseInt(document.getElementById('grid-inline-padding-left').value) || 4;
     matrix.paddingRightPct = parseInt(document.getElementById('grid-inline-padding-right').value) || 4;
     drawParagraphCanvasFrame();
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
 }
 
 function toggleGridOverlayLines(isChecked) {
