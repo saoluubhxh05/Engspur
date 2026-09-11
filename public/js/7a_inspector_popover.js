@@ -60,8 +60,12 @@ function openFloatingCardPopover(e, gIdx, fIdx, type) {
         badgeType.innerText = "Giọng Đọc AI (TTS)";
         badgeType.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-500 text-white";
 
-        const allTextFields = excelColumnsList.filter(c => !c.toLowerCase().includes('anh') && !c.toLowerCase().includes('dinh_kem'));
+        const sourceMode = item.sourceMode || 'fields';
+        const allTextFields = (typeof excelColumnsList !== 'undefined' && excelColumnsList.length > 0)
+            ? excelColumnsList.filter(c => !c.toLowerCase().includes('anh') && !c.toLowerCase().includes('dinh_kem'))
+            : ['Sentence', 'Phonetic', 'Vietnamese meaning', 'Example sentence', 'Substitution words'];
         const curFields = item.ttsSpeakFields || [];
+        const customText = item.customText || '';
 
         const checkboxesHtml = allTextFields.map(tf => {
             const isChecked = curFields.includes(tf);
@@ -73,15 +77,46 @@ function openFloatingCardPopover(e, gIdx, fIdx, type) {
             `;
         }).join('');
 
+        const words = customText.trim() ? customText.trim().split(/\s+/).filter(Boolean).length : 0;
+
         body.innerHTML = `
-            <div class="space-y-1.5">
-                <label class="text-[10px] text-slate-300 font-bold block">Tích chọn các trường để AI đọc:</label>
-                <div class="grid grid-cols-2 gap-1 max-h-36 overflow-y-auto p-1 bg-slate-900 rounded-lg border border-slate-800">
-                    ${checkboxesHtml}
+            <div class="space-y-2">
+                <div class="grid grid-cols-2 gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-[10px] font-bold">
+                    <button type="button" onclick="setTtsSourceMode(${gIdx}, ${fIdx}, 'fields'); openFloatingCardPopover(null, ${gIdx}, ${fIdx}, 'tts');" class="py-1 px-1.5 rounded transition flex items-center justify-center space-x-1 ${sourceMode === 'fields' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}">
+                        <span>Từ Cột Excel</span>
+                    </button>
+                    <button type="button" onclick="setTtsSourceMode(${gIdx}, ${fIdx}, 'custom'); openFloatingCardPopover(null, ${gIdx}, ${fIdx}, 'tts');" class="py-1 px-1.5 rounded transition flex items-center justify-center space-x-1 ${sourceMode === 'custom' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}">
+                        <span>Đoạn Text Tự Nhập</span>
+                    </button>
                 </div>
-                <p class="text-[9px] text-indigo-300 italic">Hệ thống sẽ tự động đo số giây và khóa độ dài chính xác trên Timeline.</p>
+
+                ${sourceMode === 'fields' ? `
+                    <div class="space-y-1.5">
+                        <label class="text-[10px] text-slate-300 font-bold block">Tích chọn các trường để AI đọc:</label>
+                        <div class="grid grid-cols-2 gap-1 max-h-36 overflow-y-auto p-1 bg-slate-900 rounded-lg border border-slate-800">
+                            ${checkboxesHtml}
+                        </div>
+                    </div>
+                ` : `
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <label class="text-[10px] text-slate-300 font-bold block">Nhập đoạn text cần đọc:</label>
+                            <span class="text-[9px] text-amber-400 font-mono">${words} từ</span>
+                        </div>
+                        <textarea rows="3" oninput="updateTtsCustomText(${gIdx}, ${fIdx}, this.value)" placeholder="Nhập câu tiếng Anh hoặc hướng dẫn..." class="w-full bg-slate-950 border border-slate-800 rounded p-1.5 text-xs text-slate-100">${customText}</textarea>
+                    </div>
+                `}
+
+                <div class="flex items-center justify-between pt-1 border-t border-slate-800">
+                    <button type="button" onclick="previewCurrentTTSVoice()" class="py-1 px-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[10px] font-bold flex items-center space-x-1">
+                        <i data-lucide="play" class="w-3 h-3"></i>
+                        <span>Nghe thử AI</span>
+                    </button>
+                    <span class="text-[9px] text-indigo-300 italic">Khóa độ dài tự động trên Timeline</span>
+                </div>
             </div>
         `;
+        if (window.lucide && lucide.createIcons) lucide.createIcons();
     } else if (type === 'countdown') {
         badgeType.innerText = "Đồng Hồ Đếm Ngược";
         badgeType.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500 text-white";
@@ -141,6 +176,9 @@ function toggleTTSMultiFieldSelection(gIdx, fIdx, fieldKey, isChecked) {
     autoRecalculateAudioLayersDuration();
     renderTimelineLayersListUI();
     renderTimelineTracksUI();
+    if (typeof selectedTtsTarget !== 'undefined' && selectedTtsTarget && selectedTtsTarget.gIdx === gIdx && selectedTtsTarget.fIdx === fIdx) {
+        if (typeof renderTtsInspectorRibbon === 'function') renderTtsInspectorRibbon(item, gIdx, fIdx);
+    }
 }
 
 function updateCountdownProp(gIdx, fIdx, prop, val) {

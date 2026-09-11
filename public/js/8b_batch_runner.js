@@ -161,12 +161,16 @@ async function prepareTopicEdgeTtsAudios(topicName) {
         (paragraphGridConfig.groups || []).forEach((grp) => {
             const ttsItem = (grp.fields || []).find(f => f.type === 'tts');
             if (ttsItem) {
-                const fields = ttsItem.ttsSpeakFields || ["Substitution Drills"];
                 let textToRead = "";
-                fields.forEach(fk => {
-                    if (dataMap[fk]) textToRead += dataMap[fk] + ". ";
-                });
-                textToRead = textToRead.trim();
+                if (ttsItem.sourceMode === 'custom') {
+                    textToRead = (ttsItem.customText || "").trim();
+                } else {
+                    const fields = ttsItem.ttsSpeakFields || ["Substitution Drills"];
+                    fields.forEach(fk => {
+                        if (dataMap[fk]) textToRead += dataMap[fk] + ". ";
+                    });
+                    textToRead = textToRead.trim();
+                }
                 if (textToRead) {
                     if (typeof fetchEdgeTtsAudioBuffer === 'function') {
                         const p = fetchEdgeTtsAudioBuffer(textToRead, videoConfig.ttsVoice, videoConfig.ttsRate).catch(e => console.warn("Lỗi fetch trước TTS:", e));

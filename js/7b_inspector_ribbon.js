@@ -508,6 +508,49 @@ function renderCustomTextInspectorRibbon(item, gIdx, fIdx) {
     if (window.lucide && lucide.createIcons) lucide.createIcons();
 }
 
+var ttsCustomTextDebounce = null;
+
+function setTtsSourceMode(gIdx, fIdx, mode) {
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (!grp || !grp.fields[fIdx]) return;
+    const item = grp.fields[fIdx];
+    item.sourceMode = mode;
+    if (typeof autoRecalculateAudioLayersDuration === 'function') autoRecalculateAudioLayersDuration();
+    if (typeof renderTimelineLayersListUI === 'function') renderTimelineLayersListUI();
+    if (typeof renderTimelineTracksUI === 'function') renderTimelineTracksUI();
+    renderTtsInspectorRibbon(item, gIdx, fIdx);
+}
+
+function updateTtsCustomText(gIdx, fIdx, text) {
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (!grp || !grp.fields[fIdx]) return;
+    const item = grp.fields[fIdx];
+    item.customText = text;
+
+    const statsEl = document.getElementById('tts-custom-text-stats');
+    if (statsEl) {
+        const words = text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
+        statsEl.innerText = `${words} từ • ${text.length} ký tự`;
+    }
+
+    if (ttsCustomTextDebounce) clearTimeout(ttsCustomTextDebounce);
+    ttsCustomTextDebounce = setTimeout(() => {
+        if (typeof autoRecalculateAudioLayersDuration === 'function') autoRecalculateAudioLayersDuration();
+        if (typeof renderTimelineLayersListUI === 'function') renderTimelineLayersListUI();
+        if (typeof renderTimelineTracksUI === 'function') renderTimelineTracksUI();
+    }, 250);
+}
+
+function clearTtsCustomText(gIdx, fIdx) {
+    const input = document.getElementById('tts-custom-text-input');
+    if (input) input.value = '';
+    updateTtsCustomText(gIdx, fIdx, '');
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (grp && grp.fields[fIdx]) {
+        renderTtsInspectorRibbon(grp.fields[fIdx], gIdx, fIdx);
+    }
+}
+
 function renderTtsInspectorRibbon(item, gIdx, fIdx) {
     const body = document.getElementById('inspector-panel-body');
     const targetLabel = document.getElementById('inspector-target-label');
@@ -518,10 +561,13 @@ function renderTtsInspectorRibbon(item, gIdx, fIdx) {
         targetLabel.className = "text-[9px] font-extrabold bg-indigo-950 text-indigo-300 border border-indigo-700/80 px-2 py-0.5 rounded";
     }
 
+    const sourceMode = item.sourceMode || 'fields'; // 'fields' | 'custom'
+    const curFields = item.ttsSpeakFields || [];
+    const customText = item.customText || '';
+
     const allTextFields = (typeof excelColumnsList !== 'undefined' && excelColumnsList.length > 0)
         ? excelColumnsList.filter(c => !c.toLowerCase().includes('anh') && !c.toLowerCase().includes('dinh_kem'))
         : ['Sentence', 'Phonetic', 'Vietnamese meaning', 'Example sentence', 'Substitution words'];
-    const curFields = item.ttsSpeakFields || [];
 
     const checkboxesHtml = allTextFields.map(tf => {
         const isChecked = curFields.includes(tf);
@@ -533,29 +579,67 @@ function renderTtsInspectorRibbon(item, gIdx, fIdx) {
         `;
     }).join('');
 
+    const wordCount = customText.trim() ? customText.trim().split(/\s+/).filter(Boolean).length : 0;
+    const charCount = customText.length;
+
     body.innerHTML = `
         <div class="space-y-3 text-xs">
-            <div class="space-y-2 bg-slate-900 p-2.5 rounded-xl border border-indigo-500/50 shadow">
+            <div class="space-y-2.5 bg-slate-900 p-2.5 rounded-xl border border-indigo-500/50 shadow">
                 <div class="flex items-center justify-between">
                     <span class="text-[10px] font-extrabold text-indigo-300 uppercase tracking-wider flex items-center space-x-1.5">
                         <i data-lucide="volume-2" class="w-3.5 h-3.5 text-indigo-400"></i>
                         <span>Cài Đặt Giọng Đọc AI (TTS)</span>
                     </span>
-                    <span class="text-[9px] text-indigo-400 bg-indigo-950 px-1.5 py-0.5 rounded font-bold border border-indigo-800">${curFields.length} trường chọn</span>
+                    <span class="text-[9px] text-indigo-400 bg-indigo-950 px-1.5 py-0.5 rounded font-bold border border-indigo-800">
+                        ${sourceMode === 'custom' ? `${wordCount} từ` : `${curFields.length} trường chọn`}
+                    </span>
                 </div>
-                
-                <p class="text-[10px] text-slate-400 leading-normal">Tích chọn các trường dữ liệu mà AI sẽ ghép nối lại thành đoạn audio đọc:</p>
 
-                <div class="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto p-1.5 bg-slate-950 rounded-lg border border-slate-800">
-                    ${checkboxesHtml}
+                <!-- CHUYỂN ĐỔI CHẾ ĐỘ NGUỒN ĐỌC -->
+                <div class="grid grid-cols-2 gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-[10px] font-bold">
+                    <button type="button" onclick="setTtsSourceMode(${gIdx}, ${fIdx}, 'fields')" class="py-1.5 px-2 rounded-md transition flex items-center justify-center space-x-1 ${sourceMode === 'fields' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}">
+                        <i data-lucide="table" class="w-3 h-3"></i>
+                        <span>Từ Cột Excel</span>
+                    </button>
+                    <button type="button" onclick="setTtsSourceMode(${gIdx}, ${fIdx}, 'custom')" class="py-1.5 px-2 rounded-md transition flex items-center justify-center space-x-1 ${sourceMode === 'custom' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}">
+                        <i data-lucide="edit-3" class="w-3 h-3"></i>
+                        <span>Đoạn Text Tự Nhập</span>
+                    </button>
+                </div>
+
+                <!-- NỘI DUNG CHẾ ĐỘ 1: TỪ CỘT EXCEL -->
+                <div id="tts-mode-fields-panel" class="${sourceMode === 'fields' ? 'space-y-2' : 'hidden'}">
+                    <p class="text-[10px] text-slate-400 leading-normal">Tích chọn các trường dữ liệu mà AI sẽ ghép nối lại thành đoạn audio đọc:</p>
+                    <div class="grid grid-cols-1 gap-1.5 max-h-44 overflow-y-auto p-1.5 bg-slate-950 rounded-lg border border-slate-800">
+                        ${checkboxesHtml}
+                    </div>
+                </div>
+
+                <!-- NỘI DUNG CHẾ ĐỘ 2: ĐOẠN TEXT TỰ NHẬP -->
+                <div id="tts-mode-custom-panel" class="${sourceMode === 'custom' ? 'space-y-2' : 'hidden'}">
+                    <div class="flex items-center justify-between">
+                        <label class="text-[10px] text-slate-300 font-bold block">Nhập đoạn văn bản cần đọc:</label>
+                        <span id="tts-custom-text-stats" class="text-[9px] text-amber-400 font-mono font-bold">${wordCount} từ • ${charCount} ký tự</span>
+                    </div>
+                    <textarea 
+                        id="tts-custom-text-input" 
+                        rows="3" 
+                        oninput="updateTtsCustomText(${gIdx}, ${fIdx}, this.value)" 
+                        placeholder="Nhập câu tiếng Anh hoặc hướng dẫn để AI đọc (Ví dụ: Listen carefully and repeat after the tone)..." 
+                        class="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg p-2 text-slate-100 text-xs font-normal focus:ring-0 resize-y leading-relaxed"
+                    >${customText}</textarea>
+                    <div class="flex items-center justify-between text-[9px] text-slate-400">
+                        <span>AI sẽ đọc chính xác đoạn text này và tự khóa độ dài Timeline.</span>
+                        <button type="button" onclick="clearTtsCustomText(${gIdx}, ${fIdx})" class="text-rose-400 hover:text-rose-300 hover:underline">Xóa text</button>
+                    </div>
                 </div>
 
                 <div class="pt-2 border-t border-slate-800 flex items-center justify-between text-[10px]">
-                    <button onclick="previewCurrentTTSVoice()" class="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold flex items-center space-x-1.5 transition shadow">
+                    <button id="btn-ribbon-preview-tts" type="button" onclick="previewCurrentTTSVoice()" class="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold flex items-center space-x-1.5 transition shadow active:scale-95">
                         <i data-lucide="play" class="w-3.5 h-3.5"></i>
                         <span>Nghe thử AI</span>
                     </button>
-                    <button onclick="removeFieldItemFromGroup(${gIdx}, ${fIdx}); selectedTtsTarget = null; renderInspectorRibbon(); renderTimelineLayersListUI();" class="py-1 px-2 text-rose-400 hover:text-white hover:bg-rose-950/60 rounded font-bold transition">
+                    <button type="button" onclick="removeFieldItemFromGroup(${gIdx}, ${fIdx}); selectedTtsTarget = null; renderInspectorRibbon(); renderTimelineLayersListUI();" class="py-1 px-2 text-rose-400 hover:text-white hover:bg-rose-950/60 rounded font-bold transition">
                         ✕ Xóa thẻ này
                     </button>
                 </div>

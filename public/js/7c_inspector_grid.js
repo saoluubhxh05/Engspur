@@ -3,15 +3,73 @@
  * Quản lý danh sách Lớp (Layers), cấu hình lưới (Grid Matrix), khóa hàng song song và phân cột
  */
 
+function toggleAddLayerDropdown(event) {
+    if (event) event.stopPropagation();
+    const menu = document.getElementById('add-layer-dropdown-menu');
+    if (!menu) return;
+    const isHidden = menu.classList.contains('hidden');
+    
+    // Close any other popovers if open
+    document.querySelectorAll('.dropdown-menu-open').forEach(el => el.classList.add('hidden'));
+
+    if (isHidden) {
+        menu.classList.remove('hidden');
+        menu.classList.add('dropdown-menu-open');
+        if (window.lucide && lucide.createIcons) lucide.createIcons();
+
+        // Listen for outside click once
+        const onOutsideClick = (e) => {
+            const container = document.getElementById('dropdown-add-layer-container');
+            if (container && !container.contains(e.target)) {
+                menu.classList.add('hidden');
+                menu.classList.remove('dropdown-menu-open');
+                window.removeEventListener('click', onOutsideClick);
+            }
+        };
+        setTimeout(() => window.addEventListener('click', onOutsideClick), 10);
+    } else {
+        menu.classList.add('hidden');
+        menu.classList.remove('dropdown-menu-open');
+    }
+}
+
+function selectAddLayerType(isInsideLoop) {
+    const menu = document.getElementById('add-layer-dropdown-menu');
+    if (menu) {
+        menu.classList.add('hidden');
+        menu.classList.remove('dropdown-menu-open');
+    }
+    addNewGridGroupRow(isInsideLoop);
+}
+
+function toggleGroupLoopMode(gIdx) {
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (!grp) return;
+    grp.isInsideLoop = (grp.isInsideLoop === false) ? true : false;
+    const modeText = grp.isInsideLoop ? "Trong vòng lặp (Drills)" : "Ngoài vòng lặp (Cố định toàn video)";
+    renderTimelineLayersListUI();
+    renderTimelineTracksUI();
+    drawParagraphCanvasFrame();
+    showToast(`Lớp "${grp.name}" đổi thành: ${modeText}`);
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
+}
+
 function addNewGridGroupRow(isInsideLoop = true) {
     const nextId = paragraphGridConfig.groups.length + 1;
     const colCount = (paragraphGridConfig.gridMatrix && paragraphGridConfig.gridMatrix.columnCount) ? paragraphGridConfig.gridMatrix.columnCount : 2;
-    const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6", "#06b6d4"];
-    const assignedColor = colors[(nextId - 1) % colors.length];
+    const insideColors = ["#3b82f6", "#10b981", "#8b5cf6", "#06b6d4", "#ec4899"];
+    const outsideColors = ["#f59e0b", "#d97706", "#b45309", "#ea580c", "#e11d48"];
+    const assignedColor = isInsideLoop 
+        ? insideColors[(nextId - 1) % insideColors.length]
+        : outsideColors[(nextId - 1) % outsideColors.length];
+
+    const defaultName = isInsideLoop 
+        ? `Lớp ${nextId}: Trong Lặp`
+        : `Lớp ${nextId}: Ngoài Lặp (Cố định)`;
 
     paragraphGridConfig.groups.push({
         id: nextId,
-        name: `Lớp ${nextId}: Đối Tượng`,
+        name: defaultName,
         trackColor: assignedColor,
         startTime: 0.0,
         duration: masterTimelineDuration,
@@ -32,7 +90,8 @@ function addNewGridGroupRow(isInsideLoop = true) {
     renderTimelineTracksUI();
     renderInspectorRibbon();
     drawParagraphCanvasFrame();
-    showToast(`Đã thêm Lớp đường ray ${nextId}!`);
+    showToast(`Đã thêm ${isInsideLoop ? 'Lớp Trong Vòng Lặp' : 'Lớp Ngoài Vòng Lặp (Cố định)'} ${nextId}!`);
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
 }
 
 function renderTimelineLayersListUI() {
@@ -61,14 +120,17 @@ function renderTimelineLayersListUI() {
             const itemType = item.type || 'field';
 
             if (itemType === 'tts') {
+                const isCustom = item.sourceMode === 'custom';
                 const count = (item.ttsSpeakFields || []).length;
+                const words = (item.customText || '').trim().split(/\s+/).filter(Boolean).length;
+                const labelText = isCustom ? `AI Text (${words} từ)` : `AI Đọc (${count})`;
                 const isTtsSel = (typeof selectedTtsTarget !== 'undefined' && selectedTtsTarget && selectedTtsTarget.gIdx === gIdx && selectedTtsTarget.fIdx === fIdx);
                 const selClass = isTtsSel ? 'bg-indigo-900 border-2 border-indigo-400 ring-2 ring-indigo-400/50 shadow-md text-white' : 'bg-indigo-950/80 border border-indigo-700/80 hover:border-indigo-500';
                 return `
                     <div class="flex items-center space-x-1 p-0.5 px-1.5 rounded-md transition cursor-pointer ${selClass}" onclick="event.stopPropagation(); selectTtsItem(${gIdx}, ${fIdx})" title="Nhấp để mở bảng định dạng ở cột trái">
                         <span class="text-[9px] font-bold text-indigo-200 flex items-center space-x-1 cursor-pointer">
                             <i data-lucide="volume-2" class="w-2.5 h-2.5 text-indigo-400"></i>
-                            <span>AI Đọc (${count})</span>
+                            <span>${labelText}</span>
                         </span>
                         <button onclick="event.stopPropagation(); removeFieldItemFromGroup(${gIdx}, ${fIdx})" class="text-rose-400 hover:text-white text-[10px] font-bold ml-1" title="Xóa thẻ">✕</button>
                     </div>
@@ -121,12 +183,18 @@ function renderTimelineLayersListUI() {
         const curOffset = grp.startRowOffset !== undefined ? grp.startRowOffset : 0;
         const audioBadge = isAudio ? `<span class="bg-purple-950 text-purple-300 border border-purple-800 text-[8px] font-bold px-1 rounded flex items-center space-x-0.5"><i data-lucide="lock" class="w-2 h-2"></i><span>AI Khóa</span></span>` : `<span class="bg-slate-800 text-slate-400 text-[8px] px-1 rounded">Tĩnh</span>`;
 
+        const isInside = (grp.isInsideLoop !== false);
+        const loopBadge = isInside
+            ? `<button onclick="event.stopPropagation(); toggleGroupLoopMode(${gIdx})" title="Đang trong vòng lặp (Drills). Nhấp để đổi sang Ngoài vòng lặp (Cố định toàn video)." class="bg-teal-950/80 hover:bg-teal-900 text-teal-300 border border-teal-700/80 text-[8px] font-bold px-1.5 py-0.5 rounded flex items-center space-x-0.5 transition cursor-pointer shrink-0"><i data-lucide="repeat" class="w-2.5 h-2.5"></i><span>Trong lặp</span></button>`
+            : `<button onclick="event.stopPropagation(); toggleGroupLoopMode(${gIdx})" title="Đang ngoài vòng lặp (Cố định). Nhấp để đổi sang Trong vòng lặp (Drills)." class="bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-700/80 text-[8px] font-bold px-1.5 py-0.5 rounded flex items-center space-x-0.5 transition cursor-pointer shrink-0"><i data-lucide="pin" class="w-2.5 h-2.5"></i><span>Ngoài lặp</span></button>`;
+
         blockDiv.innerHTML = `
             <div class="flex items-center justify-between gap-1 border-b border-slate-800/80 pb-1">
                 <div class="flex items-center space-x-1.5 truncate">
                     <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${grp.trackColor || '#3b82f6'};"></span>
-                    <input type="text" value="${grp.name || `Lớp ${gIdx + 1}`}" onchange="event.stopPropagation(); updateGroupName(${gIdx}, this.value)" class="bg-transparent border-0 font-bold text-slate-200 text-xs focus:ring-0 truncate w-24">
+                    <input type="text" value="${grp.name || `Lớp ${gIdx + 1}`}" onchange="event.stopPropagation(); updateGroupName(${gIdx}, this.value)" class="bg-transparent border-0 font-bold text-slate-200 text-xs focus:ring-0 truncate w-20">
                     ${audioBadge}
+                    ${loopBadge}
                 </div>
                 
                 <div class="flex items-center space-x-0.5 shrink-0" onclick="event.stopPropagation()">
@@ -314,7 +382,7 @@ function addSpecialObjectComponent(type) {
 
     const newIdx = grp.fields.length;
     if (type === 'tts_voice') {
-        grp.fields.push({ type: "tts", ttsSpeakFields: ["Substitution Drills"] });
+        grp.fields.push({ type: "tts", sourceMode: "fields", ttsSpeakFields: ["Substitution Drills"], customText: "" });
         grp.trackColor = "#8b5cf6";
         autoRecalculateAudioLayersDuration();
         if (typeof selectTtsItem === 'function') {

@@ -106,6 +106,11 @@ function renderTimelineTracksUI() {
         trackRow.style.height = `${trackHeight}px`;
 
         const isAudio = typeof isAudioLayer === 'function' ? isAudioLayer(grp) : false;
+        const isInsideLoop = grp.isInsideLoop !== false;
+        const loopTag = isInsideLoop 
+            ? '' 
+            : `<span class="relative z-10 text-[7px] bg-amber-950/90 text-amber-300 border border-amber-600/70 px-1 py-0.2 rounded font-extrabold flex items-center space-x-0.5 shrink-0"><i data-lucide="pin" class="w-2 h-2"></i><span>Cố định</span></span>`;
+
         const start = Math.max(0, grp.startTime || 0);
         const dur = Math.max(0.5, grp.duration || (masterTimelineDuration - start));
         const leftPct = (start / masterTimelineDuration) * 100;
@@ -124,6 +129,7 @@ function renderTimelineTracksUI() {
                 <div class="relative z-10 flex items-center space-x-1 truncate pointer-events-none drop-shadow">
                     <i data-lucide="lock" class="w-2.5 h-2.5 text-purple-300 shrink-0"></i>
                     <i data-lucide="volume-2" class="w-2.5 h-2.5 text-purple-300 shrink-0"></i>
+                    ${loopTag}
                     <span class="font-extrabold truncate">${grp.name} (${start.toFixed(1)}s - ${(start + dur).toFixed(1)}s)</span>
                 </div>
                 <span class="relative z-10 text-[8px] bg-black/40 px-1 rounded font-mono text-purple-200 shrink-0">${dur.toFixed(1)}s</span>
@@ -133,7 +139,10 @@ function renderTimelineTracksUI() {
             bar.title = `${grp.name} (${start.toFixed(1)}s - ${(start + dur).toFixed(1)}s)`;
             bar.innerHTML = `
                 <div class="resizer-handle resizer-left" style="width: ${handleWidth};" title="Kéo mép trái để đổi giây bắt đầu"></div>
-                <span class="truncate pointer-events-none drop-shadow px-1.5">${grp.name} (${start.toFixed(1)}s - ${(start + dur).toFixed(1)}s)</span>
+                <div class="truncate pointer-events-none drop-shadow px-1.5 flex items-center space-x-1">
+                    ${loopTag}
+                    <span class="truncate">${grp.name} (${start.toFixed(1)}s - ${(start + dur).toFixed(1)}s)</span>
+                </div>
                 <div class="resizer-handle resizer-right" style="width: ${handleWidth};" title="Kéo mép phải để đổi thời lượng"></div>
             `;
 

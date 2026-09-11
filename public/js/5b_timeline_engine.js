@@ -122,11 +122,15 @@ function checkAndTriggerTimelineAudio(curTime) {
                 if (currentSentenceTriggeredAudioGroups) currentSentenceTriggeredAudioGroups.add(gIdx);
                 activePlayingAudioGroupIdx = gIdx;
                 let textToRead = "";
-                const fields = ttsItem.ttsSpeakFields || ["Substitution Drills"];
-                fields.forEach(fk => {
-                    if (dataMap[fk]) textToRead += dataMap[fk] + ". ";
-                });
-                textToRead = textToRead.trim();
+                if (ttsItem.sourceMode === 'custom') {
+                    textToRead = (ttsItem.customText || "").trim();
+                } else {
+                    const fields = ttsItem.ttsSpeakFields || ["Substitution Drills"];
+                    fields.forEach(fk => {
+                        if (dataMap[fk]) textToRead += dataMap[fk] + ". ";
+                    });
+                    textToRead = textToRead.trim();
+                }
 
                 if (textToRead) {
                     speakTTS(textToRead);

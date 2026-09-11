@@ -185,6 +185,7 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
         let lockedColumnsInRow = [];
 
         paragraphGridConfig.groups.forEach(grp => {
+            if (grp.isInsideLoop === false && sIdx > 0) return;
             const targetColIdx = Math.max(1, Math.min(grp.targetColumn || 1, colCount));
             const isColLocked = matrix.colSyncSettings && matrix.colSyncSettings[targetColIdx] ? matrix.colSyncSettings[targetColIdx].locked : true;
 
@@ -201,7 +202,7 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
                         const fKey = typeof item === 'string' ? item : item.key;
                         const st = paragraphFieldStyles[fKey];
                         if (st && st.type !== 'image') {
-                            const rawVal = dataMap[fKey];
+                            const rawVal = (grp.isInsideLoop === false && sentenceDataMaps[0]) ? sentenceDataMaps[0][fKey] : dataMap[fKey];
                             const val = (rawVal !== undefined && rawVal !== null) ? String(rawVal).trim() : '';
                             if (!val) return;
                             let size = st.size || 28;
@@ -225,11 +226,15 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
         });
 
         paragraphGridConfig.groups.forEach(grp => {
+            if (grp.isInsideLoop === false && sIdx > 0) return;
             if (isCurrentSentence) {
                 const start = grp.startTime || 0;
                 const end = start + (grp.duration || masterTimelineDuration);
                 if (currentTimelinePlayTime < start || currentTimelinePlayTime > end) return;
             }
+
+            const isGrpInsideLoop = (grp.isInsideLoop !== false);
+            const activeDataMap = (!isGrpInsideLoop && sentenceDataMaps[0]) ? sentenceDataMaps[0] : dataMap;
 
             const targetColIdx = Math.max(1, Math.min(grp.targetColumn || 1, colCount));
             const colLayout = colLayouts[targetColIdx - 1] || colLayouts[0];
@@ -289,7 +294,7 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
                         }
                         currentFieldY += imgH + customSpacing;
                     } else {
-                        const rawVal = dataMap[fKey];
+                        const rawVal = activeDataMap[fKey];
                         const val = (rawVal !== undefined && rawVal !== null) ? String(rawVal).trim() : '';
                         if (val !== '') {
                             const renderedHeight = drawAutoFlowCardBox(ctx, originX, currentFieldY, groupW, val, st);

@@ -22,9 +22,14 @@ function isAudioLayer(grp) {
 function calculateEstimatedTTSDuration(grp, sentenceData) {
     const ttsItem = (grp.fields || []).find(f => f.type === 'tts');
     if (!ttsItem) return grp.duration || 4.0;
-    const fields = ttsItem.ttsSpeakFields || ["Substitution Drills"];
+    
     let text = "";
-    fields.forEach(f => { if (sentenceData && sentenceData[f]) text += sentenceData[f] + " "; });
+    if (ttsItem.sourceMode === 'custom') {
+        text = (ttsItem.customText || "").trim();
+    } else {
+        const fields = ttsItem.ttsSpeakFields || ["Substitution Drills"];
+        fields.forEach(f => { if (sentenceData && sentenceData[f]) text += sentenceData[f] + " "; });
+    }
     if (!text.trim()) text = "Sample phrase sentence for estimate.";
     
     // Kiểm tra nếu đã có trong cache âm thanh
@@ -38,7 +43,7 @@ function calculateEstimatedTTSDuration(grp, sentenceData) {
         }
     }
 
-    const words = text.trim().split(/\s+/).length;
+    const words = text.trim().split(/\s+/).filter(Boolean).length;
     const dur = Math.max(1.5, Math.round(((words / 2.3) / rate + 0.6) * 10) / 10);
     return dur;
 }
@@ -241,14 +246,55 @@ function speakWithSpeechSynthesisFallback(text, callback) {
     }
 }
 
-function previewCurrentTTSVoice() {
-    const btn = document.getElementById('btn-preview-tts');
+function previewCurrentTTSVoice(customSampleText = null) {
+    const btn = document.getElementById('btn-preview-tts') || document.getElementById('btn-ribbon-preview-tts');
     if (btn) {
         btn.classList.add('opacity-50', 'pointer-events-none');
     }
     showToast("Đang phát thử giọng đọc AI...", "info");
-    const samplePhrase = "Hello! Welcome to EngSpur Auto Video Studio. You are listening to high quality neural voice.";
-    speakTTS(samplePhrase, () => {
+
+    let textToPlay = customSampleText;
+    if (!textToPlay || !textToPlay.trim()) {
+        // Kiểm tra xem có đang chọn thẻ TTS nào trong Inspector không
+        if (typeof selectedTtsTarget !== 'undefined' && selectedTtsTarget) {
+            const grp = paragraphGridConfig?.groups?.[selectedTtsTarget.gIdx];
+            const item = grp?.fields?.[selectedTtsTarget.fIdx];
+            if (item) {
+                if (item.sourceMode === 'custom' && item.customText && item.customText.trim()) {
+                    textToPlay = item.customText.trim();
+                } else if (item.ttsSpeakFields && item.ttsSpeakFields.length > 0) {
+                    const activeTopicList = (typeof getParagraphFilteredDatasets === 'function') ? getParagraphFilteredDatasets() : importedDatasets;
+                    const curDs = activeTopicList[0] || importedDatasets[0] || {};
+                    const drill = (curDs && curDs.drills && curDs.drills[0]) ? curDs.drills[0] : {};
+                    const sampleMap = {
+                        "Câu hỏi cho mẫu câu": curDs.question || "",
+                        "Mẫu câu": curDs.pattern || "",
+                        "Substitution words": drill.cueWord || "",
+                        "Dịch Substitution words": drill.dichCueWord || "",
+                        "Substitution Drills": drill.drillText || "She looks very smart with her glasses.",
+                        "Phiên âm IPA": drill.ipa || "",
+                        "Dịch Substitution Drills": drill.dichDrillText || ""
+                    };
+                    if (drill.rawRow) {
+                        Object.keys(drill.rawRow).forEach(k => {
+                            if (sampleMap[k] === undefined) sampleMap[k] = String(drill.rawRow[k] || "").trim();
+                        });
+                    }
+                    let t = "";
+                    item.ttsSpeakFields.forEach(f => {
+                        if (sampleMap[f]) t += sampleMap[f] + ". ";
+                    });
+                    if (t.trim()) textToPlay = t.trim();
+                }
+            }
+        }
+    }
+
+    if (!textToPlay || !textToPlay.trim()) {
+        textToPlay = "Hello! Welcome to EngSpur Auto Video Studio. You are listening to high quality neural voice.";
+    }
+
+    speakTTS(textToPlay, () => {
         if (btn) {
             btn.classList.remove('opacity-50', 'pointer-events-none');
         }
