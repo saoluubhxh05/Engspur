@@ -1,0 +1,371 @@
+================================================================================
+                    TÀI LIỆU ĐỐI CHIẾU KỸ THUẬT DỰ ÁN (ENGSPUR STUDIO)
+                              Tệp: project_summary.txt
+================================================================================
+
+--------------------------------------------------------------------------------
+1. SƠ ĐỒ CÂY THƯ MỤC (HTML, CSS, JS)
+--------------------------------------------------------------------------------
+/
+├── index.html                  : Giao diện chính của ứng dụng (SPA), nạp các module JS và CSS
+├── styles.css                  : CSS gốc tùy chỉnh giao diện và font chữ
+├── css/
+│   └── styles.css              : Stylesheet chính (Tailwind base, custom scrollbar, layout, popover)
+├── js/
+│   ├── 1_state_config.js       : Khởi tạo biến toàn cục, cấu hình kịch bản và state mặc định
+│   ├── 2a_storage_idb.js       : Quản lý lưu trữ bền vững với IndexedDB (EngSpurStudioDB v2)
+│   ├── 2b_profiles_manager.js  : Quản lý nạp, lưu, nhân bản và xóa profile kịch bản mẫu
+│   ├── 2c_workspace_io.js      : Xuất và nhập gói toàn bộ không gian làm việc (Workspace JSON)
+│   ├── 3_excel_assets.js       : Nhập/xử lý file Excel, quản lý ảnh nền, logo watermark và audio
+│   ├── 4_canvas_renderer.js    : Engine kết xuất đồ họa Canvas 2D (Full & Clean Canvas 1920x1080)
+│   ├── 5a_timeline_ui.js       : Giao diện trực quan Timeline, quản lý track bar và tương tác kéo thả
+│   ├── 5b_timeline_engine.js   : Động cơ điều phối Timeline, Web Worker clock và playback loop
+│   ├── 6_tts_audio.js          : Tích hợp Edge Neural TTS, Web Audio API và bộ mã hóa WAV chuẩn PCM
+│   ├── 7a_inspector_popover.js : Quản lý cửa sổ cấu hình nổi kéo thả tự do (Floating Popover)
+│   ├── 7b_inspector_ribbon.js  : Thanh công cụ Ribbon định dạng typography, màu sắc, viền, lề
+│   ├── 7c_inspector_grid.js    : Cấu hình ma trận lưới cột, khoảng cách (gap), padding và scale
+│   ├── 8a_batch_queue.js       : Xây dựng hàng đợi render hàng loạt, cấu hình tên file mẫu và chuỗi kịch bản
+│   ├── 8b_batch_runner.js      : Điều phối vòng lặp Batch Render, MediaRecorder kép và đồng bộ file
+│   ├── 8c_batch_exporter.js    : Xuất báo cáo kết quả ra Excel 2 Sheet (Tổng quan + Timeline mili-giây)
+│   └── app.js                  : Điểm khởi tạo ứng dụng (DOMContentLoaded), điều hướng layout và Toast
+└── public/                     : Thư mục chứa tài nguyên tĩnh mirror phục vụ môi trường phân phối
+    ├── css/styles.css
+    ├── js/[toàn bộ các file js tương ứng như trên]
+    └── styles.css
+
+--------------------------------------------------------------------------------
+2. DANH SÁCH BIẾN TOÀN CỤC & HẰNG SỐ (GLOBALS & SHARED STATE)
+--------------------------------------------------------------------------------
+[Dữ Liệu Kịch Bản & Cấu Hình Canvas]
+• videoConfig                  : Cấu hình render Canvas (width: 1920, height: 1080, fps: 30, ttsVoice, ttsRate).
+• paragraphGridConfig          : Đối tượng cấu hình bố cục kịch bản đang mở (tên, mode, masterDuration, groups, fields).
+• paragraphFieldStyles         : Object lưu trữ style định dạng (font, cỡ chữ, màu sắc, căn lề, viền, nền) cho từng field key.
+• activeParagraphProfileId     : ID của kịch bản đang được kích hoạt trong Studio.
+• savedParagraphProfiles       : Mảng chứa toàn bộ các profile kịch bản đã lưu trong bộ nhớ.
+• DEFAULT_TEMPLATES_JSON       : Hằng số chứa các mẫu kịch bản chuẩn tích hợp sẵn (Mode 1: Phản xạ 1:1, Mode 2: Xếp tầng).
+• studioSavedBackupState       : Bản sao lưu toàn vẹn state kịch bản của Studio trước khi chạy Batch để phục hồi khi hoàn tất.
+
+[Dữ Liệu Excel & Quản Lý Tài Nguyên]
+• importedDatasets             : Mảng chứa danh sách toàn bộ các câu hỏi, mẫu câu, drills phân tích từ file Excel.
+• paragraphSelectedTopic       : Tên chủ đề (Topic) đang được chọn để xem trước hoặc render.
+• pCurrentSentenceIndex        : Chỉ số index câu hỏi/drill hiện tại đang hiển thị và phát âm.
+• cachedImageObjects           : Map lưu các đối tượng HTMLImageElement đã nạp sẵn vào RAM (ảnh nền, logo).
+• uploadedAudioFiles           : Danh sách các tệp âm thanh người dùng tải lên thủ công.
+
+[Timeline & Render Engine]
+• masterTimelineDuration       : Tổng thời lượng 1 chu kỳ lặp kịch bản (mặc định 8.0 giây).
+• currentTimelinePlayTime      : Mốc thời gian phát hiện tại trên thanh Timeline (tính bằng giây, 0.0 -> masterDuration).
+• isParagraphRunning           : Cờ boolean đánh dấu Canvas/Timeline đang trong trạng thái chạy.
+• isParagraphPaused            : Cờ boolean đánh dấu trạng thái tạm dừng phát/render.
+• isSingleCyclePlaying         : Cờ boolean đánh dấu đang chạy chế độ phát thử nghiệm 1 chu kỳ đơn lẻ.
+• pCanvas / pCtx               : Đối tượng HTMLCanvasElement và CanvasRenderingContext2D bản Full (1920x1080).
+• pCleanCanvas / pCleanCtx     : Đối tượng Canvas ngầm kết xuất bản Clean (không nền, không watermark).
+• pRenderTimer                 : ID của requestAnimationFrame duy trì vòng lặp vẽ Canvas liên tục.
+• pMediaRecorder               : Đối tượng MediaRecorder ghi luồng video bản Full.
+• pCleanMediaRecorder          : Đối tượng MediaRecorder ghi luồng video bản Clean.
+• pRecordedChunks              : Mảng chứa các chunk nhị phân video Full đã ghi lại.
+• pCleanRecordedChunks         : Mảng chứa các chunk nhị phân video Clean đã ghi lại.
+• pRenderedBlob                : Đối tượng Blob kết quả MP4 hoàn chỉnh sau khi render.
+
+[Âm Thanh & TTS (Web Audio API)]
+• sharedStudioAudioCtx         : Thể hiện AudioContext dùng chung cho toàn bộ module âm thanh phòng thu.
+• sharedTtsAudioBuffers        : Map cache chứa các AudioBuffer đã decode từ API Edge TTS.
+• activeAudioSourceNodes       : Mảng quản lý các AudioBufferSourceNode đang phát để dừng đồng loạt khi cần.
+• batchStudioAudioDest         : MediaStreamAudioDestinationNode gom luồng âm thanh studio đưa vào MediaRecorder.
+• batchSharedAudioTrack        : MediaStreamTrack âm thanh đồng bộ cấp cho MediaRecorder.
+
+[Hàng Đợi Batch Render & Xuất Dữ Liệu]
+• batchRenderQueue             : Mảng danh sách các mục bài học trong hàng đợi render hàng loạt.
+• currentBatchQueueIndex       : Chỉ số dòng hiện tại đang thực thi trong hàng đợi.
+• isBatchRunning               : Cờ boolean đánh dấu tiến trình Batch Render đang hoạt động.
+• isBatchPaused                : Cờ boolean đánh dấu tiến trình Batch Render đang tạm dừng.
+• batchExecutionMode           : Chế độ xuất: 'combined' (MP4 nhanh), 'separate_wav' (MP4 + WAV), 'dual_parallel' (Full + Clean + WAV).
+• batchTopicsList              : Danh sách tổng hợp các chủ đề nạp từ Excel tham gia render.
+• batchSelectedChainProfiles   : Danh sách ID các kịch bản được chọn chạy nối chuỗi (Mode 3 Chain).
+• batchCustomScriptNamingMap   : Map quy tắc đặt tên tiền tố file tùy chỉnh cho từng loại kịch bản.
+• batchDirectoryHandle         : Thể hiện FileSystemDirectoryHandle khi người dùng chọn thư mục lưu file trực tiếp trên ổ cứng.
+• batchDirectoryName           : Tên thư mục cục bộ đã chọn để lưu file.
+• batchCompletedReports        : Mảng dữ liệu báo cáo video đã xuất phục vụ ghi Sheet 1 của Excel.
+• batchTimelineSentenceLogs    : Mảng dữ liệu ghi nhận mốc thời gian thực tế từng mili-giây phục vụ ghi Sheet 2 của Excel.
+
+[Trạng Thái Giao Diện (UI State)]
+• isLeftCollapsed              : Cờ trạng thái đóng/mở của cột giao diện bên trái.
+• isRightCollapsed             : Cờ trạng thái đóng/mở của cột giao diện bên phải.
+• activeSelectedFieldKey       : Khóa trường dữ liệu (Field Key) hiện đang được chọn chỉnh sửa trên Ribbon.
+• floatingPopoverActiveItem    : Đối tượng dữ liệu đang được mở cấu hình trong cửa sổ nổi Popover.
+
+--------------------------------------------------------------------------------
+3. BẢNG TRA CỨU CÁC HÀM (FUNCTIONS) THEO TỪNG FILE JS
+--------------------------------------------------------------------------------
+
+[js/1_state_config.js]
+• getParagraphFilteredDatasets() : Lọc và trả về danh sách các câu hỏi theo chủ đề đang chọn (paragraphSelectedTopic).
+• updateLoopPresentationModeUI() : Cập nhật trạng thái hiển thị của các nút chọn kịch bản mẫu (Mode 1 / Mode 2) trên thanh điều khiển.
+• syncInlineGridSettingsInputs() : Đồng bộ các thông số ma trận lưới (số cột, khoảng cách, lề, scale) lên các ô nhập liệu UI.
+
+[js/2a_storage_idb.js]
+• openStudioIDB() : Khởi tạo hoặc mở kết nối IndexedDB (EngSpurStudioDB, version 2) với 3 object store.
+• saveDatasetsToIDB(datasets) : Lưu toàn bộ danh sách dữ liệu câu hỏi Excel vào store 'datasets'.
+• loadDatasetsFromIDB() : Đọc toàn bộ danh sách dữ liệu bài học đã lưu từ store 'datasets'.
+• saveProfilesToIDB(profiles) : Lưu danh sách các profile kịch bản thiết kế vào store 'profiles'.
+• loadProfilesFromIDB() : Đọc danh sách các profile kịch bản đã lưu từ store 'profiles'.
+• saveAssetToIDB(id, type, blob, metadata) : Lưu trữ file nhị phân ảnh nền, logo hoặc file âm thanh vào store 'assets'.
+• loadAssetFromIDB(id) : Truy xuất dữ liệu file tài nguyên nhị phân theo mã định danh ID từ store 'assets'.
+• loadAllAssetsFromIDB() : Khôi phục toàn bộ ảnh nền, watermark và file âm thanh từ IndexedDB nạp vào RAM.
+• clearStoreData(storeName) : Xóa sạch toàn bộ bản ghi trong một object store chỉ định.
+• autoSaveFullSystemState() : Tự động đóng gói và lưu toàn bộ state làm việc (datasets, profiles, config, styles) vào IDB.
+• loadFullSystemState(showToastAlert) : Phục hồi lại toàn bộ phiên làm việc của người dùng từ IndexedDB khi mở ứng dụng.
+
+[js/2b_profiles_manager.js]
+• renderSavedParagraphProfilesDropdown() : Kết xuất danh sách các profile kịch bản đã lưu vào thẻ dropdown select.
+• saveCurrentParagraphProfile(customName) : Lưu cấu hình bố cục và định dạng style hiện tại thành một profile kịch bản mới hoặc ghi đè.
+• loadParagraphProfileById(profileId) : Nạp cấu hình kịch bản theo ID vào Studio và vẽ lại toàn bộ giao diện/canvas.
+• deleteParagraphProfileById(profileId) : Xóa một profile kịch bản khỏi bộ nhớ và đồng bộ xóa trong IndexedDB.
+• duplicateCurrentParagraphProfile() : Tạo bản sao từ kịch bản đang mở với tên mới để chỉnh sửa biến thể.
+• applyPredefinedTemplate(templateKey) : Nạp nhanh mẫu kịch bản có sẵn (Mode 1: Phản xạ 1:1, Mode 2: Xếp tầng nối tiếp).
+
+[js/2c_workspace_io.js]
+• exportCompleteWorkspaceJSON() : Đóng gói toàn bộ cấu hình, kịch bản, bộ styles và dữ liệu Excel thành file .json xuất về máy.
+• importCompleteWorkspaceJSON(file) : Đọc file .json từ máy tính để khôi phục hoàn chỉnh toàn bộ không gian làm việc.
+• exportSingleProfileJSON(profileId) : Xuất riêng lẻ một kịch bản bố cục chỉ định thành file .json độc lập.
+• importSingleProfileJSON(file) : Nạp thêm một file kịch bản .json rời vào danh sách profile của hệ thống.
+
+[js/3_excel_assets.js]
+• handleExcelFileUpload(e) : Tiếp nhận file Excel (.xlsx, .xls), dùng thư viện SheetJS phân tích dữ liệu bảng tính.
+• parseExcelData(workbook) : Chuẩn hóa các dòng dữ liệu trong sheet thành mảng importedDatasets phân theo chủ đề (Topic).
+• updateTopicDropdown() : Cập nhật danh sách các chủ đề bài học lên menu dropdown lựa chọn trên giao diện.
+• onTopicSelectionChanged(topic) : Xử lý sự kiện khi người dùng chọn chủ đề mới, vẽ lại bảng dữ liệu và cập nhật canvas.
+• renderDatasetTable() : Kết xuất bảng danh sách các câu hỏi, mẫu câu, từ thay thế (Drills) của chủ đề đang chọn.
+• handleBackgroundImageUpload(e) : Đọc file ảnh nền tải lên, chuyển thành DataURL, lưu vào IDB và vẽ áp dụng lên Canvas.
+• handleWatermarkLogoUpload(e) : Đọc file logo watermark tải lên, lưu vào bộ nhớ đệm và vẽ góc Canvas.
+• handleAudioFilesUpload(e) : Tiếp nhận các file âm thanh hỗ trợ (.mp3, .wav), đưa vào danh sách uploadedAudioFiles và lưu IDB.
+
+[js/4_canvas_renderer.js]
+• drawParagraphCanvasFrame() : Hàm render trung tâm: vẽ nền, logo, lưới cột và các thẻ đối tượng lên cả 2 Canvas (Full & Clean).
+• drawCustomBackground(ctx, w, h) : Vẽ ảnh nền tùy chỉnh hoặc nền gradient mặc định lên ngữ cảnh Canvas chỉ định.
+• drawWatermarkLogo(ctx, w, h) : Vẽ logo góc Canvas theo cấu hình vị trí tọa độ, kích thước và độ mờ opacity.
+• drawMatrixFieldItem(ctx, field, group, bounds, sentenceData, currentTime) : Tính toán tọa độ ô lưới, animation và vẽ một thẻ dữ liệu (văn bản, icon, ảnh) lên Canvas.
+• measureFormattedText(ctx, text, style) : Đo đạc kích thước văn bản và thực hiện ngắt dòng (word-wrap) tự động vừa vặn với chiều rộng cột lưới.
+• calculateFieldTimingAlpha(field, group, currentTime) : Tính toán trạng thái hiển thị, thời điểm xuất hiện và độ trong suốt (alpha) theo timeline.
+
+[js/5a_timeline_ui.js]
+• renderTimelineLayersListUI() : Kết xuất danh sách các layer/thẻ đối tượng ở cột quản lý timeline bên trái.
+• renderTimelineTracksUI() : Vẽ các thanh thời lượng (track bars) trực quan thể hiện thời điểm bắt đầu và kết thúc của từng layer.
+• updateTimelinePlayheadPosition(time) : Cập nhật vị trí con trỏ đọc thời gian (playhead) tương ứng với thời gian chạy thực tế.
+• initTimelineTrackInteractions() : Khởi tạo các sự kiện chuột/cảm ứng để kéo dời (drag) và co giãn (resize) thời lượng layer trên timeline.
+• onMasterDurationChanged(newDur) : Cập nhật tổng thời lượng chu kỳ lặp (masterDuration) và tính toán lại thước đo timeline.
+
+[js/5b_timeline_engine.js]
+• startStudioRenderClock() : Kích hoạt xung nhịp thời gian studio bằng Web Worker Blob nhằm đảm bảo độ chính xác tuyệt đối 0ms sai lệch.
+• stopStudioRenderClock() : Dừng xung nhịp Web Worker của render clock.
+• startSentenceSequencePlayback() : Bắt đầu chế độ chạy liên tục lần lượt toàn bộ danh sách câu hỏi trong chủ đề.
+• playSingleSentenceCycle(cycleIndex) : Phát thử nghiệm 1 chu kỳ câu hỏi từ mốc 0 giây đến hết thời lượng kịch bản.
+• runUnifiedSentenceSequence() : Điều phối tiến trình phát câu hỏi, đồng bộ âm thanh TTS và kích hoạt chuyển câu tự động.
+• toggleTimelinePlayPause() : Chuyển đổi trạng thái Phát hoặc Tạm dừng của Timeline tại màn hình Studio.
+• stopTimelinePlayback() : Dừng phát hoàn toàn, đưa con trỏ timeline về 0s và tắt toàn bộ các luồng âm thanh.
+• seekTimelineTo(timeInSeconds) : Tua timeline đến mốc thời gian cụ thể và vẽ lại khung hình Canvas tại thời điểm đó.
+• autoRecalculateAudioLayersDuration() : Tự động điều chỉnh thời lượng layer âm thanh/TTS cho khớp với độ dài thực tế của audio buffer.
+
+[js/6_tts_audio.js]
+• getSharedAudioContext() : Khởi tạo và trả về đối tượng singleton AudioContext chuẩn phần cứng của trình duyệt.
+• populateVoiceList() : Tải và hiển thị danh sách các giọng đọc Microsoft Edge Neural chất lượng cao vào dropdown lựa chọn.
+• fetchEdgeTtsAudioBuffer(text, voice, rate) : Gửi yêu cầu đến API backend (/api/tts) để lấy luồng âm thanh và decode thành AudioBuffer.
+• playScheduledAudioBuffer(audioBuffer, startOffsetMs) : Lập lịch phát một AudioBuffer qua Web Audio API tại mốc mili-giây chỉ định.
+• stopAllPlayingAudioNodes() : Dừng ngay lập tức toàn bộ các node âm thanh đang phát trong danh sách activeAudioSourceNodes.
+• encodePcmChunksToWavBlob(pcmChunks, durationMs, sampleRate) : Đóng gói dữ liệu mảng nhị phân PCM đã ghi âm thành đối tượng Blob file WAV hoàn chỉnh.
+• createMasterWavBlobFromSentenceAudios(scheduledList, durationMs, sampleRate) : Trộn các đoạn AudioBuffer theo đúng mốc timeline thành một file master WAV duy nhất.
+• createWavHeader(dataLength, sampleRate, numChannels, bitDepth) : Tạo header chuẩn 44-byte định dạng WAV (RIFF/WAVE) cho file audio.
+
+[js/7a_inspector_popover.js]
+• openFloatingPopover(fieldKey, triggerElement) : Hiển thị cửa sổ popover nổi tùy chỉnh định dạng nhanh cho thẻ đối tượng được chọn.
+• closeFloatingPopover() : Đóng cửa sổ popover nổi.
+• resetPopoverPosition() : Đặt lại vị trí của cửa sổ popover nổi về góc neo mặc định.
+• initFloatingPopoverDraggable() : Kích hoạt tính năng nhấn giữ chuột vào header để kéo di chuyển popover tự do trên màn hình.
+
+[js/7b_inspector_ribbon.js]
+• renderInspectorRibbon() : Kết xuất thanh công cụ Ribbon định dạng chi tiết (Font, Size, Color, Align, Padding, Border, Shadow).
+• onRibbonStyleChanged(property, value) : Áp dụng thuộc tính định dạng mới cho thẻ đối tượng đang chọn và vẽ lại Canvas ngay lập tức.
+• applyFieldPresetStyle(presetKey) : Nạp nhanh bộ phong cách màu sắc và viền hộp được thiết kế sẵn (Preset) cho thẻ đối tượng.
+
+[js/7c_inspector_grid.js]
+• onGridColumnCountChanged(cols) : Thay đổi số cột hiển thị của lưới ma trận phân bố thẻ và cập nhật Canvas.
+• onGridGapChanged(gap) : Thay đổi khoảng cách (gap) giữa các ô thẻ trong lưới ma trận.
+• onGridMarginChanged(side, value) : Cập nhật khoảng cách lề (trên, dưới, trái, phải) của toàn bộ khối lưới hiển thị.
+• onGridScaleChanged(scale) : Thay đổi tỷ lệ phóng to hoặc thu nhỏ tổng thể của hệ thống lưới.
+
+[js/8a_batch_queue.js]
+• resetBatchNamingPattern() : Đặt lại mẫu đặt tên file video về định dạng mặc định: {stt}-[{script}]-[{topic}].
+• ensureSavedParagraphProfiles() : Đảm bảo luôn có đầy đủ danh sách các kịch bản hợp lệ trong bộ nhớ trước khi tạo hàng đợi batch.
+• onBatchModeChanged(val) : Xử lý chuyển đổi chế độ render kịch bản đơn lẻ hoặc kết hợp chuỗi kịch bản (Mode 3 Chain).
+• renderBatchChainSelectorList() : Kết xuất danh sách checkbox cho phép người dùng chọn các kịch bản tham gia chạy chuỗi.
+• renderBatchCustomNamingInputs() : Hiển thị các ô nhập tên gán riêng cho từng loại kịch bản trong chuỗi để phục vụ đặt tên file.
+• updateScriptNamingTag(profId, val) : Cập nhật tên gán tùy chỉnh của một kịch bản và làm mới tên file hiển thị trong hàng đợi.
+• toggleBatchChainProfileSelect(profId, isChecked) : Chọn hoặc bỏ chọn một kịch bản trong danh sách chạy chuỗi nối tiếp.
+• refreshBatchTopicsTable() : Quét toàn bộ importedDatasets để tổng hợp và làm mới danh sách các chủ đề cần render.
+• buildBatchQueueList() : Tính toán và tạo mảng hàng đợi batchRenderQueue dựa trên danh sách chủ đề và kịch bản đã chọn.
+• renderBatchTableUI() : Vẽ bảng danh sách hàng đợi render hàng loạt, hiển thị trạng thái, tên file dự kiến và checkbox từng dòng.
+• updateBatchQueueCountBadge() : Cập nhật số lượng bài học đã được chọn trên tổng số bài trong hàng đợi lên huy hiệu giao diện.
+• toggleBatchQueueRowSelect(qIdx, isChecked) : Bật hoặc tắt trạng thái chọn render cho một dòng cụ thể trong hàng đợi.
+• toggleSelectAllBatchTopics(isChecked) : Bật hoặc tắt chọn toàn bộ danh sách chủ đề/hàng đợi.
+• toggleSelectAllBatchQueueRows(isChecked) : Chọn hoặc bỏ chọn đồng loạt tất cả các dòng bài học trong bảng hàng đợi.
+• pickBatchDirectoryHandle() : Kích hoạt File System Access API cho phép người dùng chọn thư mục trên máy để lưu file trực tiếp.
+• activateBatchRenderView() : Chuyển đổi màn hình làm việc từ Studio sang chế độ Quản lý Render Hàng Loạt.
+• openBatchRenderModal() / closeBatchRenderModal() : Các hàm hỗ trợ mở hoặc đóng màn hình Batch Render.
+• showDirectLiveVideoPlayer() : Mở trình phát video trực tiếp khi render xong bài học đơn lẻ.
+• closeSaveFileModal() : Đóng hộp thoại thông báo lưu file MP4.
+• downloadBlobFallback(blob, filename) : Tải file tự động về máy thông qua phần tử <a> ẩn nếu không dùng File System API.
+
+[js/8b_batch_runner.js]
+• requestScreenWakeLock() : Kích hoạt Screen Wake Lock API ngăn máy tính tắt màn hình hoặc chuyển sang chế độ ngủ khi đang render.
+• releaseScreenWakeLock() : Giải phóng khóa Screen Wake Lock khi hoàn tất hoặc hủy tiến trình render.
+• startBatchRenderPipeline(mode) : Khởi động tiến trình Render Hàng Loạt theo chế độ chỉ định ('combined', 'separate_wav', 'dual_parallel').
+• startBatchOverallTimer() : Bắt đầu đồng hồ bấm giờ đo tổng thời gian chạy của toàn bộ đợt render hàng loạt.
+• prepareTopicEdgeTtsAudios(topicName) : Tải trước toàn bộ âm thanh TTS của chủ đề vào bộ nhớ đệm để phát tức thì 0ms trễ khi quay video.
+• runCurrentBatchQueueItem() : Thực thi render bài học hiện tại: nạp kịch bản, cấp phát MediaRecorder, ghi nhận âm thanh và chạy chuỗi câu.
+• completeCurrentBatchQueueItem(...) : Ghi nhận hoàn thành bài học, cập nhật báo cáo, tăng index và kích hoạt bài học tiếp theo.
+• saveBatchVideoFileDirectly(blob, filename) : Ghi trực tiếp file blob video hoặc audio vào thư mục máy tính đã cấp quyền.
+• updateBatchOverallProgress() : Tính toán tiến độ phần trăm, số lượng video hoàn thành và cập nhật thanh tiến trình.
+• toggleBatchPauseResume() : Tạm dừng hoặc tiếp tục chạy tiến trình hàng đợi render hàng loạt.
+• cancelBatchRender() : Hủy an toàn tiến trình batch, giải phóng tài nguyên MediaRecorder/Audio và khôi phục state ban đầu của Studio.
+• finishBatchPipeline() : Kết thúc thành công toàn bộ hàng đợi, tự động kích hoạt xuất file Excel báo cáo 2 sheet và thông báo.
+
+[js/8c_batch_exporter.js]
+• exportBatchExcelReport() : Tạo và tải về file Excel báo cáo gồm 2 Sheet: 'Tổng Quan Video' và 'Chi Tiết Timeline' (chuẩn mili-giây).
+• triggerFilePickerSave() : Kích hoạt hộp thoại Save File Picker để người dùng chọn vị trí lưu file video đơn lẻ vừa render.
+
+[js/app.js]
+• switchLeftSubTab(subTabNum) : Chuyển đổi giữa 4 tab chức năng ở cột trái (1. Upload, 2. Kịch Bản, 3. Kho Thẻ, 4. Định Dạng).
+• activateStudioWorkspace() : Kích hoạt màn hình Studio Timeline & Lưới, phục hồi cấu hình và cập nhật lại toàn bộ UI.
+• focusRightColumnGrid() : Mở rộng và cuộn tập trung vào bảng điều khiển ma trận lưới cột ở cột bên phải.
+• toggleLeftColumn() : Thu gọn hoặc mở rộng cột giao diện bên trái kèm hiệu ứng chuyển động mượt mà.
+• toggleRightColumn() : Thu gọn hoặc mở rộng cột giao diện bên phải kèm hiệu ứng chuyển động mượt mà.
+• sanitizeFilename(name) : Chuẩn hóa chuỗi ký tự, loại bỏ các ký tự cấm của hệ điều hành để tạo tên file an toàn.
+• showToast(message, type) : Hiển thị thông báo Toast nổi nhanh gọn (success, info, error) kèm biểu tượng Lucide.
+• window.addEventListener('DOMContentLoaded', ...) : Điểm khởi chạy chính: ánh xạ Canvas, khởi tạo Lucide icons và nạp state từ IDB.
+
+--------------------------------------------------------------------------------
+4. CẤU TRÚC DỮ LIỆU ĐẶC TRƯNG
+--------------------------------------------------------------------------------
+
+[A. ĐỊNH DẠNG DỮ LIỆU EXCEL ĐỌC VÀO (MẢNG importedDatasets)]
+File Excel được thư viện SheetJS phân tích và ánh xạ thành mảng các đối tượng phân nhóm theo từng Chủ Đề (Topic).
+Các cột dữ liệu chuẩn hỗ trợ đọc từ bảng tính:
+1. "Chủ đề" / "Topic"                     : Tên chủ đề bài học (dùng nhóm và đặt tên video).
+2. "Câu hỏi cho mẫu câu" / "Question"     : Câu hỏi dẫn nhập cho mẫu câu phản xạ.
+3. "Mẫu câu" / "Pattern"                  : Mẫu câu gốc tiếng Anh cần học.
+4. "Substitution words" / "Cue Word"      : Từ hoặc cụm từ gợi mở thay thế (hiển thị dòng trên).
+5. "Dịch Substitution words"              : Nghĩa tiếng Việt tương ứng của từ thay thế.
+6. "Substitution Drills" / "Drill Text"   : Câu hoàn chỉnh sau khi thay từ (dòng luyện nói trọng tâm).
+7. "Phiên âm IPA"                         : Ký âm ngữ âm quốc tế cho câu luyện nói.
+8. "Dịch Substitution Drills"             : Nghĩa tiếng Việt của câu luyện nói hoàn chỉnh.
+
+Cấu trúc đối tượng JSON trong bộ nhớ:
+[
+  {
+    "topic": "Daily Routine",
+    "question": "What do you do in the morning?",
+    "pattern": "I usually brush my teeth.",
+    "drills": [
+      {
+        "cueWord": "wash my face",
+        "dichCueWord": "rửa mặt",
+        "drillText": "I usually wash my face.",
+        "ipa": "/aɪ ˈjuːʒuəli wɒʃ maɪ feɪs/",
+        "dichDrillText": "Tôi thường rửa mặt.",
+        "rawRow": { ... } // Chứa toàn bộ các cột bổ sung khác trong dòng Excel
+      }
+    ]
+  }
+]
+
+[B. CẤU TRÚC LƯU TRỮ INDEXEDDB (EngSpurStudioDB - Version 2)]
+Cơ sở dữ liệu client-side hoạt động với 3 Object Store chính:
+
+1. Store 'datasets' (KeyPath: "topic")
+   • Mục đích: Lưu trữ toàn bộ dữ liệu bài học nạp từ file Excel phân theo từng Topic.
+   • Cấu trúc bản ghi:
+     {
+       "topic": string,             // Khóa chính (Primary Key)
+       "question": string,
+       "pattern": string,
+       "drills": Array<DrillItem>
+     }
+
+2. Store 'profiles' (KeyPath: "id")
+   • Mục đích: Lưu trữ các kịch bản thiết kế bố cục và timeline do người dùng tạo.
+   • Cấu trúc bản ghi:
+     {
+       "id": string,                // Khóa chính (ví dụ: "prof_1712345678")
+       "name": string,              // Tên kịch bản (ví dụ: "Kịch bản 1 (Mặc định)")
+       "mode": string,              // Chế độ: 'mode1', 'mode2', 'custom'
+       "masterDuration": number,    // Thời lượng chu kỳ tính bằng giây (ví dụ: 8.0)
+       "groups": Array<GroupItem>,  // Nhóm phân bổ dòng và thẻ đối tượng
+       "fieldStyles": Object        // Bản đồ format giao diện cho từng thẻ
+     }
+
+3. Store 'assets' (KeyPath: "id")
+   • Mục đích: Lưu trữ nhị phân các file đa phương tiện (ảnh nền, logo watermark, file âm thanh).
+   • Cấu trúc bản ghi:
+     {
+       "id": string,                // Khóa chính (ví dụ: "bg_image", "watermark_logo", "audio_xxx")
+       "type": string,              // Loại tài nguyên: 'bg_image' | 'watermark' | 'audio'
+       "blob": Blob | ArrayBuffer,  // Dữ liệu nhị phân nguyên bản
+       "name": string,              // Tên tệp gốc
+       "metadata": Object,          // Dữ liệu mở rộng (width, height, size, mimeType)
+       "updatedAt": number          // Timestamp thời gian lưu
+     }
+
+[C. CẤU TRÚC ĐỐI TƯỢNG BỐ CỤC KỊCH BẢN (paragraphGridConfig)]
+Đối tượng trung tâm điều phối toàn bộ việc kết xuất Canvas và Timeline:
+{
+  "name": "Kịch bản Mẫu",
+  "mode": "mode1",                  // 'mode1' (1:1), 'mode2' (xếp tầng), 'custom'
+  "masterDuration": 8.0,            // Thời lượng 1 chu kỳ lặp (giây)
+  "columns": 1,                     // Số cột hiển thị trong ma trận (1, 2, 3...)
+  "gap": 16,                        // Khoảng cách giữa các ô thẻ (pixel)
+  "padding": { "top": 40, "bottom": 40, "left": 60, "right": 60 },
+  "scale": 1.0,                     // Tỷ lệ co giãn toàn bộ khối lưới
+  "groups": [
+    {
+      "id": "grp_1",
+      "row": 0,
+      "col": 0,
+      "fields": [
+        {
+          "key": "field_cue_word",
+          "label": "Từ gợi mở (Cue Word)",
+          "type": "text",           // 'text' | 'image' | 'tts' | 'shape'
+          "sourceMode": "excel",    // 'excel' | 'custom'
+          "excelColumn": "Substitution words",
+          "customText": "",
+          "startTime": 0.0,         // Thời điểm bắt đầu xuất hiện trên timeline (giây)
+          "endTime": 8.0,           // Thời điểm kết thúc trên timeline (giây)
+          "enterEffect": "fade",    // Hiệu ứng vào: 'none' | 'fade' | 'slide_up'
+          "exitEffect": "none",
+          "ttsSpeakFields": ["Substitution Drills"] // (Nếu type === 'tts')
+        }
+      ]
+    }
+  ]
+}
+
+[D. CẤU TRÚC ĐỊNH DẠNG STYLE CHO THẺ (paragraphFieldStyles)]
+Bản đồ định dạng giao diện tương ứng với từng field key:
+{
+  "[field_key]": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontSize": 48,                 // Cỡ chữ (pixel trên canvas 1920x1080)
+    "fontWeight": "800",
+    "color": "#f8fafc",             // Màu chữ
+    "textAlign": "center",          // 'left' | 'center' | 'right'
+    "backgroundColor": "rgba(15, 23, 42, 0.75)",
+    "borderRadius": 16,             // Bo góc (pixel)
+    "borderWidth": 2,               // Độ dày viền
+    "borderColor": "#3b82f6",       // Màu viền
+    "paddingX": 24,
+    "paddingY": 16,
+    "shadowColor": "rgba(0, 0, 0, 0.5)",
+    "shadowBlur": 12
+  }
+}
+================================================================================

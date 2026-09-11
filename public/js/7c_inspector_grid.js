@@ -73,6 +73,7 @@ function addNewGridGroupRow(isInsideLoop = true) {
         trackColor: assignedColor,
         startTime: 0.0,
         duration: masterTimelineDuration,
+        snapEndToTotalDuration: false,
         isInsideLoop: isInsideLoop,
         targetColumn: Math.min(nextId, colCount),
         startRowOffset: 0,
@@ -222,6 +223,13 @@ function renderTimelineLayersListUI() {
                 </div>
             </div>
 
+            <div class="flex items-center justify-between text-[9px] bg-slate-950 px-2 py-1 rounded border border-slate-800/80">
+                <label class="flex items-center space-x-1.5 cursor-pointer select-none text-slate-300 hover:text-white" onclick="event.stopPropagation()">
+                    <input type="checkbox" ${grp.snapEndToTotalDuration ? 'checked' : ''} onchange="toggleGroupSnapEndToTotalDuration(${gIdx}, this.checked)" class="w-3.5 h-3.5 rounded border-slate-700 text-indigo-500 focus:ring-0 focus:ring-offset-0 bg-slate-900 cursor-pointer">
+                    <span class="font-bold text-[9.5px] leading-tight ${grp.snapEndToTotalDuration ? 'text-amber-300' : 'text-slate-300'}">Thời điểm cuối của khối trùng với thời điểm cuối của tổng thời lượng</span>
+                </label>
+            </div>
+
             <div class="flex flex-wrap gap-1 pt-0.5">${fieldsChipsHtml}</div>
         `;
 
@@ -229,6 +237,23 @@ function renderTimelineLayersListUI() {
     });
 
     if (window.lucide && lucide.createIcons) lucide.createIcons();
+}
+
+function toggleGroupSnapEndToTotalDuration(gIdx, isChecked) {
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (!grp) return;
+    grp.snapEndToTotalDuration = !!isChecked;
+    if (grp.snapEndToTotalDuration) {
+        const curSentenceTotal = (typeof getEffectiveSentenceDuration === 'function')
+            ? getEffectiveSentenceDuration(isParagraphRunning ? pCurrentSentenceIndex : 0)
+            : masterTimelineDuration;
+        grp.duration = Math.max(0.5, curSentenceTotal - (grp.startTime || 0));
+    }
+    renderTimelineLayersListUI();
+    renderTimelineTracksUI();
+    drawParagraphCanvasFrame();
+    showToast(`Lớp "${grp.name}": ${grp.snapEndToTotalDuration ? 'Đã bật' : 'Đã tắt'} thời điểm cuối trùng tổng thời lượng!`);
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
 }
 
 function updateGroupLayerProp(gIdx, prop, val) {

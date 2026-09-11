@@ -188,6 +188,17 @@ function runUnifiedSentenceSequence() {
         return;
     }
 
+    const curSentenceTotalDur = (typeof getEffectiveSentenceDuration === 'function')
+        ? getEffectiveSentenceDuration(pCurrentSentenceIndex)
+        : masterTimelineDuration;
+
+    // Tự động kéo dãn thời lượng các lớp có snapEndToTotalDuration theo độ dài câu này
+    paragraphGridConfig.groups.forEach(grp => {
+        if (grp.snapEndToTotalDuration) {
+            grp.duration = Math.max(0.5, curSentenceTotalDur - (grp.startTime || 0));
+        }
+    });
+
     seekTimeline(0.0);
     updateParagraphProgressBar();
     activePlayingAudioGroupIdx = -1;
@@ -208,8 +219,8 @@ function runUnifiedSentenceSequence() {
             cueWord: drill.cueWord || "",
             drillText: drill.drillText || "",
             startMs: startMs,
-            endMs: startMs + Math.round(masterTimelineDuration * 1000),
-            durationMs: Math.round(masterTimelineDuration * 1000)
+            endMs: startMs + Math.round(curSentenceTotalDur * 1000),
+            durationMs: Math.round(curSentenceTotalDur * 1000)
         };
     }
 
@@ -297,9 +308,13 @@ function resumeUnifiedSentenceSequence() {
         const elapsedSec = (nowTs - sentenceStartTs) / 1000;
         currentTimelinePlayTime = Math.max(0, elapsedSec);
 
-        if (currentTimelinePlayTime < masterTimelineDuration) {
+        const curSentenceTotalDur = (typeof getEffectiveSentenceDuration === 'function')
+            ? getEffectiveSentenceDuration(pCurrentSentenceIndex)
+            : masterTimelineDuration;
+
+        if (currentTimelinePlayTime < curSentenceTotalDur) {
             const timeDisplay = document.getElementById('timeline-current-time-display');
-            if (timeDisplay) timeDisplay.innerText = `${currentTimelinePlayTime.toFixed(1)}s`;
+            if (timeDisplay) timeDisplay.innerText = `${currentTimelinePlayTime.toFixed(1)}s / ${curSentenceTotalDur.toFixed(1)}s`;
             updatePlayheadNeedlePosition();
             drawParagraphCanvasFrame();
             checkAndTriggerTimelineAudio(currentTimelinePlayTime);

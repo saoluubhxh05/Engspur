@@ -229,7 +229,13 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
             if (grp.isInsideLoop === false && sIdx > 0) return;
             if (isCurrentSentence) {
                 const start = grp.startTime || 0;
-                const end = start + (grp.duration || masterTimelineDuration);
+                let end = start + (grp.duration || masterTimelineDuration);
+                if (grp.snapEndToTotalDuration) {
+                    const curTotal = (typeof getEffectiveSentenceDuration === 'function')
+                        ? getEffectiveSentenceDuration(isParagraphRunning ? pCurrentSentenceIndex : 0)
+                        : masterTimelineDuration;
+                    end = curTotal;
+                }
                 if (currentTimelinePlayTime < start || currentTimelinePlayTime > end) return;
             }
 

@@ -7,7 +7,9 @@ function updateMasterLoopDuration(val) {
     if (isNaN(val) || val <= 1) val = 8.0;
     masterTimelineDuration = val;
     paragraphGridConfig.groups.forEach(g => {
-        if (g.startTime + g.duration > masterTimelineDuration) {
+        if (g.snapEndToTotalDuration) {
+            g.duration = Math.max(0.5, masterTimelineDuration - (g.startTime || 0));
+        } else if (g.startTime + g.duration > masterTimelineDuration) {
             g.duration = Math.max(1, masterTimelineDuration - g.startTime);
         }
     });
@@ -111,10 +113,18 @@ function renderTimelineTracksUI() {
             ? '' 
             : `<span class="relative z-10 text-[7px] bg-amber-950/90 text-amber-300 border border-amber-600/70 px-1 py-0.2 rounded font-extrabold flex items-center space-x-0.5 shrink-0"><i data-lucide="pin" class="w-2 h-2"></i><span>Cố định</span></span>`;
 
+        const isSnapEnd = grp.snapEndToTotalDuration === true;
         const start = Math.max(0, grp.startTime || 0);
-        const dur = Math.max(0.5, grp.duration || (masterTimelineDuration - start));
+        const dur = isSnapEnd 
+            ? Math.max(0.5, masterTimelineDuration - start) 
+            : Math.max(0.5, grp.duration || (masterTimelineDuration - start));
+        if (isSnapEnd) grp.duration = dur;
         const leftPct = (start / masterTimelineDuration) * 100;
         const widthPct = Math.min(100 - leftPct, (dur / masterTimelineDuration) * 100);
+
+        const snapTag = isSnapEnd
+            ? `<span class="relative z-10 text-[7px] bg-indigo-950/90 text-indigo-300 border border-indigo-500/70 px-1 py-0.2 rounded font-extrabold flex items-center space-x-0.5 shrink-0" title="Thời điểm cuối của khối trùng với thời điểm cuối của tổng thời lượng"><i data-lucide="anchor" class="w-2 h-2"></i><span>Trùng đuôi (${(start + dur).toFixed(1)}s)</span></span>`
+            : '';
 
         const bar = document.createElement('div');
         bar.className = `timeline-track-bar absolute h-full rounded flex items-center justify-between px-2 ${textSizeClass} font-bold text-white shadow transition-colors relative overflow-hidden`;
@@ -130,6 +140,7 @@ function renderTimelineTracksUI() {
                     <i data-lucide="lock" class="w-2.5 h-2.5 text-purple-300 shrink-0"></i>
                     <i data-lucide="volume-2" class="w-2.5 h-2.5 text-purple-300 shrink-0"></i>
                     ${loopTag}
+                    ${snapTag}
                     <span class="font-extrabold truncate">${grp.name} (${start.toFixed(1)}s - ${(start + dur).toFixed(1)}s)</span>
                 </div>
                 <span class="relative z-10 text-[8px] bg-black/40 px-1 rounded font-mono text-purple-200 shrink-0">${dur.toFixed(1)}s</span>
@@ -141,9 +152,12 @@ function renderTimelineTracksUI() {
                 <div class="resizer-handle resizer-left" style="width: ${handleWidth};" title="Kéo mép trái để đổi giây bắt đầu"></div>
                 <div class="truncate pointer-events-none drop-shadow px-1.5 flex items-center space-x-1">
                     ${loopTag}
+                    ${snapTag}
                     <span class="truncate">${grp.name} (${start.toFixed(1)}s - ${(start + dur).toFixed(1)}s)</span>
                 </div>
-                <div class="resizer-handle resizer-right" style="width: ${handleWidth};" title="Kéo mép phải để đổi thời lượng"></div>
+                ${isSnapEnd 
+                    ? `<div class="px-1 text-[8px] text-indigo-300 select-none flex items-center shrink-0" title="Khối khóa trùng đuôi tổng thời lượng"><i data-lucide="anchor" class="w-2.5 h-2.5"></i></div>` 
+                    : `<div class="resizer-handle resizer-right" style="width: ${handleWidth};" title="Kéo mép phải để đổi thời lượng"></div>`}
             `;
 
             bar.addEventListener('mousedown', (e) => onTimelineBarMouseDown(e, gIdx, 'move'));
@@ -190,6 +204,21 @@ function promptEditTrackTimes(gIdx) {
 
     if (typeof isAudioLayer === 'function' && isAudioLayer(grp)) {
         showToast("Lớp giọng đọc AI được khóa cứng thời lượng theo chữ đọc!", "info");
+        return;
+    }
+
+    if (grp.snapEndToTotalDuration) {
+        const newStartStr = prompt(`Nhập giây bắt đầu cho "${grp.name}" (Thời điểm cuối đã ghim trùng mốc cuối ${masterTimelineDuration.toFixed(1)}s):`, grp.startTime.toFixed(1));
+        if (newStartStr === null) return;
+        const newStart = parseFloat(newStartStr);
+        if (!isNaN(newStart)) {
+            grp.startTime = Math.max(0, Math.min(masterTimelineDuration - 0.5, newStart));
+            grp.duration = Math.max(0.5, masterTimelineDuration - grp.startTime);
+            renderTimelineTracksUI();
+            renderTimelineLayersListUI();
+            drawParagraphCanvasFrame();
+            showToast(`Đã cập nhật ${grp.name}: ${grp.startTime.toFixed(1)}s - ${(grp.startTime + grp.duration).toFixed(1)}s (Trùng đuôi)`);
+        }
         return;
     }
 
@@ -248,15 +277,22 @@ function onTimelineBarMouseMove(e) {
 
     if (mode === 'move') {
         let newStart = initialStart + deltaSec;
-        newStart = Math.max(0, Math.min(masterTimelineDuration - initialDuration, newStart));
+        const maxStart = grp.snapEndToTotalDuration ? (masterTimelineDuration - 0.5) : (masterTimelineDuration - initialDuration);
+        newStart = Math.max(0, Math.min(maxStart, newStart));
         grp.startTime = Math.round(newStart * 10) / 10;
+        if (grp.snapEndToTotalDuration) {
+            grp.duration = Math.round(Math.max(0.5, masterTimelineDuration - grp.startTime) * 10) / 10;
+        }
     } else if (mode === 'resize-left' && !isAudio) {
         let newStart = initialStart + deltaSec;
-        newStart = Math.max(0, Math.min(initialStart + initialDuration - 0.5, newStart));
-        const newDur = (initialStart + initialDuration) - newStart;
+        const maxStart = grp.snapEndToTotalDuration ? (masterTimelineDuration - 0.5) : (initialStart + initialDuration - 0.5);
+        newStart = Math.max(0, Math.min(maxStart, newStart));
         grp.startTime = Math.round(newStart * 10) / 10;
-        grp.duration = Math.round(newDur * 10) / 10;
-    } else if (mode === 'resize-right' && !isAudio) {
+        const newDur = grp.snapEndToTotalDuration 
+            ? (masterTimelineDuration - grp.startTime) 
+            : ((initialStart + initialDuration) - newStart);
+        grp.duration = Math.round(Math.max(0.5, newDur) * 10) / 10;
+    } else if (mode === 'resize-right' && !isAudio && !grp.snapEndToTotalDuration) {
         let newDur = initialDuration + deltaSec;
         newDur = Math.max(0.5, Math.min(masterTimelineDuration - grp.startTime, newDur));
         grp.duration = Math.round(newDur * 10) / 10;

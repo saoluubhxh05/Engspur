@@ -48,6 +48,41 @@ function calculateEstimatedTTSDuration(grp, sentenceData) {
     return dur;
 }
 
+function getEffectiveSentenceDuration(sIdx = 0) {
+    const activeTopicList = (typeof getParagraphFilteredDatasets === 'function') ? getParagraphFilteredDatasets() : importedDatasets;
+    const ds = activeTopicList[sIdx] || importedDatasets[0] || {};
+    const drill = (ds && ds.drills && ds.drills[0]) ? ds.drills[0] : {};
+    const dataMap = {
+        "Câu hỏi cho mẫu câu": ds.question || "",
+        "Mẫu câu": ds.pattern || "",
+        "Substitution words": drill.cueWord || "",
+        "Dịch Substitution words": drill.dichCueWord || "",
+        "Substitution Drills": drill.drillText || "",
+        "Phiên âm IPA": drill.ipa || "",
+        "Dịch Substitution Drills": drill.dichDrillText || ""
+    };
+    if (drill.rawRow) {
+        Object.keys(drill.rawRow).forEach(k => {
+            if (dataMap[k] === undefined) dataMap[k] = String(drill.rawRow[k] || "").trim();
+        });
+    }
+
+    let totalDur = masterTimelineDuration || 8.0;
+
+    (paragraphGridConfig.groups || []).forEach(grp => {
+        if (typeof isAudioLayer === 'function' && isAudioLayer(grp)) {
+            const start = grp.startTime || 0;
+            const audioDur = calculateEstimatedTTSDuration(grp, dataMap);
+            const end = start + audioDur;
+            if (end > totalDur) {
+                totalDur = Math.round((end + 0.5) * 10) / 10;
+            }
+        }
+    });
+
+    return Math.max(2.0, totalDur);
+}
+
 function autoRecalculateAudioLayersDuration() {
     const activeTopicList = (typeof getParagraphFilteredDatasets === 'function') ? getParagraphFilteredDatasets() : importedDatasets;
     const curDs = activeTopicList[0] || importedDatasets[0] || {};
@@ -81,6 +116,13 @@ function autoRecalculateAudioLayersDuration() {
         if (durInput) durInput.value = masterTimelineDuration;
         showToast(`Đã tự động nới dài tổng thời lượng câu lên ${masterTimelineDuration.toFixed(1)}s để vừa giọng đọc AI!`, "info");
     }
+
+    // Tự động kéo dài đuôi của các khối đã chọn "Thời điểm cuối trùng tổng thời lượng"
+    paragraphGridConfig.groups.forEach(grp => {
+        if (grp.snapEndToTotalDuration) {
+            grp.duration = Math.max(0.5, masterTimelineDuration - (grp.startTime || 0));
+        }
+    });
 }
 
 async function fetchEdgeTtsAudioBuffer(text, voice = 'edge:en-US-JennyNeural', rate = 0.95) {
