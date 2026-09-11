@@ -236,7 +236,16 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
                         : masterTimelineDuration;
                     end = curTotal;
                 }
-                if (currentTimelinePlayTime < start || currentTimelinePlayTime > end) return;
+                // Nếu chưa đến thời điểm bắt đầu của lớp thì chưa vẽ
+                if (currentTimelinePlayTime < start) return;
+
+                // Chỉ ẩn khi hết thời lượng nếu lớp đó thuần túy là bộ đếm ngược countdown (không chứa text/image)
+                const isOnlyCountdown = grp.fields && grp.fields.length > 0 && grp.fields.every(f => (typeof f === 'object' ? f.type : f) === 'countdown');
+                if (isOnlyCountdown && currentTimelinePlayTime > end) return;
+
+                // Các lớp nội dung (văn bản, dịch nghĩa, ảnh minh họa) một khi đã xuất hiện tại start
+                // sẽ duy trì hiển thị liên tục đến hết câu và trong suốt khoảng nghỉ chuyển tiếp (transition),
+                // loại bỏ triệt để hiện tượng mất nội dung hoặc chớp tắt giữa các câu.
             }
 
             const isGrpInsideLoop = (grp.isInsideLoop !== false);
