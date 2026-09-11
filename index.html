@@ -16,8 +16,8 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <!-- Custom Stylesheet -->
-    <link rel="stylesheet" href="/styles.css">
-    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./css/styles.css">
 </head>
 <body class="h-screen flex flex-col justify-between bg-slate-950 text-slate-100 overflow-hidden select-none">
 
@@ -152,23 +152,6 @@
             <div id="col-left-scroll-container" class="flex-grow overflow-y-auto p-3 space-y-3">
                 <!-- TAB 1: UPLOAD EXCEL & ẢNH -->
                 <div id="subtab-panel-1" class="space-y-3">
-                    <!-- KHỐI NẠP MẪU CHẠY THỬ NHANH -->
-                    <div class="bg-gradient-to-br from-amber-950/50 to-slate-950 p-3 rounded-xl border border-amber-500/40 space-y-2 shadow-lg">
-                        <div class="flex items-center space-x-2">
-                            <div class="w-6 h-6 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
-                                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
-                            </div>
-                            <div class="min-w-0">
-                                <h3 class="text-xs font-black text-amber-300 truncate">Thử Nghiệm Siêu Tốc (Không Cần Up File)</h3>
-                                <p class="text-[10px] text-slate-400">Tự nạp 3 chủ đề tiếng Anh & 6 ảnh minh họa 9:16 sắc nét.</p>
-                            </div>
-                        </div>
-                        <button onclick="loadRichDemoDataset(true)" class="w-full py-1.5 px-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 rounded-lg text-[11px] font-black flex items-center justify-center space-x-1.5 transition shadow active:scale-95">
-                            <i data-lucide="zap" class="w-3.5 h-3.5 fill-slate-950"></i>
-                            <span>Nạp Sẵn Kịch Bản & Ảnh Mẫu Thử Ngay</span>
-                        </button>
-                    </div>
-
                     <!-- KHỐI QUẢN LÝ LƯU & XÓA SẠCH DỮ LIỆU ĐÃ UP -->
                     <div class="bg-slate-950/90 p-2.5 rounded-xl border border-indigo-500/40 space-y-2 shadow">
                         <div class="flex items-center justify-between gap-2">
@@ -926,14 +909,21 @@
     </footer>
 
     <!-- JAVASCRIPT MODULES THEO THỨ TỰ KIẾN TRÚC -->
-    <script src="/js/1_state_config.js"></script>
-    <script src="/js/2_storage.js"></script>
-    <script src="/js/3_excel_assets.js"></script>
-    <script src="/js/4_canvas_renderer.js"></script>
-    <script src="/js/5_timeline_player.js"></script>
-    <script src="/js/6_tts_audio.js"></script>
-    <script src="/js/7_inspector_ui.js"></script>
-    <script src="/js/8_batch_pipeline.js"></script>
-    <script src="/js/app.js"></script>
+    <script src="./js/1_state_config.js"></script>
+    <script src="./js/2a_storage_idb.js"></script>
+    <script src="./js/2b_profiles_manager.js"></script>
+    <script src="./js/2c_workspace_io.js"></script>
+    <script src="./js/3_excel_assets.js"></script>
+    <script src="./js/4_canvas_renderer.js"></script>
+    <script src="./js/5a_timeline_ui.js"></script>
+    <script src="./js/5b_timeline_engine.js"></script>
+    <script src="./js/6_tts_audio.js"></script>
+    <script src="./js/7a_inspector_popover.js"></script>
+    <script src="./js/7b_inspector_ribbon.js"></script>
+    <script src="./js/7c_inspector_grid.js"></script>
+    <script src="./js/8a_batch_queue.js"></script>
+    <script src="./js/8b_batch_runner.js"></script>
+    <script src="./js/8c_batch_exporter.js"></script>
+    <script src="./js/app.js"></script>
 </body>
 </html>

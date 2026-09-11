@@ -27,8 +27,12 @@ function switchLeftSubTab(subTabNum) {
         }
     }
 
-    if (subTabNum === 4 && typeof renderInspectorRibbon === 'function') {
-        renderInspectorRibbon();
+    if (subTabNum === 4) {
+        const scrollContainer = document.getElementById('col-left-scroll-container');
+        if (scrollContainer) scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
+        if (typeof renderInspectorRibbon === 'function') {
+            renderInspectorRibbon();
+        }
     }
 }
 

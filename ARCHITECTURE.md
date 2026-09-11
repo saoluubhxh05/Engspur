@@ -1,71 +1,152 @@
 # BẢN ĐỒ KIẾN TRÚC DỰ ÁN ENGSPUR AUTO VIDEO STUDIO
 
 ## 1. TỔNG QUAN HỆ THỐNG
-Dự án tạo video tự động từ file Excel & ảnh, hỗ trợ xem trước trên Timeline, tổng hợp giọng nói TTS, xuất video MP4 và render hàng loạt (Batch Pipeline).
+Dự án tạo video tự động từ file Excel & ảnh, hỗ trợ xem trước trên Timeline, tổng hợp giọng nói TTS AI, xuất video MP4 và render hàng loạt (Batch Multi-Chain Pipeline) kèm xuất audio WAV và báo cáo Excel 2 sheet chuẩn từng mili-giây.
 
-## 2. CẤU TRÚC THƯ MỤC & NHIỆM VỤ CÁC FILE
+Ứng dụng tuân thủ mô hình thuần trình duyệt (Vanilla JS, HTML5 Canvas, Web Audio API, IndexedDB, File System Access API), không sử dụng framework nặng hay npm bundler phức tạp.
+
+---
+
+## 2. CẤU TRÚC THƯ MỤC & PHÂN BỔ CHUYÊN MÔN CÁC FILE
+
+```
+/
+├── index.html                  # Giao diện chính, CDN và các thẻ <script> theo thứ tự phụ thuộc
+├── styles.css                  # Phông chữ Google Fonts, thanh cuộn, hiệu ứng kim phát Timeline
+├── ARCHITECTURE.md             # Bản đồ kiến trúc chi tiết từng file mã nguồn
+├── metadata.json               # Cấu hình ứng dụng
+└── js/ (và public/js/)
+    ├── 1_state_config.js       # Biến trạng thái toàn cục, cấu hình grid, phông chữ, mẫu kịch bản
+    ├── 2a_storage_idb.js       # Lưu trữ IndexedDB, tự động lưu (Auto-Save), khôi phục trạng thái
+    ├── 2b_profiles_manager.js  # Quản lý kịch bản (Profiles CRUD), nạp mẫu mặc định, xuất/nhập JSON
+    ├── 2c_workspace_io.js      # Xuất/nhập toàn bộ Workspace (dữ liệu + ảnh + kịch bản), tải mẫu demo
+    ├── 3_excel_assets.js       # Đọc file Excel (.xlsx), phân loại chủ đề, quản lý thư viện ảnh cục bộ
+    ├── 4_canvas_renderer.js    # Render Canvas 1920x1080, chia cột grid, tính lề, highlight vệt chữ, ảnh
+    ├── 5a_timeline_ui.js       # Giao diện Timeline: vẽ đường ray, waveform, ruler, mật độ, kéo thả tay nắm
+    ├── 5b_timeline_engine.js   # Động cơ Timeline: vòng lặp playback, Web Worker clock, đồng bộ TTS, preview
+    ├── 6_tts_audio.js          # Giọng đọc AI Web Speech & Edge TTS, đo thời lượng ray, xuất AudioBuffer/WAV
+    ├── 7a_inspector_popover.js # Hộp thoại Popover nổi cấu hình thẻ TTS đọc AI, countdown, chữ tự do
+    ├── 7b_inspector_ribbon.js  # Ribbon định dạng phông, cỡ chữ, vệt highlight, bo góc, mail-merge chips
+    ├── 7c_inspector_grid.js    # Quản lý danh sách lớp (Layers), ma trận lưới Grid, khóa đồng bộ hàng Excel
+    ├── 8a_batch_queue.js       # Hàng đợi Batch Render: định dạng tên file, chuỗi kịch bản, chọn thư mục
+    ├── 8b_batch_runner.js      # Động cơ Batch: MediaRecorder kép (Full + Clean), ghi âm PCM/WAV, wake lock
+    ├── 8c_batch_exporter.js    # Xuất báo cáo Excel 2 Sheet (Tổng quan + Timeline ms), File Picker API lưu file
+    └── app.js                  # Khởi động ứng dụng (DOMContentLoaded), điều hướng tab, phím tắt, thông báo
+```
+
+---
+
+## 3. CHI TIẾT NHIỆM VỤ TỪNG FILE MÃ NGUỒN
 
 ### 1. `index.html`
-- Chứa toàn bộ thẻ giao diện HTML (Header, Cột Trái, Khung Canvas trung tâm, Timeline, Cột Phải, View Render Hàng Loạt).
-- Nạp thư viện CDN (Tailwind, Lucide Icons, SheetJS XLSX).
-- Nạp CSS và các file JavaScript theo đúng thứ tự phụ thuộc.
+- Chứa toàn bộ cây DOM giao diện: Thanh công cụ Header, Cột điều khiển trái (5 Sub-tabs), Màn hình Canvas 16:9 trung tâm, Trục Timeline phía dưới, Cột bên phải, và Màn hình Render Hàng Loạt (Batch Multi-Chain View).
+- Nạp CDN thư viện: Tailwind CSS, Lucide Icons, SheetJS XLSX.
+- Nạp 16 tệp JavaScript theo đúng thứ tự phân tầng kiến trúc từ lõi State đến UI và Khởi tạo.
 
-### 2. `styles.css` (và `css/styles.css`)
-- Chứa phông chữ Google Fonts (@import), tùy biến thanh cuộn, hiệu ứng kim phát Timeline (.playhead-needle), animation.
+### 2. `styles.css` (và `css/styles.css`, `public/styles.css`)
+- Nạp phông chữ quốc tế qua Google Fonts (@import Quicksand, Plus Jakarta Sans, Nunito, Inter, Courier Prime).
+- CSS tùy biến thanh cuộn mảnh (custom scrollbar), kim phát Timeline `.playhead-needle`, các hiệu ứng active button.
 
 ### 3. `js/1_state_config.js`
-- Quản lý các biến trạng thái toàn cục:
-  - `importedDatasets`: Mảng chứa dữ liệu câu hỏi, drills từ Excel.
-  - `paragraphFieldStyles`: Định dạng phông, cỡ chữ, màu nền từng trường text/ảnh.
-  - `DEFAULT_TEMPLATES_JSON`: Mẫu kịch bản 1 (Phản xạ 1:1) và Mẫu 2 (Xếp tầng).
-  - `videoConfig`: Cấu hình giọng đọc mặc định, tỷ lệ khung hình, ảnh nền canvas.
+- **Chuyên môn:** Khai báo cấu trúc dữ liệu và biến trạng thái toàn cục.
+- **Biến chủ chốt:**
+  - `importedDatasets`: Mảng chứa danh sách câu, mẫu câu, từ thay thế (drills) trích xuất từ Excel.
+  - `paragraphGridConfig`: Cấu hình bố cục lưới Canvas (ma trận cột, danh sách các nhóm/lớp Groups, lề đệm).
+  - `paragraphFieldStyles`: Từ điển cấu hình phông, cỡ, màu sắc, kiểu highlight, thụt lề cho từng trường.
+  - `DEFAULT_TEMPLATES_JSON`: Mẫu kịch bản có sẵn (Mode 1: Phản xạ 1:1, Mode 2: Xếp tầng nối tiếp).
+  - `videoConfig`: Cấu hình tỷ lệ video, giọng đọc AI mặc định, ảnh nền, logo.
 
-### 4. `js/2_storage.js`
-- Xử lý bộ nhớ trình duyệt (IndexedDB) và File JSON:
-  - `saveFullSystemState()`, `loadFullSystemState()`: Lưu/khôi phục toàn bộ trạng thái vào IndexedDB.
-  - `exportCurrentProfileToJSON()`, `handleImportProfileJSON()`: Xuất/nhập cấu hình kịch bản JSON.
-  - `saveCurrentProfileOver()`, `saveCurrentProfileAsNew()`: Quản lý danh sách kịch bản lưu trong bộ nhớ.
+### 4. Nhóm Lưu Trữ & Hồ Sơ (`js/2a_`, `js/2b_`, `js/2c_`)
+- **`2a_storage_idb.js`:**
+  - Khởi tạo cơ sở dữ liệu IndexedDB `EngSpurParagraphFactoryDB` (ObjectStore: `app_state`).
+  - `saveFullSystemState()`, `loadFullSystemState()`: Lưu trữ và khôi phục toàn bộ phiên làm việc.
+  - `triggerAutoSave()`, `updateAutoSaveIndicator()`: Cơ chế tự động lưu ngầm chống mất dữ liệu sau mỗi thao tác.
+- **`2b_profiles_manager.js`:**
+  - Quản lý danh sách kịch bản `savedParagraphProfiles`: Thêm, nhân bản, sửa tên, xóa, đổi thứ tự.
+  - `applyParagraphProfile()`: Áp dụng kịch bản vào không gian thiết kế mà không làm mất liên kết dữ liệu Excel.
+  - `exportCurrentProfileToJSON()`, `handleImportProfileJSON()`: Xuất/nhập file mẫu kịch bản định dạng JSON.
+  - `loadPresetDesignMode()`: Nạp nhanh các mẫu thiết kế chuẩn.
+- **`2c_workspace_io.js`:**
+  - `exportCompleteWorkspaceProject()`: Đóng gói toàn bộ dự án (Dữ liệu Excel + Kho ảnh Base64 + Mọi kịch bản) thành 1 file JSON duy nhất để sao lưu hoặc chuyển đổi máy tính.
+  - `importCompleteWorkspaceProject()`: Khôi phục 100% môi trường làm việc từ file dự án JSON.
+  - `loadDemoDataset()`: Nạp dữ liệu mẫu 5 chủ đề tiếng Anh với đầy đủ câu hỏi, phiên âm IPA, bản dịch để trải nghiệm ngay.
 
 ### 5. `js/3_excel_assets.js`
-- Xử lý đầu vào dữ liệu:
-  - `handleExcelUpload()`, `processImportedExcelRows()`: Đọc và bóc tách file Excel thành câu và drills.
-  - `handleLocalImagesUpload()`: Đọc thư mục ảnh từ máy tính, chuyển sang Base64 gán vào `localPCImageMap`.
-  - `renderDatasetTable()`, `updateTopicDropdown()`: Cập nhật danh sách câu và lọc theo chủ đề.
+- **Chuyên môn:** Phân tích dữ liệu bảng tính Excel và quản lý kho ảnh đính kèm.
+- `handleExcelUpload()`: Sử dụng SheetJS đọc file `.xlsx` / `.xls`, trích xuất các cột thông tin.
+- `processImportedExcelRows()`: Bóc tách danh sách cột, tự động nhận diện các trường ảnh và văn bản.
+- `handleLocalImagesUpload()`: Đọc hàng loạt file ảnh từ thư mục máy tính, chuyển sang Base64 lưu vào `localPCImageMap`.
+- `updateTopicDropdown()`, `onParagraphTopicSelectChange()`: Quản lý danh sách chủ đề bài học và lọc câu.
 
 ### 6. `js/4_canvas_renderer.js`
-- Trái tim render đồ họa trên Canvas 1920x1080:
-  - `drawParagraphCanvasFrame()`: Điều phối vẽ khung hình chính và khung hình Clean (nền trắng không logo).
-  - `renderSingleFrameToContext()`: Tính toán vị trí cột grid, lề padding, khoảng cách dòng.
-  - `drawAutoFlowCardBox()`: Tự động ngắt dòng (word-wrap), co giãn hộp ôm sát chữ (shrinkToFit), vẽ nền và highlight chữ.
-  - `drawRect916PhotoFrame()`: Vẽ khung ảnh bo góc, căn tỉ lệ ảnh đính kèm.
+- **Chuyên môn:** Động cơ đồ họa kết xuất Canvas độ phân giải 1920x1080.
+- `drawParagraphCanvasFrame()`: Vẽ khung hình Canvas chính và đồng bộ sang Mini Live Monitor.
+- `renderSingleFrameToContext()`: Vẽ các thành phần hình học, ảnh nền, logo, và các khối cột lưới.
+- `drawAutoFlowCardBox()`: Thuật toán tự động ngắt dòng thông minh (Smart Word-Wrap), tự co giãn khung theo nội dung chữ (`shrinkToFit`), đổ bóng, bo góc, vẽ vệt nền Highlight tùy chỉnh đệm viền.
+- `drawRect916PhotoFrame()`: Vẽ khung chứa ảnh đính kèm theo tỉ lệ dọc hoặc ngang với bo góc mượt mà.
 
-### 7. `js/5_timeline_player.js`
-- Điều khiển trục thời gian Timeline và Playback:
-  - `renderTimelineTracksUI()`: Vẽ các đường ray (tracks), tay nắm co kéo (resizers).
-  - `onTimelineBarMouseDown()`, `onTimelineBarMouseMove()`: Kéo thả di chuyển hoặc đổi thời lượng ray.
-  - `toggleTimelinePlayback()`, `seekTimeline()`: Phát/dừng hoặc tua câu hiện tại.
-  - `runUnifiedSentenceSequence()`: Vòng lặp chạy thử toàn bộ danh sách câu từ đầu đến cuối.
+### 7. Nhóm Trục Thời Gian & Phát Video (`js/5a_`, `js/5b_`)
+- **`5a_timeline_ui.js`:**
+  - `renderTimelineTracksUI()`: Vẽ trực quan các dải đường ray (Tracks) biểu thị thời gian xuất hiện của từng lớp.
+  - `setTimelineTrackDensity()`: Chuyển đổi 3 mức mật độ hiển thị ray (Mỏng 20px, Chuẩn 26px, Rộng 34px) đảm bảo 100% không bị cuộn dọc màn hình.
+  - `onTimelineBarMouseDown()`, `onTimelineBarMouseMove()`: Xử lý kéo thả di chuyển ray hoặc co kéo thời lượng xuất hiện.
+  - `drawTimelineWaveformPreview()`: Vẽ dạng sóng âm thanh trực quan phía dưới từng ray audio.
+  - `renderTimelineRuler()`: Vẽ thước đo vạch thời gian (ruler ticks) theo từng giây.
+- **`5b_timeline_engine.js`:**
+  - `startTimelinePlayback()`, `toggleTimelinePlayback()`: Vòng lặp phát câu hiện tại với Web Worker Clock độ chính xác cao.
+  - `seekTimeline()`: Tua đến mốc thời gian bất kỳ trên trục Timeline và cập nhật Canvas tức thì.
+  - `runUnifiedSentenceSequence()`: Trình điều phối chạy nối tiếp các câu theo thứ tự, tự động kích hoạt giọng đọc AI và chuyển câu.
+  - `togglePreviewAllPlayback()`: Chế độ chạy thử liên tục toàn bộ kịch bản.
 
 ### 8. `js/6_tts_audio.js`
-- Âm thanh và Giọng đọc AI:
-  - `speakTTS()`, `populateVoiceList()`: Gọi Web Speech API phát âm tiếng Anh.
-  - `autoRecalculateAudioLayersDuration()`: Tự động đo độ dài văn bản để khóa thời lượng ray Timeline.
-  - `createWavHeader()`, `encodePcmChunksToWavBlob()`: Thu âm và mã hóa dữ liệu PCM thành file âm thanh WAV chuẩn 44.1kHz Stereo 16-bit.
+- **Chuyên môn:** Xử lý âm thanh, phát giọng đọc AI và xuất file WAV chất lượng cao.
+- `speakTTS()`, `populateVoiceList()`: Tích hợp Web Speech API trình duyệt và Edge TTS service.
+- `fetchEdgeTtsAudioBuffer()`: Tải và giải mã âm thanh trước vào bộ nhớ đệm giúp phát với độ trễ 0ms.
+- `autoRecalculateAudioLayersDuration()`: Tự động đo độ dài đoạn văn bản để khóa thời lượng ray Timeline vừa khít với giọng nói.
+- `createWavHeader()`, `encodePcmChunksToWavBlob()`: Thu thập dữ liệu PCM và đóng gói thành file âm thanh WAV chuẩn 44.1kHz Stereo 16-bit.
 
-### 9. `js/7_inspector_ui.js`
-- Bảng điều khiển Ribbon và Hộp thoại Popover:
-  - `renderInspectorRibbon()`: Bảng chỉnh sửa font, size, màu sắc, lề padding của trường đang chọn.
-  - `applyMultiFieldProp()`, `toggleMultiFieldStyle()`: Áp dụng định dạng cho một hoặc nhiều trường đồng thời.
-  - `openFloatingCardPopover()`: Mở popover nổi chỉnh cấu hình thẻ TTS, đồng hồ đếm ngược, chữ tự do.
-  - `syncInlineGridSettingsInputs()`: Cấu hình chia cột lưới, tỷ lệ rộng, lề 4 chiều.
+### 9. Nhóm Thanh Công Cụ & Tùy Chỉnh (`js/7a_`, `js/7b_`, `js/7c_`)
+- **`7a_inspector_popover.js`:**
+  - `openFloatingCardPopover()`: Mở hộp thoại nổi điều khiển thẻ thành phần khi nhấp vào chip trong lớp.
+  - Hỗ trợ 3 loại thẻ đặc biệt: Thẻ Giọng Đọc AI (chọn trường đọc nối tiếp), Đồng Hồ Đếm Ngược (cấu hình số giây, vị trí), và Thẻ Chữ Tự Do.
+- **`7b_inspector_ribbon.js`:**
+  - `renderInspectorRibbon()`: Bảng điều khiển định dạng kiểu dáng (Phông chữ, Cỡ px, In đậm/nghiêng/gạch chân, Màu chữ, Màu highlight, Đệm viền ngang/dọc, Căn lề, Bo góc thẻ).
+  - `applyPresetToSelectedFields()`: Áp dụng nhanh các bộ phối màu thị giác (Vàng Pill, Kem Pastel, Tím IPA, Ghi Dịch).
+  - `renderMailMergeFieldChips()`: Hiển thị thanh thẻ trường dữ liệu Excel để thêm vào lớp thiết kế.
+- **`7c_inspector_grid.js`:**
+  - `renderTimelineLayersListUI()`: Danh sách các lớp (Layers), phân bổ cột Grid, độ dịch dòng (Row Offset).
+  - `syncInlineGridSettingsInputs()`: Thiết lập ma trận lưới Grid Matrix (1 - 4 cột), tỉ lệ độ rộng các cột (%), đệm lề 4 chiều.
+  - `renderColumnLockControls()`: Khóa đồng bộ hàng Excel song song hoặc để cột ở chế độ căn giữa tự do.
 
-### 10. `js/8_batch_pipeline.js`
-- Quá trình Render Video hàng loạt và Báo cáo:
-  - `startBatchRenderPipeline()`, `runNextBatchTopic()`: Quản lý hàng đợi render theo chuỗi kịch bản & chủ đề.
-  - `saveBatchVideoFileDirectly()`: Ghi video và file WAV trực tiếp vào thư mục máy qua File System Access API.
-  - `exportBatchExcelReport()`: Xuất báo cáo kết quả render ra file Excel gồm 2 sheet chi tiết tới mili-giây.
+### 10. Nhóm Render Hàng Loạt & Báo Cáo (`js/8a_`, `js/8b_`, `js/8c_`)
+- **`8a_batch_queue.js`:**
+  - `buildBatchQueueList()`: Xây dựng danh sách hàng đợi render tự động từ ma trận [Kịch bản] x [Chủ đề bài học].
+  - `resetBatchNamingPattern()`: Quy tắc đặt tên file linh hoạt (`{stt}-[{script}]-[{topic}]`).
+  - `renderBatchTableUI()`: Bảng quản lý tiến độ từng bài học, hỗ trợ tick chọn riêng lẻ từng dòng để render.
+  - `pickBatchDirectoryHandle()`: Tích hợp File System Access API cho phép người dùng chỉ định thư mục lưu video trực tiếp vào ổ cứng.
+- **`8b_batch_runner.js`:**
+  - `startBatchRenderPipeline()`: Khởi chạy tiến trình kết xuất video hàng loạt tự động với 3 chế độ:
+    1. *Render MP4 Nhanh*: Xuất 01 file MP4 tích hợp sẵn audio.
+    2. *Tách Audio WAV*: Xuất 01 file MP4 + 01 file WAV riêng biệt đồng bộ tuyệt đối.
+    3. *Render Kép*: Xuất trọn bộ 3 file (Full.mp4, Clean.mp4 nền trắng không logo, và Audio.wav).
+  - Sử dụng MediaRecorder ghi hình Canvas và luồng âm thanh PCM không nén 44.1kHz.
+  - `requestScreenWakeLock()`: Khóa màn hình không bị tắt trong suốt quá trình render.
+- **`8c_batch_exporter.js`:**
+  - `exportBatchExcelReport()`: Tự động trích xuất file báo cáo Excel 2 Sheet chi tiết:
+    - *Sheet 1 (Tổng Quan Video)*: STT, Kịch bản, Chủ đề, Tên file, Thời lượng ms/giây, Dung lượng MB.
+    - *Sheet 2 (Chi Tiết Timeline)*: Chi tiết từng câu luyện tập (drills), từ gợi mở (cue), thời điểm bắt đầu (start ms), kết thúc (end ms) chuẩn xác theo đồng hồ thực tế.
+  - `triggerFilePickerSave()`: Hỗ trợ lưu video đơn lẻ qua File Picker dialog.
 
 ### 11. `js/app.js`
-- Điểm khởi động ứng dụng:
-  - Sự kiện `DOMContentLoaded`, khởi tạo Canvas, Lucide icons, gọi nạp dữ liệu từ IndexedDB.
-  - `showToast()`: Hiển thị thông báo trạng thái góc màn hình.
+- **Chuyên môn:** Điểm khởi động ứng dụng và quản lý tương tác cấp hệ thống.
+- Lắng nghe `DOMContentLoaded`, khởi tạo Canvas, render danh sách phông chữ, nạp trạng thái từ IndexedDB.
+- `switchLeftSubTab()`: Chuyển đổi các tab bên cột trái (Kịch bản, Dữ liệu, Lớp & Grid, Hiệu ứng, Định dạng).
+- `showToast()`: Hệ thống thông báo trạng thái góc màn hình.
+- Phím tắt bàn phím toàn cục (Space: Play/Pause, Ctrl+Z / Ctrl+S).
+
+---
+
+## 4. QUY TẮC ĐỒNG BỘ VÀ NGUYÊN TẮC BẢO TRÌ
+1. **Mô hình Phạm Vi Toàn Cục (Global Scope):** Mọi hàm và biến dùng chung được khai báo ở phạm vi cửa sổ trình duyệt (window), không dùng `import/export`. Thứ tự nạp `<script>` trong `index.html` quyết định tính khả dụng.
+2. **Đồng bộ hai chiều `js/` và `public/js/`:** Mọi thay đổi trong thư mục `/js/` phải luôn được sao chép nguyên vẹn sang `/public/js/`.
+3. **Tính toàn vẹn mã nguồn:** Không bao giờ viết tắt hay để lại chú thích lược bỏ code. Mọi tính năng hoạt động độc lập và ổn định 100%.

@@ -84,6 +84,44 @@ var batchAudioSampleRate = 44100;
 var selectedFieldKeysList = ["Substitution words"];
 var paragraphSelectedGroupIdx = 0;
 var paragraphSelectedFieldKey = "Substitution words";
+var selectedCustomTextTarget = null; // { gIdx, fIdx }
+
+function getCustomTextDefaults(item) {
+    if (!item) item = {};
+    if (item.text === undefined) item.text = "Ghi chú tiêu đề ở đây";
+    if (item.font === undefined) item.font = "Quicksand";
+    if (item.size === undefined) item.size = 28;
+    if (item.style === undefined) item.style = "bold";
+    if (item.underline === undefined) item.underline = false;
+    if (item.textCase === undefined) item.textCase = "none"; // 'none' | 'uppercase' | 'capitalize'
+    if (item.color === undefined) item.color = "#ffffff";
+    if (item.strokeEnabled === undefined) item.strokeEnabled = false;
+    if (item.strokeColor === undefined) item.strokeColor = "#000000";
+    if (item.strokeWidth === undefined) item.strokeWidth = 3;
+    if (item.shadowEnabled === undefined) item.shadowEnabled = false;
+    if (item.shadowColor === undefined) item.shadowColor = "rgba(0, 0, 0, 0.6)";
+    if (item.shadowBlur === undefined) item.shadowBlur = 6;
+    if (item.shadowOffsetX === undefined) item.shadowOffsetX = 3;
+    if (item.shadowOffsetY === undefined) item.shadowOffsetY = 3;
+    if (item.boxBgColor === undefined) item.boxBgColor = "#0f172a";
+    if (item.highlightColor === undefined) item.highlightColor = "transparent";
+    if (item.highlightPaddingX === undefined) item.highlightPaddingX = 8;
+    if (item.highlightPaddingY === undefined) item.highlightPaddingY = 4;
+    if (item.boxRadius === undefined) item.boxRadius = 16;
+    if (item.boxPadding === undefined) item.boxPadding = 12;
+    if (item.shrinkToFit === undefined) item.shrinkToFit = true;
+    if (item.useCustomCoords === undefined) item.useCustomCoords = false;
+    if (item.posX === undefined) item.posX = 120;
+    if (item.posY === undefined) item.posY = 120;
+    if (item.width === undefined) item.width = 520;
+    if (item.height === undefined) item.height = 120;
+    if (item.hAlign === undefined) item.hAlign = "left";
+    if (item.lineSpacing === undefined) item.lineSpacing = 1.25;
+    if (item.autoScale === undefined) item.autoScale = false;
+    if (item.prefix === undefined) item.prefix = "";
+    if (item.suffix === undefined) item.suffix = "";
+    return item;
+}
 
 var isLeftCollapsed = false;
 var isRightCollapsed = false;
