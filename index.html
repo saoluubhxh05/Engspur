@@ -783,6 +783,7 @@
                             </label>
                             <select id="batch-target-practice-mode" onchange="onBatchModeChanged(this.value)" class="w-full bg-slate-900 border border-indigo-500/50 rounded-lg p-1.5 font-bold text-indigo-200 text-[11px]">
                                 <option value="mode3" selected>Kịch bản hiện tại</option>
+                                <option value="outside_loop_only">Kịch bản chỉ có lớp Ngoài Vòng Lặp</option>
                                 <option value="mode3_chain">Chuỗi Nhiều Kịch Bản Đã Lưu (Multi-Chain)</option>
                             </select>
                         </div>
@@ -855,7 +856,7 @@
                             </div>
                         </div>
 
-                        <div class="flex items-center gap-1.5">
+                        <div class="flex items-center gap-1.5 flex-wrap">
                             <button id="btn-batch-pause-resume" onclick="toggleBatchPauseResume()" disabled class="py-1.5 px-3 bg-slate-800 text-slate-500 rounded-lg text-xs font-bold flex items-center space-x-1 transition cursor-not-allowed">
                                 <i data-lucide="pause" class="w-3 h-3" id="batch-pause-icon"></i>
                                 <span id="batch-pause-text">Tạm Dừng</span>
@@ -863,6 +864,10 @@
                             <button id="btn-batch-cancel" onclick="cancelBatchRender()" disabled class="py-1.5 px-3 bg-slate-800 text-slate-500 rounded-lg text-xs font-bold flex items-center space-x-1 transition cursor-not-allowed">
                                 <i data-lucide="square" class="w-3 h-3"></i>
                                 <span>Hủy Hàng Đợi</span>
+                            </button>
+                            <button id="btn-batch-static-render" onclick="startStaticOutsideLoopRender('combined')" class="py-1.5 px-3.5 bg-gradient-to-r from-amber-600 via-orange-600 to-yellow-500 hover:from-amber-500 hover:to-yellow-400 text-white font-black rounded-lg text-xs transition shadow-lg flex items-center space-x-1.5 active:scale-95 border border-amber-300/40" title="Render kịch bản chỉ gồm các lớp cố định ngoài vòng lặp (Intro/Outro/Banner tĩnh) đúng 1 lần theo thời lượng Timeline">
+                                <i data-lucide="pin" class="w-3.5 h-3.5 text-amber-200"></i>
+                                <span>Render Kịch Bản Ngoài Lặp</span>
                             </button>
                             <button id="btn-batch-dual-render" onclick="startBatchRenderPipeline('dual_parallel')" class="py-1.5 px-3.5 bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 hover:from-purple-500 hover:to-amber-400 text-white font-black rounded-lg text-xs transition shadow-lg flex items-center space-x-1.5 active:scale-95 border border-amber-300/30">
                                 <i data-lucide="layers-2" class="w-3.5 h-3.5 text-amber-200"></i>

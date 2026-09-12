@@ -133,7 +133,10 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
         ctx.restore();
     }
 
-    const activeTopicList = getParagraphFilteredDatasets();
+    let activeTopicList = getParagraphFilteredDatasets();
+    if (!activeTopicList || activeTopicList.length === 0) {
+        activeTopicList = [{ topic: "Default", drills: [{ cueWord: "", drillText: "" }] }];
+    }
     const totalSentences = activeTopicList.length;
 
     const sentenceDataMaps = activeTopicList.map((ds, sIdx) => {
@@ -181,11 +184,13 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
         if (!dataMap) continue;
 
         const isCurrentSentence = (sIdx === (isParagraphRunning ? pCurrentSentenceIndex : 0));
+        const isOutsideOnlyRender = (typeof isBatchRunning !== 'undefined' && isBatchRunning && typeof batchRenderQueue !== 'undefined' && batchRenderQueue[currentBatchQueueIndex] && batchRenderQueue[currentBatchQueueIndex].isOutsideLoopOnly) || (typeof isStaticOutsideLoopRunning !== 'undefined' && isStaticOutsideLoopRunning);
         let maxLockedRowHeight = 0;
         let lockedColumnsInRow = [];
 
         paragraphGridConfig.groups.forEach(grp => {
             if (grp.isInsideLoop === false && sIdx > 0) return;
+            if (isOutsideOnlyRender && grp.isInsideLoop !== false) return;
             const targetColIdx = Math.max(1, Math.min(grp.targetColumn || 1, colCount));
             const isColLocked = matrix.colSyncSettings && matrix.colSyncSettings[targetColIdx] ? matrix.colSyncSettings[targetColIdx].locked : true;
 
@@ -227,6 +232,7 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
 
         paragraphGridConfig.groups.forEach(grp => {
             if (grp.isInsideLoop === false && sIdx > 0) return;
+            if (isOutsideOnlyRender && grp.isInsideLoop !== false) return;
             if (isCurrentSentence) {
                 const start = grp.startTime || 0;
                 let end = start + (grp.duration || masterTimelineDuration);

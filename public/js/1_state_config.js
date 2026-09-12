@@ -61,6 +61,7 @@ var batchDirectoryHandle = null;
 var batchDirectoryName = "";
 var isBatchRunning = false;
 var isBatchPaused = false;
+var isStaticOutsideLoopRunning = false;
 var currentBatchIndex = 0;
 var batchTotalVideos = 0;
 var batchRenderStartTime = 0;

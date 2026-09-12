@@ -68,7 +68,10 @@ function timelinePlaybackLoop(timestamp) {
 }
 
 function checkAndTriggerTimelineAudio(curTime) {
-    const activeTopicList = getParagraphFilteredDatasets();
+    let activeTopicList = getParagraphFilteredDatasets();
+    if (!activeTopicList || activeTopicList.length === 0) {
+        activeTopicList = [{ topic: "Default", drills: [{ cueWord: "", drillText: "" }] }];
+    }
     const curIdx = isParagraphRunning ? pCurrentSentenceIndex : 0;
     const curDs = activeTopicList[curIdx] || importedDatasets[0] || {};
     const drill = (curDs && curDs.drills && curDs.drills[0]) ? curDs.drills[0] : {};
@@ -94,7 +97,10 @@ function checkAndTriggerTimelineAudio(curTime) {
         });
     }
 
+    const isOutsideOnly = (typeof isBatchRunning !== 'undefined' && isBatchRunning && typeof batchRenderQueue !== 'undefined' && batchRenderQueue[currentBatchQueueIndex] && batchRenderQueue[currentBatchQueueIndex].isOutsideLoopOnly) || (typeof isStaticOutsideLoopRunning !== 'undefined' && isStaticOutsideLoopRunning);
+
     paragraphGridConfig.groups.forEach((grp, gIdx) => {
+        if (isOutsideOnly && grp.isInsideLoop !== false) return;
         const start = grp.startTime || 0;
         // Kích hoạt chuẩn xác khi playhead chạm tới mốc bắt đầu layer và chưa từng trigger trong câu này
         const isAlreadyTriggered = currentSentenceTriggeredAudioGroups ? currentSentenceTriggeredAudioGroups.has(gIdx) : (activePlayingAudioGroupIdx === gIdx);
@@ -181,9 +187,16 @@ function togglePreviewAllPlayback() {
 
 function runUnifiedSentenceSequence() {
     if (!isParagraphRunning || isParagraphPaused) return;
-    const activeTopicList = getParagraphFilteredDatasets();
+    let activeTopicList = getParagraphFilteredDatasets();
+    if (!activeTopicList || activeTopicList.length === 0) {
+        activeTopicList = [{ topic: "Default", drills: [{ cueWord: "", drillText: "" }] }];
+    }
 
-    if (pCurrentSentenceIndex >= activeTopicList.length) {
+    const isOutsideOnly = (typeof isBatchRunning !== 'undefined' && isBatchRunning && typeof batchRenderQueue !== 'undefined' && batchRenderQueue[currentBatchQueueIndex] && batchRenderQueue[currentBatchQueueIndex].isOutsideLoopOnly) || (typeof isStaticOutsideLoopRunning !== 'undefined' && isStaticOutsideLoopRunning);
+
+    const totalSentences = isOutsideOnly ? 1 : Math.max(1, activeTopicList.length);
+
+    if (pCurrentSentenceIndex >= totalSentences) {
         finishParagraphExport();
         return;
     }
@@ -216,8 +229,8 @@ function runUnifiedSentenceSequence() {
             scriptName: currentItem ? currentItem.scriptTag : "",
             topic: currentItem ? currentItem.topic : "",
             sentenceIdx: pCurrentSentenceIndex + 1,
-            cueWord: drill.cueWord || "",
-            drillText: drill.drillText || "",
+            cueWord: isOutsideOnly ? "Ngoài vòng lặp" : (drill.cueWord || ""),
+            drillText: isOutsideOnly ? "Kịch bản tĩnh ngoài vòng lặp" : (drill.drillText || ""),
             startMs: startMs,
             endMs: startMs + Math.round(curSentenceTotalDur * 1000),
             durationMs: Math.round(curSentenceTotalDur * 1000)
@@ -429,6 +442,16 @@ function resetParagraphEngine() {
 }
 
 function updateParagraphProgressBar() {
+    const isOutsideOnly = (typeof isBatchRunning !== 'undefined' && isBatchRunning && typeof batchRenderQueue !== 'undefined' && batchRenderQueue[currentBatchQueueIndex] && batchRenderQueue[currentBatchQueueIndex].isOutsideLoopOnly) || (typeof isStaticOutsideLoopRunning !== 'undefined' && isStaticOutsideLoopRunning);
+    if (isOutsideOnly) {
+        const pBar = document.getElementById('p-render-progress-bar');
+        if (pBar) pBar.style.width = '100%';
+        const pPct = document.getElementById('p-render-percentage-text');
+        if (pPct) pPct.innerText = '100%';
+        const pInfo = document.getElementById('p-info-step-text');
+        if (pInfo) pInfo.innerText = `Tiến độ: Kịch bản Ngoài Vòng Lặp (1/1)`;
+        return;
+    }
     const activeTopicList = getParagraphFilteredDatasets();
     const total = activeTopicList.length;
     const cur = pCurrentSentenceIndex + 1;

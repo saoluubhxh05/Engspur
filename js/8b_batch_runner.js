@@ -81,18 +81,20 @@ async function startBatchRenderPipeline(mode = 'combined') {
     // Reset trạng thái hiển thị của các mục trong hàng đợi
     batchRenderQueue.forEach(q => q.status = 'pending');
 
-    // 3 nút render bị mờ đi; hai nút "Tạm Dừng" và "Hủy Hàng Đợi" sáng lên
+    // Các nút render bị mờ đi; hai nút "Tạm Dừng" và "Hủy Hàng Đợi" sáng lên
     const btnPause = document.getElementById('btn-batch-pause-resume');
     const btnCancel = document.getElementById('btn-batch-cancel');
     const btnDual = document.getElementById('btn-batch-dual-render');
     const btnSeparate = document.getElementById('btn-batch-separate-render');
     const btnStart = document.getElementById('btn-start-batch-render');
+    const btnStatic = document.getElementById('btn-batch-static-render');
 
     if (btnPause) { btnPause.disabled = false; btnPause.className = "py-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-bold flex items-center space-x-1 transition"; }
     if (btnCancel) { btnCancel.disabled = false; btnCancel.className = "py-1.5 px-3 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold flex items-center space-x-1 transition"; }
     if (btnDual) { btnDual.disabled = true; btnDual.classList.add('opacity-50'); }
     if (btnSeparate) { btnSeparate.disabled = true; btnSeparate.classList.add('opacity-50'); }
     if (btnStart) { btnStart.disabled = true; btnStart.classList.add('opacity-50'); }
+    if (btnStatic) { btnStatic.disabled = true; btnStatic.classList.add('opacity-50'); }
 
     // Dòng trạng thái đổi thông báo
     const statusText = document.getElementById('batch-progress-status-text');
@@ -117,6 +119,23 @@ async function startBatchRenderPipeline(mode = 'combined') {
     runCurrentBatchQueueItem();
 }
 
+/**
+ * Nút Render Nhanh Kịch Bản Ngoài Lặp:
+ * Tự động chuyển chế độ sang outside_loop_only, xây dựng hàng đợi và kích hoạt render ngay
+ */
+async function startStaticOutsideLoopRender(mode = 'combined') {
+    const sel = document.getElementById('batch-render-mode-select');
+    if (sel) sel.value = 'outside_loop_only';
+    buildBatchQueueList();
+
+    const activeQueueItems = batchRenderQueue.filter(q => q.selected !== false);
+    if (activeQueueItems.length === 0) {
+        showToast("Không tìm thấy kịch bản nào chỉ có lớp ngoài vòng lặp! Hãy đảm bảo kịch bản của bạn có các lớp và tất cả các lớp đó đều bật 'Ngoài vòng lặp'.", "warning");
+        return;
+    }
+    await startBatchRenderPipeline(mode);
+}
+
 function startBatchOverallTimer() {
     if (batchOverallTimer) clearInterval(batchOverallTimer);
     batchOverallTimer = setInterval(() => {
@@ -134,9 +153,13 @@ async function prepareTopicEdgeTtsAudios(topicName) {
     if (!isEdge) return;
 
     // Lọc chuẩn xác danh sách câu theo chủ đề hiện tại cần render
-    const activeTopicList = (topicName && topicName !== 'ALL')
+    let activeTopicList = (topicName && topicName !== 'ALL')
         ? importedDatasets.filter(ds => ds.topic === topicName)
         : ((typeof getParagraphFilteredDatasets === 'function') ? getParagraphFilteredDatasets() : importedDatasets);
+
+    if (!activeTopicList || activeTopicList.length === 0) {
+        activeTopicList = [{ topic: topicName || "Default", drills: [{ cueWord: "", drillText: "" }] }];
+    }
 
     const fetchPromises = [];
 
@@ -244,6 +267,7 @@ async function runCurrentBatchQueueItem() {
     }
 
     paragraphSelectedTopic = currentItem.topic;
+    isStaticOutsideLoopRunning = !!currentItem.isOutsideLoopOnly;
     pCurrentSentenceIndex = 0;
     currentTimelinePlayTime = 0.0;
     activePlayingAudioGroupIdx = -1;
@@ -471,6 +495,7 @@ async function runCurrentBatchQueueItem() {
             // Bắt đầu chuỗi quay cho bản Clean
             pCleanMediaRecorder.start(100);
             isParagraphRunning = true;
+            isStaticOutsideLoopRunning = !!currentItem.isOutsideLoopOnly;
             pCurrentSentenceIndex = 0;
             currentTimelinePlayTime = 0.0;
             activePlayingAudioGroupIdx = -1;
@@ -497,12 +522,14 @@ async function runCurrentBatchQueueItem() {
     pMediaRecorder.start(100);
 
     isParagraphRunning = true;
+    isStaticOutsideLoopRunning = !!currentItem.isOutsideLoopOnly;
     pCurrentSentenceIndex = 0;
     runUnifiedSentenceSequence();
 }
 
 function completeCurrentBatchQueueItem(currentItem, baseName, fullVideoFilename, cleanVideoFilename, audioFilename, durationMs, sizeMb) {
     batchCurrentSubPhase = 'full';
+    isStaticOutsideLoopRunning = false;
     currentItem.status = 'saved';
     currentItem.savedFilename = (batchExecutionMode === 'dual_parallel') ? `${baseName} (Bộ 3 file)` : ((batchExecutionMode === 'separate_wav') ? `${baseName} (MP4 + WAV)` : fullVideoFilename);
     currentItem.durationMs = durationMs;
@@ -524,7 +551,19 @@ function completeCurrentBatchQueueItem(currentItem, baseName, fullVideoFilename,
     });
 
     // Thêm vào báo cáo chi tiết Sheet 2 (chính xác từng ms theo đồng hồ thực)
-    if (batchCurrentTopicRealSentenceLogs && batchCurrentTopicRealSentenceLogs.length > 0) {
+    if (currentItem.isOutsideLoopOnly) {
+        batchTimelineSentenceLogs.push({
+            stt: batchTimelineSentenceLogs.length + 1,
+            scriptName: currentItem.scriptTag,
+            topic: "Cố định (Ngoài vòng lặp)",
+            sentenceIdx: 1,
+            cueWord: "Ngoài vòng lặp",
+            drillText: "Kịch bản tĩnh ngoài vòng lặp (1 lần)",
+            startMs: 0,
+            endMs: durationMs,
+            durationMs: durationMs
+        });
+    } else if (batchCurrentTopicRealSentenceLogs && batchCurrentTopicRealSentenceLogs.length > 0) {
         batchCurrentTopicRealSentenceLogs.forEach(logItem => {
             batchTimelineSentenceLogs.push(logItem);
         });
@@ -648,12 +687,15 @@ function cancelBatchRender() {
     const btnDual = document.getElementById('btn-batch-dual-render');
     const btnSeparate = document.getElementById('btn-batch-separate-render');
     const btnStart = document.getElementById('btn-start-batch-render');
+    const btnStatic = document.getElementById('btn-batch-static-render');
 
     if (btnPause) { btnPause.disabled = true; btnPause.className = "py-1.5 px-3 bg-slate-800 text-slate-500 rounded-lg text-xs font-bold flex items-center space-x-1 transition cursor-not-allowed"; }
     if (btnCancel) { btnCancel.disabled = true; btnCancel.className = "py-1.5 px-3 bg-slate-800 text-slate-500 rounded-lg text-xs font-bold flex items-center space-x-1 transition cursor-not-allowed"; }
     if (btnDual) { btnDual.disabled = false; btnDual.classList.remove('opacity-50'); }
     if (btnSeparate) { btnSeparate.disabled = false; btnSeparate.classList.remove('opacity-50'); }
     if (btnStart) { btnStart.disabled = false; btnStart.classList.remove('opacity-50'); }
+    if (btnStatic) { btnStatic.disabled = false; btnStatic.classList.remove('opacity-50'); }
+    isStaticOutsideLoopRunning = false;
 
     const statusText = document.getElementById('batch-progress-status-text');
     if (statusText) {
@@ -705,12 +747,15 @@ function finishBatchPipeline() {
     const btnDual = document.getElementById('btn-batch-dual-render');
     const btnSeparate = document.getElementById('btn-batch-separate-render');
     const btnStart = document.getElementById('btn-start-batch-render');
+    const btnStatic = document.getElementById('btn-batch-static-render');
 
     if (btnPause) { btnPause.disabled = true; btnPause.className = "py-1.5 px-3 bg-slate-800 text-slate-500 rounded-lg text-xs font-bold flex items-center space-x-1 transition cursor-not-allowed"; }
     if (btnCancel) { btnCancel.disabled = true; btnCancel.className = "py-1.5 px-3 bg-slate-800 text-slate-500 rounded-lg text-xs font-bold flex items-center space-x-1 transition cursor-not-allowed"; }
     if (btnDual) { btnDual.disabled = false; btnDual.classList.remove('opacity-50'); }
     if (btnSeparate) { btnSeparate.disabled = false; btnSeparate.classList.remove('opacity-50'); }
     if (btnStart) { btnStart.disabled = false; btnStart.classList.remove('opacity-50'); }
+    if (btnStatic) { btnStatic.disabled = false; btnStatic.classList.remove('opacity-50'); }
+    isStaticOutsideLoopRunning = false;
 
     const statusText = document.getElementById('batch-progress-status-text');
     if (statusText) {
