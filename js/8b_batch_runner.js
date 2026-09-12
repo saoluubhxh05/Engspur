@@ -4,6 +4,7 @@
  */
 
 var studioWakeLock = null;
+var batchCurrentChainStepIndex = 0;
 async function requestScreenWakeLock() {
     if ('wakeLock' in navigator) {
         try { studioWakeLock = await navigator.wakeLock.request('screen'); } catch(e) {}
@@ -73,7 +74,19 @@ async function startBatchRenderPipeline(mode = 'combined') {
     requestScreenWakeLock();
 
     currentBatchQueueIndex = 0;
-    batchTotalVideos = batchRenderQueue.filter(q => q.selected !== false).length;
+    batchCurrentChainStepIndex = 0;
+    const separateType = document.getElementById('batch-separate-output-type')?.value || 'per_script';
+    let totalVids = 0;
+    activeQueueItems.forEach(item => {
+        if (item.isChain && separateType === 'combined_chain') {
+            totalVids += 1;
+        } else if (item.chainFiles && item.chainFiles.length > 0) {
+            totalVids += item.chainFiles.length;
+        } else {
+            totalVids += 1;
+        }
+    });
+    batchTotalVideos = Math.max(1, totalVids);
     batchCompletedReports = [];
     batchTimelineSentenceLogs = [];
     batchRenderStartTime = Date.now();
@@ -124,7 +137,7 @@ async function startBatchRenderPipeline(mode = 'combined') {
  * Tự động chuyển chế độ sang outside_loop_only, xây dựng hàng đợi và kích hoạt render ngay
  */
 async function startStaticOutsideLoopRender(mode = 'combined') {
-    const sel = document.getElementById('batch-render-mode-select');
+    const sel = document.getElementById('batch-target-practice-mode') || document.getElementById('batch-render-mode-select');
     if (sel) sel.value = 'outside_loop_only';
     buildBatchQueueList();
 
@@ -223,6 +236,7 @@ async function runCurrentBatchQueueItem() {
     // Tự động bỏ qua các mục không được tick chọn
     while (currentBatchQueueIndex < batchRenderQueue.length && batchRenderQueue[currentBatchQueueIndex].selected === false) {
         currentBatchQueueIndex++;
+        batchCurrentChainStepIndex = 0;
     }
 
     if (currentBatchQueueIndex >= batchRenderQueue.length) {
@@ -236,18 +250,42 @@ async function runCurrentBatchQueueItem() {
         return;
     }
 
-    // 1. Cập nhật nhãn trạng thái của mục trong hàng đợi sang 🔄 Render...
-    currentItem.status = 'rendering';
+    const chainProfiles = (currentItem.chainProfiles && currentItem.chainProfiles.length > 0) ? currentItem.chainProfiles : [currentItem.scriptConfig];
+    const totalChainSteps = chainProfiles.length;
+    const separateType = document.getElementById('batch-separate-output-type')?.value || 'per_script';
+
+    if (batchCurrentChainStepIndex >= totalChainSteps) {
+        batchCurrentChainStepIndex = 0;
+        currentBatchQueueIndex++;
+        runCurrentBatchQueueItem();
+        return;
+    }
+
+    const activeScriptProf = chainProfiles[batchCurrentChainStepIndex] || currentItem.scriptConfig;
+    const activeChainFile = (currentItem.chainFiles && currentItem.chainFiles[batchCurrentChainStepIndex]) ? currentItem.chainFiles[batchCurrentChainStepIndex] : null;
+    const currentScriptTag = activeChainFile ? activeChainFile.scriptTag : (batchCustomScriptNamingMap[activeScriptProf?.id] || sanitizeFilename(activeScriptProf?.name || "KB"));
+    const currentBaseName = (currentItem.isChain && separateType === 'combined_chain')
+        ? currentItem.baseName
+        : (activeChainFile ? activeChainFile.baseName : currentItem.baseName);
+
+    // 1. Cập nhật nhãn trạng thái của mục trong hàng đợi
+    if (totalChainSteps > 1 && separateType !== 'combined_chain') {
+        currentItem.status = `rendering_kb_${batchCurrentChainStepIndex + 1}/${totalChainSteps}`;
+    } else {
+        currentItem.status = 'rendering';
+    }
     renderBatchTableUI();
 
     // 2. Cập nhật Mini Live Monitor góc phải: hiện tên kịch bản và chủ đề đang chạy
     const currentTopicBadge = document.getElementById('batch-current-topic-badge');
     if (currentTopicBadge) {
-        currentTopicBadge.innerText = `[${currentItem.scriptTag}] ${currentItem.topic}`;
+        currentTopicBadge.innerText = (totalChainSteps > 1 && separateType !== 'combined_chain')
+            ? `[${currentScriptTag}] ${currentItem.topic} (${batchCurrentChainStepIndex + 1}/${totalChainSteps})`
+            : `[${currentScriptTag}] ${currentItem.topic}`;
     }
 
     // 3. Tự động chuyển tiếp kịch bản sang bài học mới: Nạp cấu hình kịch bản độc lập
-    const scriptProf = currentItem.scriptConfig;
+    const scriptProf = activeScriptProf;
     if (scriptProf) {
         paragraphGridConfig = JSON.parse(JSON.stringify(scriptProf));
         masterTimelineDuration = scriptProf.masterDuration || 8.0;
@@ -416,7 +454,7 @@ async function runCurrentBatchQueueItem() {
 
         const ext = mime.includes('mp4') ? 'mp4' : 'webm';
         const durationMs = Math.max(100, Math.round(performance.now() - batchCurrentVideoStartTime));
-        const baseName = currentItem.baseName;
+        const baseName = currentBaseName;
 
         // TÊN CÁC FILE ĐẦU RA ĐỒNG BỘ TUYỆT ĐỐI THEO [STT]-[Tên Kịch Bản]-[Tên Chủ Đề]
         const fullVideoFilename = (batchExecutionMode === 'dual_parallel') ? `${baseName}-Full.mp4` : `${baseName}.mp4`;
@@ -461,7 +499,7 @@ async function runCurrentBatchQueueItem() {
 
             const currentTopicBadge = document.getElementById('batch-current-topic-badge');
             if (currentTopicBadge) {
-                currentTopicBadge.innerText = `[${currentItem.scriptTag}] ${currentItem.topic} (Quay Clean 2/2...)`;
+                currentTopicBadge.innerText = `[${currentScriptTag}] ${currentItem.topic} (Quay Clean 2/2...)`;
             }
 
             // Chuyển sang pha Clean: Không cần âm thanh, chỉ render pCleanCanvas
@@ -489,7 +527,7 @@ async function runCurrentBatchQueueItem() {
                 await saveBatchVideoFileDirectly(cleanBlob, cleanVideoFilename);
 
                 // Hoàn tất mục trong hàng đợi
-                completeCurrentBatchQueueItem(currentItem, baseName, fullVideoFilename, cleanVideoFilename, audioFilename, durationMs, sizeMb);
+                completeCurrentBatchQueueItem(currentItem, currentScriptTag, baseName, fullVideoFilename, cleanVideoFilename, audioFilename, durationMs, sizeMb);
             };
 
             // Bắt đầu chuỗi quay cho bản Clean
@@ -505,7 +543,7 @@ async function runCurrentBatchQueueItem() {
         }
 
         // Với Nút 1 và Nút 2: Hoàn tất ngay sau khi lưu
-        completeCurrentBatchQueueItem(currentItem, baseName, fullVideoFilename, cleanVideoFilename, audioFilename, durationMs, sizeMb);
+        completeCurrentBatchQueueItem(currentItem, currentScriptTag, baseName, fullVideoFilename, cleanVideoFilename, audioFilename, durationMs, sizeMb);
     };
 
     // 7. BẮT ĐẦU GHI HÌNH ĐỒNG BỘ TUYỆT ĐỐI (ZERO LATENCY - 100% SYNC VỚI MINI LIVE MONITOR)
@@ -527,18 +565,14 @@ async function runCurrentBatchQueueItem() {
     runUnifiedSentenceSequence();
 }
 
-function completeCurrentBatchQueueItem(currentItem, baseName, fullVideoFilename, cleanVideoFilename, audioFilename, durationMs, sizeMb) {
+function completeCurrentBatchQueueItem(currentItem, scriptTag, baseName, fullVideoFilename, cleanVideoFilename, audioFilename, durationMs, sizeMb) {
     batchCurrentSubPhase = 'full';
     isStaticOutsideLoopRunning = false;
-    currentItem.status = 'saved';
-    currentItem.savedFilename = (batchExecutionMode === 'dual_parallel') ? `${baseName} (Bộ 3 file)` : ((batchExecutionMode === 'separate_wav') ? `${baseName} (MP4 + WAV)` : fullVideoFilename);
-    currentItem.durationMs = durationMs;
-    currentItem.fileSizeMb = sizeMb;
 
     // Thêm vào báo cáo tổng quan Sheet 1
     batchCompletedReports.push({
-        stt: currentItem.stt,
-        scriptName: currentItem.scriptTag,
+        stt: currentItem.sttDisplay || currentItem.stt,
+        scriptName: scriptTag || currentItem.scriptTag,
         topic: currentItem.topic,
         filename: fullVideoFilename,
         audioFilename: (batchExecutionMode === 'dual_parallel') ? `${cleanVideoFilename} + ${audioFilename}` : ((batchExecutionMode === 'separate_wav') ? audioFilename : 'Đã tích hợp trong MP4'),
@@ -554,7 +588,7 @@ function completeCurrentBatchQueueItem(currentItem, baseName, fullVideoFilename,
     if (currentItem.isOutsideLoopOnly) {
         batchTimelineSentenceLogs.push({
             stt: batchTimelineSentenceLogs.length + 1,
-            scriptName: currentItem.scriptTag,
+            scriptName: scriptTag || currentItem.scriptTag,
             topic: "Cố định (Ngoài vòng lặp)",
             sentenceIdx: 1,
             cueWord: "Ngoài vòng lặp",
@@ -565,7 +599,10 @@ function completeCurrentBatchQueueItem(currentItem, baseName, fullVideoFilename,
         });
     } else if (batchCurrentTopicRealSentenceLogs && batchCurrentTopicRealSentenceLogs.length > 0) {
         batchCurrentTopicRealSentenceLogs.forEach(logItem => {
-            batchTimelineSentenceLogs.push(logItem);
+            batchTimelineSentenceLogs.push({
+                ...logItem,
+                scriptName: scriptTag || currentItem.scriptTag
+            });
         });
     } else {
         const activeTopicList = getParagraphFilteredDatasets();
@@ -575,7 +612,7 @@ function completeCurrentBatchQueueItem(currentItem, baseName, fullVideoFilename,
             const sentDurMs = Math.round(masterTimelineDuration * 1000);
             batchTimelineSentenceLogs.push({
                 stt: batchTimelineSentenceLogs.length + 1,
-                scriptName: currentItem.scriptTag,
+                scriptName: scriptTag || currentItem.scriptTag,
                 topic: currentItem.topic,
                 sentenceIdx: dIdx + 1,
                 cueWord: drill.cueWord || "",
@@ -587,6 +624,30 @@ function completeCurrentBatchQueueItem(currentItem, baseName, fullVideoFilename,
             accumulatedMs += sentDurMs + 800;
         });
     }
+
+    const chainProfiles = (currentItem.chainProfiles && currentItem.chainProfiles.length > 0) ? currentItem.chainProfiles : [currentItem.scriptConfig];
+    const totalChainSteps = chainProfiles.length;
+    const separateType = document.getElementById('batch-separate-output-type')?.value || 'per_script';
+
+    // Kiểm tra xem bài học này còn kịch bản con nào trong chuỗi chưa render không (chế độ per_script)
+    if (separateType === 'per_script' && (batchCurrentChainStepIndex + 1 < totalChainSteps)) {
+        batchCurrentChainStepIndex++;
+        updateBatchOverallProgress();
+        renderBatchTableUI();
+        setTimeout(() => {
+            if (isBatchRunning) {
+                runCurrentBatchQueueItem();
+            }
+        }, 600);
+        return;
+    }
+
+    // Đã hoàn tất tất cả kịch bản của bài học hiện tại!
+    batchCurrentChainStepIndex = 0;
+    currentItem.status = 'saved';
+    currentItem.savedFilename = (batchExecutionMode === 'dual_parallel') ? `${baseName} (Bộ 3 file)` : ((batchExecutionMode === 'separate_wav') ? `${baseName} (MP4 + WAV)` : fullVideoFilename);
+    currentItem.durationMs = durationMs;
+    currentItem.fileSizeMb = sizeMb;
 
     // Tăng chỉ số hàng đợi và cập nhật giao diện
     currentBatchQueueIndex++;
@@ -618,9 +679,8 @@ async function saveBatchVideoFileDirectly(blob, filename) {
 }
 
 function updateBatchOverallProgress() {
-    const selectedItems = batchRenderQueue.filter(q => q.selected !== false);
-    const total = Math.max(1, selectedItems.length);
-    const completed = selectedItems.filter(q => q.status === 'saved' || q.status === 'Hoàn thành').length;
+    const total = Math.max(1, batchTotalVideos);
+    const completed = batchCompletedReports.length;
     const pct = Math.min(100, Math.round((completed / total) * 100));
 
     const overallBar = document.getElementById('batch-overall-bar');
@@ -657,6 +717,7 @@ function cancelBatchRender() {
     isBatchRunning = false;
     isBatchPaused = false;
     isParagraphRunning = false;
+    batchCurrentChainStepIndex = 0;
     batchCurrentSubPhase = 'full';
     releaseScreenWakeLock();
     if (typeof stopStudioRenderClock === 'function') stopStudioRenderClock();
@@ -720,6 +781,7 @@ function finishBatchPipeline() {
     isBatchRunning = false;
     isBatchPaused = false;
     isParagraphRunning = false;
+    batchCurrentChainStepIndex = 0;
     releaseScreenWakeLock();
     if (typeof stopStudioRenderClock === 'function') stopStudioRenderClock();
 

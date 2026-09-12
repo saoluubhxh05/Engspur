@@ -167,10 +167,15 @@ function isScriptOutsideLoopOnly(gridConfig) {
 function buildBatchQueueList() {
     ensureSavedParagraphProfiles();
     const targetMode = document.getElementById('batch-target-practice-mode')?.value || 'mode3';
+    const separateType = document.getElementById('batch-separate-output-type')?.value || 'per_script';
+    const patternInput = document.getElementById('batch-naming-pattern-input');
+    let pattern = (patternInput && patternInput.value.trim()) ? patternInput.value.trim() : "{stt}-[{script}]-[{topic}]";
 
     let profilesToRun = [];
     if (targetMode === 'mode3_chain') {
-        const selectedIds = batchSelectedChainProfiles.length > 0 ? batchSelectedChainProfiles : savedParagraphProfiles.map(p => p.id);
+        const selectedIds = (batchSelectedChainProfiles && batchSelectedChainProfiles.length > 0)
+            ? batchSelectedChainProfiles
+            : savedParagraphProfiles.map(p => p.id);
         selectedIds.forEach(id => {
             const p = savedParagraphProfiles.find(x => x.id === id);
             if (p) profilesToRun.push(p);
@@ -198,99 +203,139 @@ function buildBatchQueueList() {
         profilesToRun = [paragraphGridConfig];
     }
 
-    // Tự động nạp toàn bộ danh sách chủ đề đã nạp vào hàng đợi render:
-    const activeTopics = (batchTopicsList && batchTopicsList.length > 0) ? batchTopicsList : [{ topic: "Default Topic", patternsCount: 1, drillsCount: 1 }];
-
     const newQueue = [];
-    let counter = 1;
 
-    profilesToRun.forEach((prof, pIdx) => {
-        const isOutsideOnly = (targetMode === 'outside_loop_only') || !!prof.isOutsideLoopOnly || isScriptOutsideLoopOnly(prof);
-        const defaultTag = sanitizeFilename(prof.name || (isOutsideOnly ? `KB_NgoaiLap_${pIdx + 1}` : `KB_${pIdx + 1}`));
+    if (targetMode === 'outside_loop_only') {
+        // Kịch bản chỉ có lớp ngoài vòng lặp: Chỉ tạo 1 hàng duy nhất trong hàng đợi (1 video độc lập)
+        const prof = profilesToRun[0];
+        const defaultTag = sanitizeFilename(prof.name || "KB_NgoaiLap");
         const scriptTag = batchCustomScriptNamingMap[prof.id] || defaultTag;
+        const sttStr = "01";
+        const safeTopic = "Ngoai_Vong_Lap";
 
-        if (isOutsideOnly) {
-            // Kịch bản chỉ có lớp ngoài vòng lặp: Chỉ tạo 1 hàng duy nhất trong hàng đợi (1 video độc lập)
-            const sttStr = String(counter).padStart(2, '0');
-            const safeTopic = "Ngoai_Vong_Lap";
+        let baseName = pattern
+            .replace(/\{stt\}/gi, sttStr)
+            .replace(/\{script\}/gi, scriptTag)
+            .replace(/\{topic\}/gi, safeTopic);
+        baseName = sanitizeFilename(baseName);
 
-            const patternInput = document.getElementById('batch-naming-pattern-input');
-            let pattern = (patternInput && patternInput.value.trim()) ? patternInput.value.trim() : "{stt}-[{script}]-[{topic}]";
+        const existing = batchRenderQueue.find(q => q.isOutsideLoopOnly || q.topic === "Cố định (Ngoài vòng lặp)");
+        const status = existing ? existing.status : 'pending';
+        const isSelected = (existing && existing.selected !== undefined) ? existing.selected : true;
 
-            let baseName = pattern
-                .replace(/\{stt\}/gi, sttStr)
-                .replace(/\{script\}/gi, scriptTag)
-                .replace(/\{topic\}/gi, safeTopic);
-            baseName = sanitizeFilename(baseName);
+        newQueue.push({
+            queueId: `q_outside_loop`,
+            stt: 1,
+            sttDisplay: sttStr,
+            selected: isSelected,
+            isOutsideLoopOnly: true,
+            scriptId: prof.id,
+            scriptName: prof.name || `Kịch bản ngoài vòng lặp`,
+            scriptTag: scriptTag,
+            scriptConfig: prof,
+            chainProfiles: [prof],
+            chainFiles: [{
+                profIndex: 0,
+                scriptProf: prof,
+                scriptTag: scriptTag,
+                baseName: baseName,
+                expectedFilename: `${baseName}.mp4`
+            }],
+            topic: "Cố định (Ngoài vòng lặp)",
+            patternsCount: 1,
+            drillsCount: 1,
+            baseName: baseName,
+            expectedFilename: `${baseName}.mp4`,
+            status: status,
+            savedFilename: existing ? existing.savedFilename : '',
+            durationMs: existing ? existing.durationMs : 0,
+            fileSizeMb: existing ? existing.fileSizeMb : 0
+        });
+    } else {
+        // Tự động nạp toàn bộ danh sách chủ đề bài học vào hàng đợi render:
+        // ĐẢM BẢO KHÔNG TĂNG THÊM BỘ DÒNG MỖI CHẾ ĐỘ - SỐ THỨ TỰ MỖI DÒNG ĐÚNG THEO BAN ĐẦU CỦA BÀI HỌC (01, 02, 03...)
+        const activeTopics = (batchTopicsList && batchTopicsList.length > 0)
+            ? batchTopicsList
+            : [{ topic: "Default Topic", patternsCount: 1, drillsCount: 1, stt: 1 }];
 
-            const existing = batchRenderQueue.find(q => q.scriptId === prof.id && (q.isOutsideLoopOnly || q.topic === "Cố định (Ngoài vòng lặp)"));
+        activeTopics.forEach((top, tIdx) => {
+            const sttNum = top.stt || (tIdx + 1);
+            const sttStr = String(sttNum).padStart(2, '0');
+            const safeTopic = sanitizeFilename(top.topic);
+
+            // Xây dựng danh sách kịch bản và file cho bài học này:
+            const isChain = (targetMode === 'mode3_chain');
+            const chainFiles = profilesToRun.map((prof, pIdx) => {
+                const defaultTag = sanitizeFilename(prof.name || `KB_${pIdx + 1}`);
+                const sTag = batchCustomScriptNamingMap[prof.id] || defaultTag;
+                let bName = pattern
+                    .replace(/\{stt\}/gi, sttStr)
+                    .replace(/\{script\}/gi, sTag)
+                    .replace(/\{topic\}/gi, safeTopic);
+                bName = sanitizeFilename(bName);
+                return {
+                    profIndex: pIdx,
+                    scriptProf: prof,
+                    scriptTag: sTag,
+                    baseName: bName,
+                    expectedFilename: `${bName}.mp4`
+                };
+            });
+
+            // Tên kịch bản hiển thị
+            const scriptTags = chainFiles.map(cf => cf.scriptTag);
+            const scriptTag = scriptTags.join(' + ');
+            const scriptName = isChain
+                ? (profilesToRun.length > 1 ? `Chuỗi ${profilesToRun.length} kịch bản` : (profilesToRun[0]?.name || "Kịch bản 1"))
+                : (profilesToRun[0]?.name || "Kịch bản hiện tại");
+
+            // Tên file hiển thị dự kiến
+            let baseName = chainFiles[0]?.baseName || `${sttStr}-[KB]-[${safeTopic}]`;
+            let expectedFilename = "";
+            if (isChain && separateType === 'combined_chain') {
+                let combBase = pattern
+                    .replace(/\{stt\}/gi, sttStr)
+                    .replace(/\{script\}/gi, "Chain")
+                    .replace(/\{topic\}/gi, safeTopic);
+                combBase = sanitizeFilename(combBase);
+                baseName = combBase;
+                expectedFilename = `${combBase}.mp4`;
+            } else if (chainFiles.length > 1) {
+                expectedFilename = chainFiles.map(cf => cf.expectedFilename).join(', ');
+            } else {
+                expectedFilename = `${baseName}.mp4`;
+            }
+
+            // Giữ lại trạng thái nếu mục đã render hoặc được uncheck trước đó
+            const existing = batchRenderQueue.find(q => q.topic === top.topic);
             const status = existing ? existing.status : 'pending';
             const isSelected = (existing && existing.selected !== undefined) ? existing.selected : true;
 
             newQueue.push({
-                queueId: `q_${pIdx}_outside_loop`,
-                stt: counter,
+                queueId: `q_topic_${tIdx}`,
+                stt: sttNum,
                 sttDisplay: sttStr,
                 selected: isSelected,
-                isOutsideLoopOnly: true,
-                scriptId: prof.id,
-                scriptName: prof.name || `Kịch bản ngoài vòng lặp`,
+                isOutsideLoopOnly: false,
+                scriptId: profilesToRun[0]?.id || 'profile_1',
+                scriptName: scriptName,
                 scriptTag: scriptTag,
-                scriptConfig: prof,
-                topic: "Cố định (Ngoài vòng lặp)",
-                patternsCount: 1,
-                drillsCount: 1,
+                scriptConfig: profilesToRun[0],
+                chainProfiles: profilesToRun,
+                chainFiles: chainFiles,
+                isChain: isChain,
+                topic: top.topic,
+                patternsCount: top.patternsCount || 1,
+                drillsCount: top.drillsCount || 1,
                 baseName: baseName,
-                expectedFilename: `${baseName}.mp4`,
+                expectedFilename: expectedFilename,
                 status: status,
                 savedFilename: existing ? existing.savedFilename : '',
                 durationMs: existing ? existing.durationMs : 0,
                 fileSizeMb: existing ? existing.fileSizeMb : 0
             });
-            counter++;
-        } else {
-            activeTopics.forEach((top) => {
-                const sttStr = String(counter).padStart(2, '0');
-                const safeTopic = sanitizeFilename(top.topic);
-
-                const patternInput = document.getElementById('batch-naming-pattern-input');
-                let pattern = (patternInput && patternInput.value.trim()) ? patternInput.value.trim() : "{stt}-[{script}]-[{topic}]";
-
-                let baseName = pattern
-                    .replace(/\{stt\}/gi, sttStr)
-                    .replace(/\{script\}/gi, scriptTag)
-                    .replace(/\{topic\}/gi, safeTopic);
-                baseName = sanitizeFilename(baseName);
-
-                // Giữ lại trạng thái nếu item đã hoàn thành trong lượt chạy
-                const existing = batchRenderQueue.find(q => q.scriptId === prof.id && q.topic === top.topic);
-                const status = existing ? existing.status : 'pending';
-                const isSelected = (existing && existing.selected !== undefined) ? existing.selected : true;
-
-                newQueue.push({
-                    queueId: `q_${pIdx}_${top.topic}`,
-                    stt: counter,
-                    sttDisplay: sttStr,
-                    selected: isSelected,
-                    isOutsideLoopOnly: false,
-                    scriptId: prof.id,
-                    scriptName: prof.name || `Kịch bản ${pIdx + 1}`,
-                    scriptTag: scriptTag,
-                    scriptConfig: prof,
-                    topic: top.topic,
-                    patternsCount: top.patternsCount || 1,
-                    drillsCount: top.drillsCount || 1,
-                    baseName: baseName,
-                    expectedFilename: `${baseName}.mp4`,
-                    status: status,
-                    savedFilename: existing ? existing.savedFilename : '',
-                    durationMs: existing ? existing.durationMs : 0,
-                    fileSizeMb: existing ? existing.fileSizeMb : 0
-                });
-                counter++;
-            });
-        }
-    });
+        });
+    }
 
     batchRenderQueue = newQueue;
 }
@@ -311,6 +356,8 @@ function renderBatchTableUI() {
         return;
     }
 
+    const separateType = document.getElementById('batch-separate-output-type')?.value || 'per_script';
+
     batchRenderQueue.forEach((item, qIdx) => {
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-800/80 transition";
@@ -318,6 +365,9 @@ function renderBatchTableUI() {
         let statusBadge = `<span class="bg-slate-800 text-slate-400 px-2 py-0.5 rounded-lg text-[9px] font-bold whitespace-nowrap">⏳ Đang chờ</span>`;
         if (item.status === 'rendering') {
             statusBadge = `<span class="bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded-lg text-[9px] font-bold animate-pulse whitespace-nowrap">🔄 Render Full...</span>`;
+        } else if (item.status && item.status.startsWith('rendering_kb_')) {
+            const kbStepText = item.status.replace('rendering_kb_', '');
+            statusBadge = `<span class="bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded-lg text-[9px] font-bold animate-pulse whitespace-nowrap">🔄 Render KB ${kbStepText}...</span>`;
         } else if (item.status === 'rendering_clean') {
             statusBadge = `<span class="bg-sky-950 text-sky-300 border border-sky-800 px-2 py-0.5 rounded-lg text-[9px] font-bold animate-pulse whitespace-nowrap">🔄 Clean (2/2)...</span>`;
         } else if (item.status === 'saved') {
@@ -326,14 +376,24 @@ function renderBatchTableUI() {
 
         const isChecked = item.selected !== false;
 
-        const scriptBadgeHtml = item.isOutsideLoopOnly
-            ? `<span class="bg-amber-950 text-amber-300 border border-amber-700/80 text-[10px] font-bold px-2 py-0.5 rounded-md truncate inline-flex items-center space-x-1 max-w-[140px]" title="${item.scriptName}">
+        let scriptBadgeHtml = "";
+        if (item.isOutsideLoopOnly) {
+            scriptBadgeHtml = `<span class="bg-amber-950 text-amber-300 border border-amber-700/80 text-[10px] font-bold px-2 py-0.5 rounded-md truncate inline-flex items-center space-x-1 max-w-[140px]" title="${item.scriptName}">
                     <i data-lucide="pin" class="w-2.5 h-2.5 shrink-0 text-amber-400"></i>
                     <span class="truncate">${item.scriptTag}</span>
-               </span>`
-            : `<span class="bg-indigo-950 text-indigo-300 border border-indigo-800/80 text-[10px] font-bold px-2 py-0.5 rounded-md truncate inline-block max-w-[140px]" title="${item.scriptName}">
+               </span>`;
+        } else if (item.chainFiles && item.chainFiles.length > 1) {
+            scriptBadgeHtml = `<div class="flex flex-wrap gap-1 max-w-[180px]">` +
+                item.chainFiles.map((cf, idx) => `
+                    <span class="bg-indigo-950 text-indigo-300 border border-indigo-800/80 text-[9px] font-bold px-1.5 py-0.5 rounded truncate max-w-[130px]" title="${cf.scriptProf?.name || cf.scriptTag}">
+                        ${idx + 1}. ${cf.scriptTag}
+                    </span>
+                `).join('') + `</div>`;
+        } else {
+            scriptBadgeHtml = `<span class="bg-indigo-950 text-indigo-300 border border-indigo-800/80 text-[10px] font-bold px-2 py-0.5 rounded-md truncate inline-block max-w-[140px]" title="${item.scriptName}">
                     ${item.scriptTag}
                </span>`;
+        }
 
         const topicHtml = item.isOutsideLoopOnly
             ? `<span class="text-amber-300 font-bold flex items-center space-x-1 text-[11px]" title="${item.topic}"><i data-lucide="pin" class="w-3 h-3 shrink-0 text-amber-400"></i><span class="truncate">${item.topic}</span></span>`
@@ -341,6 +401,15 @@ function renderBatchTableUI() {
 
         const patternsDisplay = item.isOutsideLoopOnly ? '<span class="text-slate-500 font-mono text-[10px]">-</span>' : `<span class="text-indigo-300 font-mono text-[10px]">${item.patternsCount}</span>`;
         const drillsDisplay = item.isOutsideLoopOnly ? '<span class="text-slate-500 font-mono text-[10px]">-</span>' : `<span class="text-teal-300 font-mono text-[10px]">${item.drillsCount}</span>`;
+
+        let expectedFileHtml = "";
+        if (item.chainFiles && item.chainFiles.length > 1 && (!item.isChain || separateType !== 'combined_chain')) {
+            expectedFileHtml = `<div class="space-y-0.5 font-mono text-[10px] text-amber-200">` +
+                item.chainFiles.map(cf => `<div class="truncate max-w-[220px]" title="${cf.expectedFilename}">📄 ${cf.expectedFilename}</div>`).join('') +
+                `</div>`;
+        } else {
+            expectedFileHtml = `<span class="text-amber-200 font-mono text-[10px] truncate block max-w-[200px]" title="${item.expectedFilename}">📄 ${item.expectedFilename}</span>`;
+        }
 
         tr.innerHTML = `
             <td class="p-2.5 text-center">
@@ -355,8 +424,8 @@ function renderBatchTableUI() {
             </td>
             <td class="p-2.5">${patternsDisplay}</td>
             <td class="p-2.5">${drillsDisplay}</td>
-            <td class="p-2.5 text-amber-200 font-mono text-[10px] truncate max-w-[180px]" title="${item.expectedFilename}">
-                ${item.expectedFilename}
+            <td class="p-2.5">
+                ${expectedFileHtml}
             </td>
             <td class="p-2.5 text-right">${statusBadge}</td>
         `;
