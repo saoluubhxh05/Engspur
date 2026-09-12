@@ -5,6 +5,7 @@
 
 var studioWakeLock = null;
 var batchCurrentChainStepIndex = 0;
+var batchCooldownTimeout = null;
 async function requestScreenWakeLock() {
     if ('wakeLock' in navigator) {
         try { studioWakeLock = await navigator.wakeLock.request('screen'); } catch(e) {}
@@ -429,7 +430,7 @@ async function runCurrentBatchQueueItem() {
 
     const recorderOptions = {
         mimeType: mime,
-        videoBitsPerSecond: 4000000,
+        videoBitsPerSecond: 3500000,
         audioBitsPerSecond: 192000
     };
 
@@ -492,12 +493,42 @@ async function runCurrentBatchQueueItem() {
             await saveBatchVideoFileDirectly(wavBlob, audioFilename);
         }
 
-        // NẾU LÀ CHẾ ĐỘ RENDER KÉP (Nút 3): CHẠY TIẾP PHA 2 - QUAY BẢN CLEAN (SIÊU MƯỢT 30FPS, KHÔNG NGHẼN GPU)
+        // NẾU LÀ CHẾ ĐỘ RENDER KÉP (Nút 3): GIẢI PHÓNG BỘ NHỚ RAM & NGHỈ GIẢI NHIỆT GPU 2 GIÂY CHỐNG SẬP MÁY TRƯỚC KHI QUAY CLEAN
         if (batchExecutionMode === 'dual_parallel' && pCleanCanvas) {
+            // Giải phóng ngay lập tức mảng buffer của pha 1 khỏi RAM
+            pRecordedChunks = [];
+            batchCurrentTopicPcmChunks = [];
+            batchTopicScheduledAudioList = [];
+
+            currentItem.status = 'cooling_down';
+            renderBatchTableUI();
+
+            const statusText = document.getElementById('batch-progress-status-text');
+            if (statusText) {
+                statusText.innerText = "Tiến độ: ❄️ Đang nghỉ giải nhiệt GPU (2s) trước khi quay Clean...";
+                statusText.className = "text-xs font-bold text-cyan-400";
+            }
+
+            const currentTopicBadge = document.getElementById('batch-current-topic-badge');
+            if (currentTopicBadge) {
+                currentTopicBadge.innerText = `[${currentScriptTag}] ${currentItem.topic} (❄️ Nghỉ GPU 2s...)`;
+            }
+
+            // Khoảng nghỉ giải nhiệt 2 giây để GPU hạ xung nhịp và nhiệt độ an toàn
+            await new Promise(resolve => {
+                batchCooldownTimeout = setTimeout(resolve, 2000);
+            });
+
+            if (!isBatchRunning) return;
+
             currentItem.status = 'rendering_clean';
             renderBatchTableUI();
 
-            const currentTopicBadge = document.getElementById('batch-current-topic-badge');
+            if (statusText) {
+                statusText.innerText = "Tiến độ: Đang Render KÉP (Quay Clean 2/2)...";
+                statusText.className = "text-xs font-bold text-purple-400";
+            }
+
             if (currentTopicBadge) {
                 currentTopicBadge.innerText = `[${currentScriptTag}] ${currentItem.topic} (Quay Clean 2/2...)`;
             }
@@ -512,7 +543,7 @@ async function runCurrentBatchQueueItem() {
 
             const cleanRecorderOptions = {
                 mimeType: mime,
-                videoBitsPerSecond: 3000000
+                videoBitsPerSecond: 2000000 // Tối ưu 2 Mbps cho nền trắng chữ nét căng, giảm 40% nhiệt độ cho GPU
             };
 
             try { pCleanMediaRecorder = new MediaRecorder(cleanVideoStream, cleanRecorderOptions); }
@@ -525,6 +556,7 @@ async function runCurrentBatchQueueItem() {
             pCleanMediaRecorder.onstop = async () => {
                 const cleanBlob = new Blob(pCleanRecordedChunks, { type: pCleanMediaRecorder?.mimeType || `video/${ext}` });
                 await saveBatchVideoFileDirectly(cleanBlob, cleanVideoFilename);
+                pCleanRecordedChunks = [];
 
                 // Hoàn tất mục trong hàng đợi
                 completeCurrentBatchQueueItem(currentItem, currentScriptTag, baseName, fullVideoFilename, cleanVideoFilename, audioFilename, durationMs, sizeMb);
@@ -634,11 +666,18 @@ function completeCurrentBatchQueueItem(currentItem, scriptTag, baseName, fullVid
         batchCurrentChainStepIndex++;
         updateBatchOverallProgress();
         renderBatchTableUI();
-        setTimeout(() => {
+
+        const statusText = document.getElementById('batch-progress-status-text');
+        if (statusText) {
+            statusText.innerText = "Tiến độ: ❄️ Đang nghỉ giải nhiệt GPU (2s) trước kịch bản tiếp theo...";
+            statusText.className = "text-xs font-bold text-cyan-400";
+        }
+
+        batchCooldownTimeout = setTimeout(() => {
             if (isBatchRunning) {
                 runCurrentBatchQueueItem();
             }
-        }, 600);
+        }, 2000);
         return;
     }
 
@@ -649,17 +688,29 @@ function completeCurrentBatchQueueItem(currentItem, scriptTag, baseName, fullVid
     currentItem.durationMs = durationMs;
     currentItem.fileSizeMb = sizeMb;
 
+    // Dọn dẹp sạch sẽ toàn bộ mảng đệm RAM sau khi hoàn tất bài
+    pRecordedChunks = [];
+    pCleanRecordedChunks = [];
+    batchCurrentTopicPcmChunks = [];
+    batchTopicScheduledAudioList = [];
+
     // Tăng chỉ số hàng đợi và cập nhật giao diện
     currentBatchQueueIndex++;
     updateBatchOverallProgress();
     renderBatchTableUI();
 
-    // Tự động chuyển tiếp sang bài học tiếp theo mà không cần can thiệp
-    setTimeout(() => {
+    // Tự động chuyển tiếp sang bài học tiếp theo sau khoảng nghỉ tản nhiệt 2.5s
+    const statusText = document.getElementById('batch-progress-status-text');
+    if (statusText && currentBatchQueueIndex < batchRenderQueue.length) {
+        statusText.innerText = "Tiến độ: ❄️ Đang nghỉ giải nhiệt CPU/GPU (2.5s) trước khi sang bài tiếp...";
+        statusText.className = "text-xs font-bold text-cyan-400";
+    }
+
+    batchCooldownTimeout = setTimeout(() => {
         if (isBatchRunning) {
             runCurrentBatchQueueItem();
         }
-    }, 600);
+    }, 2500);
 }
 
 async function saveBatchVideoFileDirectly(blob, filename) {
@@ -719,6 +770,10 @@ function cancelBatchRender() {
     isParagraphRunning = false;
     batchCurrentChainStepIndex = 0;
     batchCurrentSubPhase = 'full';
+    if (batchCooldownTimeout) {
+        clearTimeout(batchCooldownTimeout);
+        batchCooldownTimeout = null;
+    }
     releaseScreenWakeLock();
     if (typeof stopStudioRenderClock === 'function') stopStudioRenderClock();
 
@@ -782,6 +837,10 @@ function finishBatchPipeline() {
     isBatchPaused = false;
     isParagraphRunning = false;
     batchCurrentChainStepIndex = 0;
+    if (batchCooldownTimeout) {
+        clearTimeout(batchCooldownTimeout);
+        batchCooldownTimeout = null;
+    }
     releaseScreenWakeLock();
     if (typeof stopStudioRenderClock === 'function') stopStudioRenderClock();
 

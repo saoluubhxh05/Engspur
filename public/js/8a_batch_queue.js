@@ -368,6 +368,8 @@ function renderBatchTableUI() {
         } else if (item.status && item.status.startsWith('rendering_kb_')) {
             const kbStepText = item.status.replace('rendering_kb_', '');
             statusBadge = `<span class="bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded-lg text-[9px] font-bold animate-pulse whitespace-nowrap">🔄 Render KB ${kbStepText}...</span>`;
+        } else if (item.status === 'cooling_down') {
+            statusBadge = `<span class="bg-cyan-950 text-cyan-300 border border-cyan-800 px-2 py-0.5 rounded-lg text-[9px] font-bold animate-pulse whitespace-nowrap">❄️ Giải nhiệt...</span>`;
         } else if (item.status === 'rendering_clean') {
             statusBadge = `<span class="bg-sky-950 text-sky-300 border border-sky-800 px-2 py-0.5 rounded-lg text-[9px] font-bold animate-pulse whitespace-nowrap">🔄 Clean (2/2)...</span>`;
         } else if (item.status === 'saved') {

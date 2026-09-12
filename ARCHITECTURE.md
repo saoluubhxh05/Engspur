@@ -131,6 +131,7 @@ Dự án tạo video tự động từ file Excel & ảnh, hỗ trợ xem trư�
     3. *Render Kép*: Xuất trọn bộ 3 file (Full.mp4, Clean.mp4 nền trắng không logo, và Audio.wav).
   - Sử dụng MediaRecorder ghi hình Canvas và luồng âm thanh PCM không nén 44.1kHz.
   - `requestScreenWakeLock()`: Khóa màn hình không bị tắt trong suốt quá trình render.
+  - **Cơ chế bảo vệ phần cứng Cool-down (Giải nhiệt GPU/RAM):** Tự động nghỉ giải nhiệt 2 giây giữa pha Full và Clean, nghỉ 2.5 giây giữa các bài học, tối ưu bitrate và giải phóng buffer RAM tức thì giúp chống quá nhiệt phần cứng và sập nguồn máy tính.
 - **`8c_batch_exporter.js`:**
   - `exportBatchExcelReport()`: Tự động trích xuất file báo cáo Excel 2 Sheet chi tiết:
     - *Sheet 1 (Tổng Quan Video)*: STT, Kịch bản, Chủ đề, Tên file, Thời lượng ms/giây, Dung lượng MB.
