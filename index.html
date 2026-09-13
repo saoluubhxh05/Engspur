@@ -829,8 +829,8 @@
 
             <div class="overflow-y-auto flex-grow grid grid-cols-1 lg:grid-cols-12 gap-3 pr-1">
                 <div class="lg:col-span-8 flex flex-col space-y-3">
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-2 text-xs shrink-0">
-                        <div class="bg-slate-950 p-2.5 rounded-xl border border-indigo-500/40 space-y-1">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2 text-xs shrink-0">
+                        <div class="lg:col-span-3 bg-slate-950 p-2.5 rounded-xl border border-indigo-500/40 space-y-1">
                             <label class="text-[10px] text-indigo-400 font-bold flex items-center space-x-1">
                                 <i data-lucide="git-branch" class="w-3.5 h-3.5"></i>
                                 <span>Chế Độ / Chuỗi Render:</span>
@@ -842,37 +842,104 @@
                             </select>
                         </div>
 
-                        <div class="bg-slate-950 p-2.5 rounded-xl border border-amber-500/40 space-y-1">
+                        <!-- Đặt Tên File: Kế bên Chế độ/Chuỗi render -->
+                        <div class="lg:col-span-3 bg-slate-950 p-2.5 rounded-xl border border-amber-500/40 space-y-1 relative" id="batch-naming-box-container">
+                            <div class="flex items-center justify-between">
+                                <label class="text-[10px] text-amber-400 font-bold flex items-center space-x-1">
+                                    <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                                    <span>Đặt Tên File:</span>
+                                </label>
+                                <button type="button" onclick="toggleBatchNamingPopover(event)" class="text-[10px] text-amber-300 hover:text-amber-200 bg-amber-950/70 hover:bg-amber-900 border border-amber-500/40 px-1.5 py-0.5 rounded font-bold transition flex items-center space-x-1 active:scale-95 shadow-sm" title="Mở bảng chọn thẻ trường Excel và Chế độ để chèn">
+                                    <i data-lucide="plus-circle" class="w-3 h-3 text-amber-400"></i>
+                                    <span>Chèn thẻ</span>
+                                </button>
+                            </div>
+                            <div class="relative">
+                                <input type="text" id="batch-naming-pattern-input" value="{stt}-[{script}]-[{topic}]" oninput="onBatchNamingPatternChanged()" class="w-full bg-slate-900 border border-amber-500/50 rounded-lg p-1.5 text-[11px] text-amber-200 font-mono focus:ring-1 focus:ring-amber-400 focus:outline-none" placeholder="{stt}-[{script}]-[{topic}]" title="Cú pháp: {stt}, {script}, {topic}, {genre} hoặc bất kỳ {Tên_Cột_Excel}">
+                            </div>
+                            <div class="flex items-center justify-between text-[9px] text-slate-400 font-mono pt-0.5 truncate">
+                                <span class="text-slate-500 shrink-0">Mẫu:</span>
+                                <span id="batch-naming-preview-tag" class="text-amber-300 font-bold truncate pl-1" title="Xem trước tên file">01-[KB]-[General].mp4</span>
+                            </div>
+
+                            <!-- Popover / Dropdown chọn thẻ trường Excel & Chế độ -->
+                            <div id="batch-naming-popover" class="absolute left-0 top-full mt-1.5 z-40 w-80 bg-slate-950 border border-amber-500/60 rounded-xl p-3 shadow-2xl space-y-2.5 hidden backdrop-blur-md">
+                                <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                                    <span class="text-[11px] font-extrabold text-amber-300 flex items-center space-x-1.5">
+                                        <i data-lucide="tag" class="w-3.5 h-3.5 text-amber-400"></i>
+                                        <span>Bảng Chọn Thẻ Đặt Tên File</span>
+                                    </span>
+                                    <button type="button" onclick="closeBatchNamingPopover()" class="text-slate-400 hover:text-white p-0.5 rounded transition">
+                                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </div>
+
+                                <!-- Nhóm Hệ thống & Chế độ -->
+                                <div class="space-y-1">
+                                    <span class="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Chế độ & Thứ tự:</span>
+                                    <div class="flex flex-wrap gap-1">
+                                        <button type="button" onclick="insertBatchNamingTag('{stt}')" class="px-1.5 py-0.5 bg-slate-900 hover:bg-indigo-900/60 text-indigo-300 border border-indigo-500/40 rounded text-[10px] font-mono font-bold transition active:scale-95" title="Số thứ tự bài học (01, 02...)">+{stt}</button>
+                                        <button type="button" onclick="insertBatchNamingTag('{script}')" class="px-1.5 py-0.5 bg-slate-900 hover:bg-indigo-900/60 text-indigo-300 border border-indigo-500/40 rounded text-[10px] font-mono font-bold transition active:scale-95" title="Tên kịch bản / Chế độ render">+{script}</button>
+                                        <button type="button" onclick="insertBatchNamingTag('{ngay}')" class="px-1.5 py-0.5 bg-slate-900 hover:bg-indigo-900/60 text-indigo-300 border border-indigo-500/40 rounded text-[10px] font-mono font-bold transition active:scale-95" title="Ngày hiện tại (YYYYMMDD)">+{ngay}</button>
+                                    </div>
+                                </div>
+
+                                <!-- Nhóm Trường Excel -->
+                                <div class="space-y-1">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Các trường trong Excel:</span>
+                                        <span class="text-[9px] text-slate-500 italic">Click để chèn</span>
+                                    </div>
+                                    <div id="batch-naming-excel-fields-list" class="flex flex-wrap gap-1 max-h-36 overflow-y-auto p-1 bg-slate-900/90 rounded-lg border border-slate-800">
+                                        <!-- Render động từ excelColumnsList -->
+                                    </div>
+                                </div>
+
+                                <!-- Tác vụ nhanh -->
+                                <div class="pt-1 border-t border-slate-800 flex items-center justify-between text-[10px]">
+                                    <div class="flex items-center space-x-1">
+                                        <span class="text-[9px] text-slate-500">Phân cách:</span>
+                                        <button type="button" onclick="insertBatchNamingTag('-')" class="px-1 py-0.5 bg-slate-900 text-slate-300 hover:text-white rounded border border-slate-800 font-mono text-[9px]">-</button>
+                                        <button type="button" onclick="insertBatchNamingTag('_')" class="px-1 py-0.5 bg-slate-900 text-slate-300 hover:text-white rounded border border-slate-800 font-mono text-[9px]">_</button>
+                                        <button type="button" onclick="insertBatchNamingTag('[')" class="px-1 py-0.5 bg-slate-900 text-slate-300 hover:text-white rounded border border-slate-800 font-mono text-[9px]">[</button>
+                                        <button type="button" onclick="insertBatchNamingTag(']')" class="px-1 py-0.5 bg-slate-900 text-slate-300 hover:text-white rounded border border-slate-800 font-mono text-[9px]">]</button>
+                                    </div>
+                                    <button type="button" onclick="resetBatchNamingPatternToDefault()" class="text-amber-400 hover:text-amber-300 text-[9px] font-bold underline">Mặc định</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="lg:col-span-2 bg-slate-950 p-2.5 rounded-xl border border-amber-500/40 space-y-1">
                             <label class="text-[10px] text-amber-400 font-bold flex items-center space-x-1">
                                 <i data-lucide="layers" class="w-3.5 h-3.5"></i>
                                 <span>Gom Nhóm Tạo File:</span>
                             </label>
                             <select id="batch-grouping-mode-select" onchange="onBatchGroupingModeChanged(this.value)" class="w-full bg-slate-900 border border-amber-500/50 rounded-lg p-1.5 font-bold text-amber-200 text-[11px]">
-                                <option value="topic" selected>Tạo file theo từng Chủ Đề</option>
-                                <option value="genre">Tạo file theo từng Thể Loại</option>
+                                <option value="topic" selected>Tạo file theo Chủ Đề</option>
+                                <option value="genre">Tạo file theo Thể Loại</option>
                             </select>
                         </div>
 
-                        <div class="bg-slate-950 p-2.5 rounded-xl border border-emerald-500/40 space-y-1">
+                        <div class="lg:col-span-2 bg-slate-950 p-2.5 rounded-xl border border-emerald-500/40 space-y-1">
                             <label class="text-[10px] text-emerald-400 font-bold flex items-center space-x-1">
                                 <i data-lucide="split" class="w-3.5 h-3.5"></i>
-                                <span>Quy Cách Xuất Tách File:</span>
+                                <span>Quy Cách Tách File:</span>
                             </label>
                             <select id="batch-separate-output-type" class="w-full bg-slate-900 border border-emerald-500/50 rounded-lg p-1.5 font-bold text-emerald-200 text-[11px]">
-                                <option value="per_script" selected>Từng file Video + Audio riêng cho mỗi kịch bản</option>
-                                <option value="combined_chain">Ghép chuỗi thành 1 Video + 1 Audio WAV chung</option>
+                                <option value="per_script" selected>Từng file riêng mỗi kịch bản</option>
+                                <option value="combined_chain">Ghép chuỗi 1 file chung</option>
                             </select>
                         </div>
 
-                        <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
+                        <div class="lg:col-span-2 bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
                             <label class="text-[10px] text-slate-400 font-bold flex items-center space-x-1">
                                 <i data-lucide="folder-output" class="w-3.5 h-3.5 text-amber-400"></i>
-                                <span>Thư Mục Lưu Trực Tiếp:</span>
+                                <span>Thư Mục Lưu:</span>
                             </label>
-                            <div class="flex items-center space-x-1.5 pt-0.5">
+                            <div class="flex items-center space-x-1 pt-0.5">
                                 <button onclick="pickBatchDirectoryHandle()" class="py-1 px-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-[10px] transition flex items-center space-x-1 shrink-0 shadow">
                                     <i data-lucide="folder-check" class="w-3 h-3"></i>
-                                    <span>Chọn Thư Mục</span>
+                                    <span>Chọn</span>
                                 </button>
                                 <span id="batch-dir-display" class="text-[9px] text-slate-400 font-mono truncate italic">Chưa chọn</span>
                             </div>
@@ -887,22 +954,7 @@
                             </span>
                             <span id="batch-chain-count-badge" class="bg-indigo-950 text-indigo-300 border border-indigo-800 text-[9px] font-bold px-2 py-0.5 rounded-lg">Đã chọn: 0 kịch bản</span>
                         </div>
-                        <div id="batch-chain-checkboxes-container" class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-28 overflow-y-auto p-1 bg-slate-900 rounded-lg border border-slate-800"></div>
-                        
-                        <div class="pt-2 border-t border-slate-800/80 space-y-2">
-                            <div class="flex items-center justify-between">
-                                <span class="text-[10px] font-bold text-amber-400 flex items-center space-x-1">
-                                    <i data-lucide="tag" class="w-3 h-3"></i>
-                                    <span>Quy Chuẩn Đặt Tên File Tải Về:</span>
-                                </span>
-                                <span class="text-[9px] text-slate-400">Tag hỗ trợ: <code class="text-amber-300 font-mono">{stt}</code>, <code class="text-amber-300 font-mono">{script}</code>, <code class="text-amber-300 font-mono">{topic}</code>, <code class="text-amber-300 font-mono">{genre}</code></span>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <input type="text" id="batch-naming-pattern-input" value="{stt}-[{script}]-[{topic}]" oninput="renderBatchTableUI()" class="flex-grow bg-slate-900 border border-amber-500/50 rounded-lg p-1.5 text-xs text-amber-200 font-mono focus:ring-0" placeholder="Mẫu: {stt}-[{script}]-[{topic}]">
-                                <button onclick="resetBatchNamingPattern()" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold rounded-lg transition whitespace-nowrap">Đặt lại mẫu</button>
-                            </div>
-                            <div id="batch-script-custom-naming-container" class="space-y-1 max-h-24 overflow-y-auto p-1 bg-slate-900/80 rounded border border-slate-800 text-[10px]"></div>
-                        </div>
+                        <div id="batch-chain-checkboxes-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-36 overflow-y-auto p-1.5 bg-slate-900 rounded-lg border border-slate-800"></div>
                     </div>
 
                     <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-800 shrink-0">
@@ -1003,7 +1055,7 @@
 
     <!-- FOOTER NHỎ GỌN -->
     <footer class="bg-slate-900/95 text-slate-400 text-[10px] py-1.5 px-3 border-t border-slate-800 flex items-center justify-between shrink-0">
-        <span>EngSpur Studio v13.0 • Multi-Chain Batch Pipeline & Audio WAV Split</span>
+        <span>EngSpur Studio v13.1 • Multi-Chain Batch Pipeline & Smart File Naming</span>
         <span>Kiến trúc Web Đa Tệp Hoàn Chỉnh (ARCHITECTURE.md)</span>
     </footer>
 

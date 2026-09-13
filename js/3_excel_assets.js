@@ -44,6 +44,8 @@ function handleExcelUpload(e) {
                 processImportedExcelRows(jsonRows);
                 renderMailMergeFieldChips();
                 renderInspectorRibbon();
+                if (typeof renderBatchNamingExcelFields === 'function') renderBatchNamingExcelFields();
+                if (typeof updateBatchNamingPreview === 'function') updateBatchNamingPreview();
                 showToast(`Đã nhận diện đủ ${excelColumnsList.length} trường từ file Excel!`);
             }
         } catch (err) {

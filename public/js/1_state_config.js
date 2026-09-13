@@ -4,40 +4,40 @@
  */
 
 var APP_VERSION_INFO = {
-    version: "V13.0",
+    version: "V13.1",
     releaseDate: "13/09/2026",
     status: "Mới nhất & Ổn định",
-    summary: "Bản nâng cấp V13.0: Hoàn thiện danh sách chọn Thể loại trong 'Quản lý kịch bản JSON' với tùy chọn 'Tất cả thể loại trong Excel', đồng bộ danh sách thể loại thời gian thực và đồng nhất mã nguồn client-side.",
+    summary: "Bản nâng cấp V13.1: Nâng cấp tính năng 'Đặt tên file' thông minh trong Tab Render Hàng Loạt với Bảng chọn thẻ (Tag Popover), tự động chèn trường Excel bất kỳ và xem trước tên file thực tế tức thì.",
     categories: [
+        {
+            title: "Tính Năng Đặt Tên File Thông Minh (Tab Render Hàng Loạt)",
+            icon: "file-text",
+            color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            items: [
+                "Bảng chọn thẻ (Tag Popover): Chèn nhanh các thẻ hệ thống {STT}, {Kịch bản}, {Chủ đề}, {Thể loại}, {Ngày} và toàn bộ các cột từ file Excel thực tế.",
+                "Xem trước tên file thời gian thực: Dòng xem trước (Live Preview) hiển thị chính xác tên file mp4 được sinh ra khi gõ hoặc click chọn thẻ.",
+                "Tối ưu không gian giao diện: Tích hợp gọn gàng ngay cạnh 'Chế độ/Chuỗi render', dọn dẹp sạch mã nguồn cũ và giúp các thành phần tự dãn đều tự nhiên.",
+                "Tự động làm sạch tên file (Sanitize): Loại bỏ ký tự đặc biệt không hợp lệ trong hệ điều hành Windows/macOS/Linux."
+            ]
+        },
         {
             title: "Bộ Lọc Kịch Bản JSON & Gom Nhóm Thể Loại / Chủ Đề",
             icon: "filter",
-            color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            color: "text-sky-400 bg-sky-500/10 border-sky-500/30",
             items: [
                 "Quản lý kịch bản JSON: Tùy chọn Chế độ lọc Thể loại (Genre) hiển thị chuẩn '-- Tất cả thể loại trong Excel --' cùng toàn bộ các thể loại trích xuất từ Excel.",
                 "Tự động đổi tiêu đề nhãn và bảng dữ liệu theo Thể loại hoặc Chủ đề tương ứng.",
-                "Tự động nhận diện cột Thể loại (Thể loại, The loai, Category, Genre) từ file Excel và cập nhật danh sách chọn.",
                 "Tab 3 Render Hàng Loạt: Gom nhóm xuất file 'Tạo file theo từng Chủ Đề' hoặc 'Tạo file theo từng Thể Loại' Excel với tag {theloai} / {genre}."
             ]
         },
         {
             title: "Động Cơ Render & Nền (Background Worker)",
             icon: "cpu",
-            color: "text-sky-400 bg-sky-500/10 border-sky-500/30",
+            color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
             items: [
                 "Tích hợp Web Worker nhịp xung ngầm độc lập (33ms) duy trì vòng lặp render mượt mà ngay cả khi chuyển sang tab khác hoặc thu nhỏ trình duyệt.",
                 "Tích hợp Screen Wake Lock API tự động khóa màn hình không bị tắt hoặc rơi vào chế độ ngủ (Sleep) trong suốt tiến trình Batch Render.",
-                "Hỗ trợ chế độ kịch bản 'Ngoài Vòng Lặp' (Outside Loop Only) giúp xuất video gồm các lớp tĩnh (Intro/Outro/Banner) mà không cần câu lặp."
-            ]
-        },
-        {
-            title: "Bảo Vệ Phần Cứng & Giải Nhiệt GPU/RAM",
-            icon: "snowflake",
-            color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
-            items: [
-                "Cơ chế giải nhiệt Cool-down bắt buộc: Nghỉ 2.0s giữa pha Full & Clean, nghỉ 2.5s giữa các bài học để GPU/CPU xả tải và hạ nhiệt an toàn.",
-                "Tự động giải phóng triệt để mảng bộ nhớ đệm RAM (pRecordedChunks và pCleanRecordedChunks) sau khi xuất từng bài học.",
-                "Tối ưu bitrate (3.5 Mbps cho Full, 2.0 Mbps cho Clean) giúp máy nhẹ hơn 20%, chống hiện tượng giật lag hoặc quá nhiệt máy tính."
+                "Cơ chế giải nhiệt Cool-down bắt buộc: Nghỉ 2.0s giữa pha Full & Clean, nghỉ 2.5s giữa các bài học để GPU/CPU xả tải và hạ nhiệt an toàn."
             ]
         },
         {
@@ -51,6 +51,11 @@ var APP_VERSION_INFO = {
         }
     ],
     history: [
+        {
+            version: "V13.1",
+            date: "13/09/2026",
+            highlight: "Nâng cấp tính năng 'Đặt tên file' thông minh với Bảng chọn thẻ Popover cho mọi trường Excel và xem trước tên file thực tế tức thì."
+        },
         {
             version: "V13.0",
             date: "13/09/2026",

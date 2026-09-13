@@ -289,6 +289,7 @@ window.addEventListener('keydown', (e) => {
         closeVersionChangelogModal();
         if (typeof closeSaveFileModal === 'function') closeSaveFileModal();
         if (typeof closeFloatingPopover === 'function') closeFloatingPopover();
+        if (typeof closeBatchNamingPopover === 'function') closeBatchNamingPopover();
     }
 });
 
@@ -312,6 +313,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (typeof updateTopicDropdown === 'function') updateTopicDropdown();
     if (typeof renderDatasetTable === 'function') renderDatasetTable();
     if (typeof refreshBatchTopicsTable === 'function') refreshBatchTopicsTable();
+    if (typeof renderBatchNamingExcelFields === 'function') renderBatchNamingExcelFields();
+    if (typeof updateBatchNamingPreview === 'function') updateBatchNamingPreview();
     if (typeof syncMediaInputsFromConfig === 'function') syncMediaInputsFromConfig();
     if (typeof syncInlineGridSettingsInputs === 'function') syncInlineGridSettingsInputs();
 

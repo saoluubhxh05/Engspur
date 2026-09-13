@@ -1,17 +1,203 @@
 /**
  * 8a_batch_queue.js
- * Quản lý hàng đợi Batch Render: cấu hình đặt tên file theo mẫu, kịch bản chuỗi (chain), bảng danh sách chủ đề, chọn thư mục lưu
+ * Quản lý hàng đợi Batch Render: cấu hình đặt tên file thông minh theo mẫu & trường Excel, kịch bản chuỗi (chain), bảng danh sách chủ đề, chọn thư mục lưu
  */
 
 var batchRenderQueue = [];
 var currentBatchQueueIndex = 0;
 
-function resetBatchNamingPattern() {
+/**
+ * Phân giải mẫu tên file động hỗ trợ {stt}, {script}, {topic}, {genre}, {ngay} và các trường Excel {Tên_Cột}
+ */
+function resolveBatchFilename(pattern, context) {
+    if (!pattern || typeof pattern !== 'string') pattern = "{stt}-[{script}]-[{topic}]";
+    const sttStr = context?.sttDisplay || (context?.stt !== undefined ? String(context.stt).padStart(2, '0') : "01");
+    const scriptTag = context?.scriptTag || context?.scriptName || "KB";
+    const topic = context?.topic || "Topic";
+    const genre = context?.genre || context?.topic || "Genre";
+    const dateStr = context?.dateStr || new Date().toISOString().slice(0, 10).replace(/-/g, '');
+
+    let filename = pattern
+        .replace(/\{stt\}/gi, sttStr)
+        .replace(/\{script\}/gi, scriptTag)
+        .replace(/\{topic\}/gi, topic)
+        .replace(/\{genre\}/gi, genre)
+        .replace(/\{theloai\}/gi, genre)
+        .replace(/\{chude\}/gi, topic)
+        .replace(/\{ngay\}/gi, dateStr);
+
+    // Thay thế động mọi thẻ {Tên_Cột_Excel}
+    filename = filename.replace(/\{([^}]+)\}/g, (match, rawKey) => {
+        const key = rawKey.trim();
+        const lowerKey = key.toLowerCase();
+
+        // 1. Kiểm tra trong dòng Excel thực tế
+        if (context?.excelRow && typeof context.excelRow === 'object') {
+            if (context.excelRow[key] !== undefined && context.excelRow[key] !== null) {
+                return String(context.excelRow[key]).trim();
+            }
+            const foundKey = Object.keys(context.excelRow).find(k => k.trim().toLowerCase() === lowerKey);
+            if (foundKey && context.excelRow[foundKey] !== undefined && context.excelRow[foundKey] !== null) {
+                return String(context.excelRow[foundKey]).trim();
+            }
+        }
+
+        // 2. Kiểm tra trong dataset bài học
+        if (context?.ds) {
+            if (context.ds[key] !== undefined && context.ds[key] !== null) {
+                return String(context.ds[key]).trim();
+            }
+            const foundDsKey = Object.keys(context.ds).find(k => k.trim().toLowerCase() === lowerKey);
+            if (foundDsKey && context.ds[foundDsKey] !== undefined && context.ds[foundDsKey] !== null) {
+                return String(context.ds[foundDsKey]).trim();
+            }
+        }
+
+        // 3. Dự phòng cho các tên cột phổ biến
+        if (lowerKey === 'mẫu câu' || lowerKey === 'mau cau') return "Mau_Cau";
+        if (lowerKey === 'thể loại' || lowerKey === 'the loai') return genre;
+        if (lowerKey === 'chủ đề' || lowerKey === 'chu de') return topic;
+
+        return key;
+    });
+
+    if (typeof sanitizeFilename === 'function') {
+        return sanitizeFilename(filename);
+    }
+    return filename.replace(/[/\\?%*:|"<>]/g, '_').trim();
+}
+
+/**
+ * Hiển thị xem trước tên file thực tế ngay tức thì dưới ô nhập
+ */
+function updateBatchNamingPreview() {
+    const previewEl = document.getElementById('batch-naming-preview-tag');
+    if (!previewEl) return;
+    const patternInput = document.getElementById('batch-naming-pattern-input');
+    const pattern = (patternInput && patternInput.value.trim()) ? patternInput.value.trim() : "{stt}-[{script}]-[{topic}]";
+
+    let sampleContext = {
+        stt: 1,
+        sttDisplay: "01",
+        scriptTag: "KB1",
+        scriptName: "Kịch bản 1",
+        topic: "Describe_Person",
+        genre: "Giao_Tiep"
+    };
+
+    if (batchRenderQueue && batchRenderQueue.length > 0) {
+        const first = batchRenderQueue[0];
+        sampleContext.stt = first.stt;
+        sampleContext.sttDisplay = first.sttDisplay;
+        sampleContext.scriptTag = first.chainFiles?.[0]?.scriptTag || first.scriptTag || "KB1";
+        sampleContext.scriptName = first.scriptName || "KB1";
+        sampleContext.topic = first.topic || "Describe_Person";
+        sampleContext.genre = first.genre || "Giao_Tiep";
+        if (first.chainFiles?.[0]?.excelRow) {
+            sampleContext.excelRow = first.chainFiles[0].excelRow;
+        }
+    }
+
+    if (!sampleContext.excelRow && typeof importedDatasets !== 'undefined' && importedDatasets && importedDatasets.length > 0) {
+        sampleContext.ds = importedDatasets[0];
+        if (importedDatasets[0].drills && importedDatasets[0].drills.length > 0) {
+            sampleContext.excelRow = importedDatasets[0].drills[0].rawRow;
+        }
+    }
+
+    const sampleName = resolveBatchFilename(pattern, sampleContext);
+    previewEl.innerText = `${sampleName}.mp4`;
+    previewEl.title = `Xem trước mẫu: ${sampleName}.mp4`;
+}
+
+/**
+ * Bật/Tắt Popover bảng chọn thẻ
+ */
+function toggleBatchNamingPopover(event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    const popover = document.getElementById('batch-naming-popover');
+    if (!popover) return;
+    const isHidden = popover.classList.contains('hidden');
+    if (isHidden) {
+        renderBatchNamingExcelFields();
+        popover.classList.remove('hidden');
+        if (window.lucide && lucide.createIcons) lucide.createIcons();
+    } else {
+        popover.classList.add('hidden');
+    }
+}
+
+/**
+ * Đóng Popover bảng chọn thẻ
+ */
+function closeBatchNamingPopover() {
+    const popover = document.getElementById('batch-naming-popover');
+    if (popover) popover.classList.add('hidden');
+}
+
+/**
+ * Kết xuất danh sách các thẻ trường Excel vào Popover
+ */
+function renderBatchNamingExcelFields() {
+    const listContainer = document.getElementById('batch-naming-excel-fields-list');
+    if (!listContainer) return;
+    listContainer.innerHTML = '';
+
+    const cols = (typeof excelColumnsList !== 'undefined' && excelColumnsList && excelColumnsList.length > 0)
+        ? excelColumnsList
+        : ["STT", "Thể loại", "Chủ đề", "Mẫu câu", "Câu hỏi cho mẫu câu", "Substitution words", "Substitution Drills", "Phiên âm IPA"];
+
+    cols.forEach(col => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'px-1.5 py-0.5 bg-slate-950 hover:bg-amber-950 text-amber-300 hover:text-amber-100 border border-amber-500/30 hover:border-amber-400 rounded text-[10px] font-mono transition active:scale-95 whitespace-nowrap shadow-sm';
+        btn.innerText = `+{${col}}`;
+        btn.title = `Chèn trường Excel: {${col}}`;
+        btn.onclick = () => insertBatchNamingTag(`{${col}}`);
+        listContainer.appendChild(btn);
+    });
+}
+
+/**
+ * Chèn thẻ vào vị trí con trỏ trong ô nhập mẫu đặt tên
+ */
+function insertBatchNamingTag(tag) {
     const input = document.getElementById('batch-naming-pattern-input');
-    if (input) input.value = "{stt}-[{script}]-[{topic}]";
+    if (!input) return;
+    const start = input.selectionStart ?? input.value.length;
+    const end = input.selectionEnd ?? input.value.length;
+    const oldVal = input.value;
+    input.value = oldVal.substring(0, start) + tag + oldVal.substring(end);
+    input.focus();
+    const newCursor = start + tag.length;
+    input.setSelectionRange(newCursor, newCursor);
+    onBatchNamingPatternChanged();
+}
+
+/**
+ * Lắng nghe thay đổi mẫu tên file
+ */
+function onBatchNamingPatternChanged() {
+    updateBatchNamingPreview();
     buildBatchQueueList();
     renderBatchTableUI();
-    showToast("Đã đặt lại định dạng tên file mặc định: {stt}-[{script}]-[{topic}]");
+}
+
+/**
+ * Đặt lại mẫu tên file mặc định
+ */
+function resetBatchNamingPatternToDefault() {
+    const input = document.getElementById('batch-naming-pattern-input');
+    if (input) input.value = "{stt}-[{script}]-[{topic}]";
+    onBatchNamingPatternChanged();
+    showToast("Đã đặt lại định dạng tên file: {stt}-[{script}]-[{topic}]");
+}
+
+function resetBatchNamingPattern() {
+    resetBatchNamingPatternToDefault();
 }
 
 function ensureSavedParagraphProfiles() {
@@ -78,42 +264,6 @@ function renderBatchChainSelectorList() {
     });
 
     if (badge) badge.innerText = `Đã chọn: ${batchSelectedChainProfiles.length} kịch bản`;
-    renderBatchCustomNamingInputs();
-}
-
-function renderBatchCustomNamingInputs() {
-    const namingContainer = document.getElementById('batch-script-custom-naming-container');
-    if (!namingContainer) return;
-    namingContainer.innerHTML = '';
-
-    if (batchSelectedChainProfiles.length === 0) {
-        namingContainer.innerHTML = '<span class="text-slate-500 italic p-1">Tick chọn kịch bản ở trên để tùy chỉnh tên riêng cho từng loại kịch bản.</span>';
-        return;
-    }
-
-    batchSelectedChainProfiles.forEach((profId, idx) => {
-        const prof = savedParagraphProfiles.find(p => p.id === profId);
-        if (!prof) return;
-        const defaultTag = sanitizeFilename(prof.name || `KB_${idx + 1}`);
-        const currentTag = batchCustomScriptNamingMap[profId] !== undefined ? batchCustomScriptNamingMap[profId] : defaultTag;
-
-        const row = document.createElement('div');
-        row.className = "flex items-center justify-between gap-2 p-1 bg-slate-950 rounded border border-slate-800";
-        row.innerHTML = `
-            <span class="font-bold text-slate-300 truncate max-w-[140px]" title="${prof.name}">#${idx + 1}. ${prof.name}:</span>
-            <div class="flex items-center space-x-1">
-                <span class="text-[8px] text-slate-500">Tên gán:</span>
-                <input type="text" value="${currentTag}" oninput="updateScriptNamingTag('${profId}', this.value)" class="bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-[10px] text-amber-300 font-mono focus:ring-0 w-32">
-            </div>
-        `;
-        namingContainer.appendChild(row);
-    });
-}
-
-function updateScriptNamingTag(profId, val) {
-    batchCustomScriptNamingMap[profId] = val.trim();
-    buildBatchQueueList();
-    renderBatchTableUI();
 }
 
 function toggleBatchChainProfileSelect(profId, isChecked) {
@@ -124,7 +274,6 @@ function toggleBatchChainProfileSelect(profId, isChecked) {
     }
     const badge = document.getElementById('batch-chain-count-badge');
     if (badge) badge.innerText = `Đã chọn: ${batchSelectedChainProfiles.length} kịch bản`;
-    renderBatchCustomNamingInputs();
     buildBatchQueueList();
     renderBatchTableUI();
 }
@@ -243,15 +392,18 @@ function buildBatchQueueList() {
         // Kịch bản chỉ có lớp ngoài vòng lặp: Chỉ tạo 1 hàng duy nhất trong hàng đợi (1 video độc lập)
         const prof = profilesToRun[0];
         const defaultTag = sanitizeFilename(prof.name || "KB_NgoaiLap");
-        const scriptTag = batchCustomScriptNamingMap[prof.id] || defaultTag;
+        const scriptTag = (batchCustomScriptNamingMap && batchCustomScriptNamingMap[prof.id]) || defaultTag;
         const sttStr = "01";
         const safeTopic = "Ngoai_Vong_Lap";
 
-        let baseName = pattern
-            .replace(/\{stt\}/gi, sttStr)
-            .replace(/\{script\}/gi, scriptTag)
-            .replace(/\{topic\}/gi, safeTopic);
-        baseName = sanitizeFilename(baseName);
+        let baseName = resolveBatchFilename(pattern, {
+            stt: 1,
+            sttDisplay: sttStr,
+            scriptTag: scriptTag,
+            scriptName: prof.name || "Kịch bản ngoài vòng lặp",
+            topic: safeTopic,
+            genre: "Ngoai_Vong_Lap"
+        });
 
         const existing = batchRenderQueue.find(q => q.isOutsideLoopOnly || q.topic === "Cố định (Ngoài vòng lặp)");
         const status = existing ? existing.status : 'pending';
@@ -300,22 +452,30 @@ function buildBatchQueueList() {
 
             // Xây dựng danh sách kịch bản và file cho bài học này:
             const isChain = (targetMode === 'mode3_chain');
+            const sampleDs = (top.items && top.items.length > 0) ? top.items[0] : null;
+            const sampleRow = (sampleDs && sampleDs.drills && sampleDs.drills.length > 0) ? sampleDs.drills[0].rawRow : (top.rawRow || null);
+
             const chainFiles = profilesToRun.map((prof, pIdx) => {
                 const defaultTag = sanitizeFilename(prof.name || `KB_${pIdx + 1}`);
-                const sTag = batchCustomScriptNamingMap[prof.id] || defaultTag;
-                let bName = pattern
-                    .replace(/\{stt\}/gi, sttStr)
-                    .replace(/\{script\}/gi, sTag)
-                    .replace(/\{topic\}/gi, safeTopic)
-                    .replace(/\{genre\}/gi, safeGenre)
-                    .replace(/\{theloai\}/gi, safeGenre);
-                bName = sanitizeFilename(bName);
+                const sTag = (batchCustomScriptNamingMap && batchCustomScriptNamingMap[prof.id]) || defaultTag;
+                let bName = resolveBatchFilename(pattern, {
+                    stt: sttNum,
+                    sttDisplay: sttStr,
+                    scriptTag: sTag,
+                    scriptName: prof.name || `Kịch bản ${pIdx + 1}`,
+                    topic: top.topic,
+                    genre: top.genre,
+                    ds: sampleDs,
+                    excelRow: sampleRow
+                });
                 return {
                     profIndex: pIdx,
                     scriptProf: prof,
                     scriptTag: sTag,
                     baseName: bName,
-                    expectedFilename: `${bName}.mp4`
+                    expectedFilename: `${bName}.mp4`,
+                    excelRow: sampleRow,
+                    ds: sampleDs
                 };
             });
 
@@ -330,13 +490,16 @@ function buildBatchQueueList() {
             let baseName = chainFiles[0]?.baseName || `${sttStr}-[KB]-[${safeTopic}]`;
             let expectedFilename = "";
             if (isChain && separateType === 'combined_chain') {
-                let combBase = pattern
-                    .replace(/\{stt\}/gi, sttStr)
-                    .replace(/\{script\}/gi, "Chain")
-                    .replace(/\{topic\}/gi, safeTopic)
-                    .replace(/\{genre\}/gi, safeGenre)
-                    .replace(/\{theloai\}/gi, safeGenre);
-                combBase = sanitizeFilename(combBase);
+                let combBase = resolveBatchFilename(pattern, {
+                    stt: sttNum,
+                    sttDisplay: sttStr,
+                    scriptTag: "Chain",
+                    scriptName: "Chuỗi kịch bản",
+                    topic: top.topic,
+                    genre: top.genre,
+                    ds: sampleDs,
+                    excelRow: sampleRow
+                });
                 baseName = combBase;
                 expectedFilename = `${combBase}.mp4`;
             } else if (chainFiles.length > 1) {
@@ -380,6 +543,7 @@ function buildBatchQueueList() {
     }
 
     batchRenderQueue = newQueue;
+    updateBatchNamingPreview();
 }
 
 function renderBatchTableUI() {
@@ -594,3 +758,14 @@ function downloadBlobFallback(blob, filename) {
     setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
     showToast(`Đã tải file ${filename} về máy!`, "success");
 }
+
+// Đóng Popover đặt tên khi click ra ngoài
+document.addEventListener('click', function(e) {
+    const box = document.getElementById('batch-naming-box-container');
+    const popover = document.getElementById('batch-naming-popover');
+    if (popover && !popover.classList.contains('hidden')) {
+        if (box && !box.contains(e.target)) {
+            popover.classList.add('hidden');
+        }
+    }
+});
