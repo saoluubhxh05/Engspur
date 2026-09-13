@@ -228,12 +228,25 @@ async function loadRichDemoDataset(showToastMsg = true) {
 }
 
 /**
- * Xuất toàn bộ không gian làm việc (Toàn bộ Excel, Ảnh Base64, Kịch bản, Thông số) ra 1 file JSON duy nhất
+ * Xuất toàn bộ không gian làm việc (Toàn bộ Excel, Ảnh Base64, Kịch bản, Thông số Studio & Tab 3 Render Hàng Loạt) ra 1 file JSON duy nhất
  */
 function exportFullWorkspaceToJSON() {
+    // 1. Thu thập các thông số & tùy chọn cấu hình của Tab 3. Render Hàng Loạt
+    const targetPracticeMode = document.getElementById('batch-target-practice-mode')?.value || 'mode3';
+    const namingPattern = document.getElementById('batch-naming-pattern-input')?.value || '{stt}-[{script}]-[{topic}]';
+    const groupingMode = document.getElementById('batch-grouping-mode-select')?.value || (typeof batchGroupingMode !== 'undefined' ? batchGroupingMode : 'topic');
+    const separateOutputType = document.getElementById('batch-separate-output-type')?.value || 'per_script';
+    const selectedChainProfiles = (typeof batchSelectedChainProfiles !== 'undefined' && Array.isArray(batchSelectedChainProfiles)) ? [...batchSelectedChainProfiles] : [];
+    const customScriptNamingMap = (typeof batchCustomScriptNamingMap !== 'undefined' && batchCustomScriptNamingMap) ? { ...batchCustomScriptNamingMap } : {};
+    
+    // Thu thập trạng thái chọn trong hàng đợi batch
+    const queueSelections = (typeof batchRenderQueue !== 'undefined' && Array.isArray(batchRenderQueue))
+        ? batchRenderQueue.map(item => ({ queueId: item.queueId, stt: item.stt, topic: item.topic, selected: item.selected !== false }))
+        : [];
+
     const backupData = {
         app: "EngSpur Auto Video Studio",
-        version: "1.0",
+        version: (typeof APP_VERSION_INFO !== 'undefined' && APP_VERSION_INFO.version) ? APP_VERSION_INFO.version : "V13.2",
         exportDate: new Date().toISOString(),
         importedDatasets,
         excelColumnsList,
@@ -246,14 +259,35 @@ function exportFullWorkspaceToJSON() {
         canvasBgBase64,
         canvasBadgeBase64,
         paragraphSelectedTopic,
-        masterTimelineDuration
+        paragraphFilterMode: (typeof paragraphFilterMode !== 'undefined') ? paragraphFilterMode : 'topic',
+        paragraphSelectedGenre: (typeof paragraphSelectedGenre !== 'undefined') ? paragraphSelectedGenre : 'ALL',
+        masterTimelineDuration,
+        // Cấu hình Tab 3: Render Hàng Loạt (Batch Multi-Chain Pipeline)
+        batchRenderConfig: {
+            targetPracticeMode,
+            namingPattern,
+            groupingMode,
+            separateOutputType,
+            selectedChainProfiles,
+            customScriptNamingMap,
+            queueSelections,
+            directoryName: (typeof batchDirectoryName !== 'undefined') ? batchDirectoryName : ''
+        },
+        // Các trường phẳng dự phòng để tương thích tối đa
+        batchTargetPracticeMode: targetPracticeMode,
+        batchNamingPattern: namingPattern,
+        batchGroupingMode: groupingMode,
+        batchSeparateOutputType: separateOutputType,
+        batchSelectedChainProfiles: selectedChainProfiles,
+        batchCustomScriptNamingMap: customScriptNamingMap,
+        batchDirectoryName: (typeof batchDirectoryName !== 'undefined') ? batchDirectoryName : ''
     };
     const jsonStr = JSON.stringify(backupData, null, 2);
     const blob = new Blob([jsonStr], { type: 'application/json' });
     const nowStr = new Date().toISOString().slice(0, 10);
     const filename = `EngSpur_Full_Workspace_Backup_${nowStr}.json`;
     downloadBlobFallback(blob, filename);
-    showToast("Đã xuất gói dự án hoàn chỉnh (.JSON)! Bạn có thể cất file này trên máy.");
+    showToast("Đã xuất gói dự án hoàn chỉnh (.JSON) kèm toàn bộ thông số Tab 3 Render Hàng Loạt!");
 }
 
 /**
@@ -276,7 +310,77 @@ function handleImportFullWorkspaceJSON(e) {
                 if (data.paragraphGridConfig) paragraphGridConfig = data.paragraphGridConfig;
                 if (data.paragraphFieldStyles) paragraphFieldStyles = data.paragraphFieldStyles;
                 if (data.paragraphSelectedTopic) paragraphSelectedTopic = data.paragraphSelectedTopic;
+                if (data.paragraphFilterMode && typeof paragraphFilterMode !== 'undefined') paragraphFilterMode = data.paragraphFilterMode;
+                if (data.paragraphSelectedGenre && typeof paragraphSelectedGenre !== 'undefined') paragraphSelectedGenre = data.paragraphSelectedGenre;
                 if (data.masterTimelineDuration) masterTimelineDuration = data.masterTimelineDuration;
+
+                // Khôi phục các thông số và tùy chọn cấu hình Tab 3: Render Hàng Loạt
+                const batchCfg = data.batchRenderConfig || {};
+                const importedTargetMode = batchCfg.targetPracticeMode || data.batchTargetPracticeMode || 'mode3';
+                const importedNamingPattern = batchCfg.namingPattern || data.batchNamingPattern || '{stt}-[{script}]-[{topic}]';
+                const importedGroupingMode = batchCfg.groupingMode || data.batchGroupingMode || 'topic';
+                const importedSeparateType = batchCfg.separateOutputType || data.batchSeparateOutputType || 'per_script';
+                const importedChainProfiles = batchCfg.selectedChainProfiles || data.batchSelectedChainProfiles;
+                const importedCustomNaming = batchCfg.customScriptNamingMap || data.batchCustomScriptNamingMap;
+                const importedDirName = batchCfg.directoryName || data.batchDirectoryName || '';
+
+                // 1. Áp dụng Chế độ / Chuỗi Render
+                const targetModeEl = document.getElementById('batch-target-practice-mode');
+                if (targetModeEl) {
+                    targetModeEl.value = importedTargetMode;
+                }
+
+                // 2. Áp dụng Mẫu Đặt Tên File
+                const patternInput = document.getElementById('batch-naming-pattern-input');
+                if (patternInput) {
+                    patternInput.value = importedNamingPattern;
+                }
+
+                // 3. Áp dụng Gom nhóm tạo file (Chủ đề / Thể loại)
+                if (typeof batchGroupingMode !== 'undefined') {
+                    batchGroupingMode = importedGroupingMode;
+                }
+                const groupSelect = document.getElementById('batch-grouping-mode-select');
+                if (groupSelect) {
+                    groupSelect.value = importedGroupingMode;
+                }
+                const headerElem = document.getElementById('batch-table-header-group');
+                if (headerElem) {
+                    headerElem.innerText = (importedGroupingMode === 'genre') ? 'Thể Loại (Genre)' : 'Chủ Đề (Topic)';
+                }
+
+                // 4. Áp dụng Quy cách tách file
+                const separateSelect = document.getElementById('batch-separate-output-type');
+                if (separateSelect) {
+                    separateSelect.value = importedSeparateType;
+                }
+
+                // 5. Áp dụng Danh sách kịch bản trong chuỗi Multi-Chain
+                if (importedChainProfiles && Array.isArray(importedChainProfiles)) {
+                    batchSelectedChainProfiles = importedChainProfiles;
+                }
+
+                // 6. Áp dụng Tùy chỉnh tên kịch bản
+                if (importedCustomNaming && typeof importedCustomNaming === 'object') {
+                    batchCustomScriptNamingMap = importedCustomNaming;
+                }
+
+                // 7. Hiển thị thông tin thư mục nếu có
+                if (importedDirName) {
+                    batchDirectoryName = importedDirName;
+                    const dirDisplay = document.getElementById('batch-dir-display');
+                    if (dirDisplay) dirDisplay.innerText = importedDirName;
+                }
+
+                // 8. Đồng bộ bảng chọn chuỗi kịch bản nếu chế độ là mode3_chain
+                const chainPanel = document.getElementById('batch-chain-selector-panel');
+                if (chainPanel) {
+                    if (importedTargetMode === 'mode3_chain') {
+                        chainPanel.classList.remove('hidden');
+                    } else {
+                        chainPanel.classList.add('hidden');
+                    }
+                }
 
                 localPCImageBase64Map = data.localPCImageBase64Map || {};
                 localPCImageMap = {};
@@ -318,8 +422,26 @@ function handleImportFullWorkspaceJSON(e) {
                 syncInlineGridSettingsInputs();
                 drawParagraphCanvasFrame();
 
+                if (typeof renderBatchChainSelectorList === 'function') {
+                    renderBatchChainSelectorList();
+                }
+                if (typeof updateBatchNamingPreview === 'function') {
+                    updateBatchNamingPreview();
+                }
+
+                // 9. Khôi phục trạng thái tick chọn trong hàng đợi bài học nếu có
+                if (batchCfg.queueSelections && Array.isArray(batchCfg.queueSelections) && typeof batchRenderQueue !== 'undefined') {
+                    batchCfg.queueSelections.forEach(savedItem => {
+                        const found = batchRenderQueue.find(q => q.queueId === savedItem.queueId || (q.stt === savedItem.stt && q.topic === savedItem.topic));
+                        if (found && savedItem.selected !== undefined) {
+                            found.selected = savedItem.selected;
+                        }
+                    });
+                    if (typeof renderBatchTableUI === 'function') renderBatchTableUI();
+                }
+
                 await saveFullSystemState(false);
-                showToast("Đã khôi phục toàn bộ không gian làm việc từ file JSON thành công!");
+                showToast("Đã khôi phục toàn bộ không gian làm việc & thông số Tab 3 Render Hàng Loạt thành công!");
             } else {
                 showToast("File JSON không hợp lệ hoặc thiếu dữ liệu!", "error");
             }

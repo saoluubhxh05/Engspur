@@ -76,6 +76,10 @@ async function saveFullSystemState(showToastMsg = true) {
     if (isAutoSaving) return;
     isAutoSaving = true;
     try {
+        const targetPracticeMode = document.getElementById('batch-target-practice-mode')?.value || 'mode3';
+        const namingPattern = document.getElementById('batch-naming-pattern-input')?.value || '{stt}-[{script}]-[{topic}]';
+        const separateOutputType = document.getElementById('batch-separate-output-type')?.value || 'per_script';
+
         const state = {
             importedDatasets,
             excelColumnsList,
@@ -91,6 +95,11 @@ async function saveFullSystemState(showToastMsg = true) {
             paragraphFilterMode: paragraphFilterMode || 'topic',
             paragraphSelectedGenre: paragraphSelectedGenre || 'ALL',
             batchGroupingMode: batchGroupingMode || 'topic',
+            batchTargetPracticeMode: targetPracticeMode,
+            batchNamingPattern: namingPattern,
+            batchSeparateOutputType: separateOutputType,
+            batchSelectedChainProfiles: (typeof batchSelectedChainProfiles !== 'undefined') ? batchSelectedChainProfiles : [],
+            batchCustomScriptNamingMap: (typeof batchCustomScriptNamingMap !== 'undefined') ? batchCustomScriptNamingMap : {},
             masterTimelineDuration,
             batchDirectoryHandle: batchDirectoryHandle || null,
             batchDirectoryName: batchDirectoryName || ''
@@ -151,6 +160,32 @@ async function loadFullSystemState(isManual = false) {
                     headerElem.innerText = (batchGroupingMode === 'genre') ? 'Thể Loại (Genre)' : 'Chủ Đề (Topic)';
                 }
             }
+            if (saved.batchTargetPracticeMode) {
+                const targetModeEl = document.getElementById('batch-target-practice-mode');
+                if (targetModeEl) targetModeEl.value = saved.batchTargetPracticeMode;
+                const chainPanel = document.getElementById('batch-chain-selector-panel');
+                if (chainPanel) {
+                    if (saved.batchTargetPracticeMode === 'mode3_chain') {
+                        chainPanel.classList.remove('hidden');
+                    } else {
+                        chainPanel.classList.add('hidden');
+                    }
+                }
+            }
+            if (saved.batchNamingPattern) {
+                const patInput = document.getElementById('batch-naming-pattern-input');
+                if (patInput) patInput.value = saved.batchNamingPattern;
+            }
+            if (saved.batchSeparateOutputType) {
+                const sepSelect = document.getElementById('batch-separate-output-type');
+                if (sepSelect) sepSelect.value = saved.batchSeparateOutputType;
+            }
+            if (saved.batchSelectedChainProfiles && Array.isArray(saved.batchSelectedChainProfiles)) {
+                batchSelectedChainProfiles = saved.batchSelectedChainProfiles;
+            }
+            if (saved.batchCustomScriptNamingMap) {
+                batchCustomScriptNamingMap = saved.batchCustomScriptNamingMap;
+            }
             if (saved.masterTimelineDuration) {
                 masterTimelineDuration = saved.masterTimelineDuration;
                 if (document.getElementById('master-loop-duration-input')) {
@@ -209,6 +244,8 @@ async function loadFullSystemState(isManual = false) {
             updateTopicDropdown();
             renderDatasetTable();
             refreshBatchTopicsTable();
+            if (typeof renderBatchChainSelectorList === 'function') renderBatchChainSelectorList();
+            if (typeof updateBatchNamingPreview === 'function') updateBatchNamingPreview();
             syncInlineGridSettingsInputs();
             drawParagraphCanvasFrame();
 

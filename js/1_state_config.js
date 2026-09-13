@@ -4,11 +4,21 @@
  */
 
 var APP_VERSION_INFO = {
-    version: "V13.1",
+    version: "V13.2",
     releaseDate: "13/09/2026",
     status: "Mới nhất & Ổn định",
-    summary: "Bản nâng cấp V13.1: Nâng cấp tính năng 'Đặt tên file' thông minh trong Tab Render Hàng Loạt với Bảng chọn thẻ (Tag Popover), tự động chèn trường Excel bất kỳ và xem trước tên file thực tế tức thì.",
+    summary: "Bản nâng cấp V13.2: Đồng bộ toàn diện các thông số và tùy chọn của Tab 3 (Render Hàng Loạt) vào nút 'Xuất File' JSON và hệ thống lưu trữ IndexedDB, khôi phục nguyên vẹn 100% khi nhập lại.",
     categories: [
+        {
+            title: "Xuất & Nhập Toàn Diện Cấu Hình Tab 3 (Render Hàng Loạt)",
+            icon: "file-cog",
+            color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+            items: [
+                "Đóng gói trọn vẹn Tab 3 vào file .JSON: Mẫu đặt tên file ({stt}, {script}, {topic}, {genre}, các thẻ {Cột_Excel}), Chế độ/Chuỗi render, Gom nhóm Chủ đề/Thể loại, Quy cách tách file và Danh sách chuỗi kịch bản đã chọn.",
+                "Tự động khôi phục 100% khi Nhập File (.JSON): Tái lập toàn bộ trạng thái giao diện Tab 3, cập nhật danh sách chọn, hàng đợi render và dòng xem trước (preview) tên file tức thì.",
+                "Đồng bộ lưu trữ IndexedDB (Lưu Máy & Tự động lưu): Giữ nguyên toàn bộ cấu hình Render Hàng Loạt qua các phiên làm việc và khi tải lại trình duyệt."
+            ]
+        },
         {
             title: "Tính Năng Đặt Tên File Thông Minh (Tab Render Hàng Loạt)",
             icon: "file-text",
@@ -33,7 +43,7 @@ var APP_VERSION_INFO = {
         {
             title: "Động Cơ Render & Nền (Background Worker)",
             icon: "cpu",
-            color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+            color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/30",
             items: [
                 "Tích hợp Web Worker nhịp xung ngầm độc lập (33ms) duy trì vòng lặp render mượt mà ngay cả khi chuyển sang tab khác hoặc thu nhỏ trình duyệt.",
                 "Tích hợp Screen Wake Lock API tự động khóa màn hình không bị tắt hoặc rơi vào chế độ ngủ (Sleep) trong suốt tiến trình Batch Render.",
@@ -43,7 +53,7 @@ var APP_VERSION_INFO = {
         {
             title: "Giọng Đọc AI & Báo Cáo Xuất Bản",
             icon: "mic",
-            color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/30",
+            color: "text-purple-400 bg-purple-500/10 border-purple-500/30",
             items: [
                 "Tích hợp 12 giọng đọc Microsoft Edge Neural Voice (Jenny, Guy, Aria,...) chuẩn ngữ điệu người bản xứ, hoàn toàn miễn phí và không giới hạn.",
                 "Xuất file báo cáo Excel 2 Sheet chi tiết: Sheet 1 (Tổng quan video) và Sheet 2 (Mốc thời gian thực start/end từng câu drills chuẩn ms)."
@@ -51,6 +61,11 @@ var APP_VERSION_INFO = {
         }
     ],
     history: [
+        {
+            version: "V13.2",
+            date: "13/09/2026",
+            highlight: "Tích hợp toàn diện các thông số và tùy chọn Tab 3 (Render Hàng Loạt) vào nút 'Xuất File' JSON và tự động khôi phục 100% khi Nhập File."
+        },
         {
             version: "V13.1",
             date: "13/09/2026",

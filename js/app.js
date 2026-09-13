@@ -187,10 +187,10 @@ function renderVersionChangelogModal() {
     if (!container) return;
     
     const info = (typeof APP_VERSION_INFO !== 'undefined') ? APP_VERSION_INFO : {
-        version: "V12.9",
+        version: "V13.2",
         releaseDate: "13/09/2026",
         status: "Mới nhất & Ổn định",
-        summary: "Bản nâng cấp V12.9: Bổ sung bộ lọc Thể loại (Genre/Category) & Chủ đề (Topic) trong Quản lý kịch bản JSON, hỗ trợ Render hàng loạt gom nhóm tạo file theo Thể loại hoặc Chủ đề Excel.",
+        summary: "Bản nâng cấp V13.2: Đồng bộ toàn diện các thông số và tùy chọn của Tab 3 (Render Hàng Loạt) vào nút 'Xuất File' JSON và hệ thống lưu trữ IndexedDB, khôi phục nguyên vẹn 100% khi nhập lại.",
         categories: [],
         history: []
     };
@@ -302,6 +302,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     pCleanCanvas.width = 1920;
     pCleanCanvas.height = 1080;
     pCleanCtx = pCleanCanvas.getContext('2d');
+
+    const headerVerTag = document.getElementById('app-header-version-tag');
+    if (headerVerTag && typeof APP_VERSION_INFO !== 'undefined') {
+        headerVerTag.innerText = APP_VERSION_INFO.version;
+    }
 
     if (window.lucide && lucide.createIcons) lucide.createIcons();
     if (typeof initFloatingPopoverDraggable === 'function') initFloatingPopoverDraggable();
