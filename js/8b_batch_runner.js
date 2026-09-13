@@ -162,17 +162,24 @@ function startBatchOverallTimer() {
     }, 1000);
 }
 
-async function prepareTopicEdgeTtsAudios(topicName) {
+async function prepareTopicEdgeTtsAudios(targetKey, groupMode = 'topic') {
     const isEdge = !videoConfig.ttsVoice || (typeof videoConfig.ttsVoice === 'string' && videoConfig.ttsVoice.startsWith('edge:'));
     if (!isEdge) return;
 
-    // Lọc chuẩn xác danh sách câu theo chủ đề hiện tại cần render
-    let activeTopicList = (topicName && topicName !== 'ALL')
-        ? importedDatasets.filter(ds => ds.topic === topicName)
-        : ((typeof getParagraphFilteredDatasets === 'function') ? getParagraphFilteredDatasets() : importedDatasets);
+    // Lọc chuẩn xác danh sách câu theo chủ đề hoặc thể loại hiện tại cần render
+    let activeTopicList = [];
+    if (groupMode === 'genre') {
+        activeTopicList = (targetKey && targetKey !== 'ALL')
+            ? importedDatasets.filter(ds => (ds.genre || "Chung") === targetKey)
+            : importedDatasets;
+    } else {
+        activeTopicList = (targetKey && targetKey !== 'ALL')
+            ? importedDatasets.filter(ds => ds.topic === targetKey)
+            : ((typeof getParagraphFilteredDatasets === 'function') ? getParagraphFilteredDatasets() : importedDatasets);
+    }
 
     if (!activeTopicList || activeTopicList.length === 0) {
-        activeTopicList = [{ topic: topicName || "Default", drills: [{ cueWord: "", drillText: "" }] }];
+        activeTopicList = [{ topic: targetKey || "Default", genre: targetKey || "General", drills: [{ cueWord: "", drillText: "" }] }];
     }
 
     const fetchPromises = [];
@@ -305,7 +312,13 @@ async function runCurrentBatchQueueItem() {
         if (typeof autoRecalculateAudioLayersDuration === 'function') autoRecalculateAudioLayersDuration();
     }
 
-    paragraphSelectedTopic = currentItem.topic;
+    if (currentItem.groupMode === 'genre') {
+        paragraphFilterMode = 'genre';
+        paragraphSelectedGenre = currentItem.topic;
+    } else {
+        paragraphFilterMode = 'topic';
+        paragraphSelectedTopic = currentItem.topic;
+    }
     isStaticOutsideLoopRunning = !!currentItem.isOutsideLoopOnly;
     pCurrentSentenceIndex = 0;
     currentTimelinePlayTime = 0.0;
@@ -327,9 +340,9 @@ async function runCurrentBatchQueueItem() {
         try { pCleanMediaRecorder.stop(); } catch(e) {}
     }
 
-    // Tải trước 100% âm thanh Edge TTS cho chủ đề hiện tại vào cache để phát tức thì 0ms độ trễ
+    // Tải trước 100% âm thanh Edge TTS cho chủ đề/thể loại hiện tại vào cache để phát tức thì 0ms độ trễ
     if (typeof prepareTopicEdgeTtsAudios === 'function') {
-        await prepareTopicEdgeTtsAudios(currentItem.topic);
+        await prepareTopicEdgeTtsAudios(currentItem.topic, currentItem.groupMode || 'topic');
     }
 
     // Đảm bảo audio track phòng thu luôn tươi mới cho từng bài học
@@ -605,6 +618,7 @@ function completeCurrentBatchQueueItem(currentItem, scriptTag, baseName, fullVid
     batchCompletedReports.push({
         stt: currentItem.sttDisplay || currentItem.stt,
         scriptName: scriptTag || currentItem.scriptTag,
+        genre: currentItem.genre || "Chung",
         topic: currentItem.topic,
         filename: fullVideoFilename,
         audioFilename: (batchExecutionMode === 'dual_parallel') ? `${cleanVideoFilename} + ${audioFilename}` : ((batchExecutionMode === 'separate_wav') ? audioFilename : 'Đã tích hợp trong MP4'),
@@ -633,6 +647,7 @@ function completeCurrentBatchQueueItem(currentItem, scriptTag, baseName, fullVid
         batchCurrentTopicRealSentenceLogs.forEach(logItem => {
             batchTimelineSentenceLogs.push({
                 ...logItem,
+                genre: currentItem.genre || "Chung",
                 scriptName: scriptTag || currentItem.scriptTag
             });
         });
@@ -645,6 +660,7 @@ function completeCurrentBatchQueueItem(currentItem, scriptTag, baseName, fullVid
             batchTimelineSentenceLogs.push({
                 stt: batchTimelineSentenceLogs.length + 1,
                 scriptName: scriptTag || currentItem.scriptTag,
+                genre: currentItem.genre || ds.genre || "Chung",
                 topic: currentItem.topic,
                 sentenceIdx: dIdx + 1,
                 cueWord: drill.cueWord || "",

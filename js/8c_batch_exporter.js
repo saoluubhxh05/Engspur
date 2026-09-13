@@ -14,6 +14,7 @@ function exportBatchExcelReport() {
     const wsOverview = XLSX.utils.json_to_sheet(batchCompletedReports.map(r => ({
         "STT": r.stt,
         "Kịch Bản": r.scriptName,
+        "Thể Loại": r.genre || "Chung",
         "Chủ Đề": r.topic,
         "Tên File Video": r.filename,
         "File Audio Kèm Theo": r.audioFilename,
@@ -30,6 +31,7 @@ function exportBatchExcelReport() {
     const wsTimeline = XLSX.utils.json_to_sheet(batchTimelineSentenceLogs.map((log) => ({
         "STT Dòng": log.stt,
         "Kịch Bản": log.scriptName,
+        "Thể Loại": log.genre || "Chung",
         "Chủ Đề": log.topic,
         "Thứ Tự Câu": log.sentenceIdx,
         "Từ Gợi Mở (Cue)": log.cueWord,

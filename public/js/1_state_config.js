@@ -3,6 +3,71 @@
  * Quản lý các biến trạng thái toàn cục và cấu hình kịch bản mẫu
  */
 
+var APP_VERSION_INFO = {
+    version: "V12.8",
+    releaseDate: "13/09/2026",
+    status: "Mới nhất & Ổn định",
+    summary: "Bản nâng cấp V12.8: Động cơ Render ngầm chống gián đoạn khi chuyển tab, cơ chế giải nhiệt GPU/RAM tự động, và tích hợp giọng đọc Edge Neural TTS.",
+    categories: [
+        {
+            title: "Động Cơ Render & Nền (Background Worker)",
+            icon: "cpu",
+            color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            items: [
+                "Tích hợp Web Worker nhịp xung ngầm độc lập (33ms) duy trì vòng lặp render mượt mà ngay cả khi chuyển sang tab khác hoặc thu nhỏ trình duyệt.",
+                "Tích hợp Screen Wake Lock API tự động khóa màn hình không bị tắt hoặc rơi vào chế độ ngủ (Sleep) trong suốt tiến trình Batch Render.",
+                "Hỗ trợ chế độ kịch bản 'Ngoài Vòng Lặp' (Outside Loop Only) giúp xuất video gồm các lớp tĩnh (Intro/Outro/Banner) mà không cần câu lặp."
+            ]
+        },
+        {
+            title: "Bảo Vệ Phần Cứng & Giải Nhiệt GPU/RAM",
+            icon: "snowflake",
+            color: "text-sky-400 bg-sky-500/10 border-sky-500/30",
+            items: [
+                "Cơ chế giải nhiệt Cool-down bắt buộc: Nghỉ 2.0s giữa pha Full & Clean, nghỉ 2.5s giữa các bài học để GPU/CPU xả tải và hạ nhiệt an toàn.",
+                "Tự động giải phóng triệt để mảng bộ nhớ đệm RAM (pRecordedChunks và pCleanRecordedChunks) sau khi xuất từng bài học.",
+                "Tối ưu bitrate (3.5 Mbps cho Full, 2.0 Mbps cho Clean) giúp máy nhẹ hơn 20%, chống hiện tượng giật lag hoặc quá nhiệt máy tính."
+            ]
+        },
+        {
+            title: "Giọng Đọc AI & Luồng Âm Thanh WAV",
+            icon: "mic",
+            color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+            items: [
+                "Tích hợp 12 giọng đọc Microsoft Edge Neural Voice (Jenny, Guy, Aria,...) chuẩn ngữ điệu người bản xứ, hoàn toàn miễn phí và không giới hạn.",
+                "Tự động đo thời lượng âm thanh và khóa dải Timeline vừa khít với giọng nói.",
+                "Xuất luồng âm thanh PCM không nén đóng gói định dạng WAV 44.1kHz Stereo 16-bit độc lập đồng bộ tuyệt đối."
+            ]
+        },
+        {
+            title: "Báo Cáo & Quản Lý Xuất Bản",
+            icon: "file-spreadsheet",
+            color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/30",
+            items: [
+                "Xuất file báo cáo Excel 2 Sheet chi tiết: Sheet 1 (Tổng quan video) và Sheet 2 (Mốc thời gian thực start/end từng câu drills chuẩn ms).",
+                "Quản lý kịch bản Multi-Chain và quy tắc đặt tên file linh hoạt {stt}, {script}, {topic}."
+            ]
+        }
+    ],
+    history: [
+        {
+            version: "V12.7",
+            date: "05/09/2026",
+            highlight: "Tích hợp Microsoft Edge Neural TTS và xuất file báo cáo Excel 2 Sheet chuẩn mili-giây."
+        },
+        {
+            version: "V12.6",
+            date: "28/08/2026",
+            highlight: "Nâng cấp giao diện Batch Multi-Chain Pipeline, hỗ trợ xuất đồng thời Full MP4 + Clean MP4 + Audio WAV."
+        },
+        {
+            version: "V12.0",
+            date: "15/08/2026",
+            highlight: "Khởi tạo kiến trúc Studio Timeline: Lưới đa cột, tự động ngắt dòng Smart Word-wrap, lưu trữ IndexedDB."
+        }
+    ]
+};
+
 var importedDatasets = [
     {
         sttMau: "1",

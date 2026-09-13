@@ -166,6 +166,132 @@ function showToast(message, type = "success") {
     }, 3000);
 }
 
+function openVersionChangelogModal() {
+    renderVersionChangelogModal();
+    const modal = document.getElementById('version-changelog-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+    if (window.lucide && lucide.createIcons) lucide.createIcons();
+}
+
+function closeVersionChangelogModal() {
+    const modal = document.getElementById('version-changelog-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+function renderVersionChangelogModal() {
+    const container = document.getElementById('version-changelog-body');
+    if (!container) return;
+    
+    const info = (typeof APP_VERSION_INFO !== 'undefined') ? APP_VERSION_INFO : {
+        version: "V12.8",
+        releaseDate: "13/09/2026",
+        status: "Mới nhất & Ổn định",
+        summary: "Bản nâng cấp V12.8: Động cơ Render ngầm chống gián đoạn khi chuyển tab, cơ chế giải nhiệt GPU/RAM tự động, và tích hợp giọng đọc Edge Neural TTS.",
+        categories: [],
+        history: []
+    };
+
+    const verTag = document.getElementById('modal-version-tag');
+    if (verTag) verTag.innerText = info.version;
+    const verDate = document.getElementById('modal-version-date');
+    if (verDate) verDate.innerText = `Cập nhật: ${info.releaseDate} • Trạng thái: ${info.status}`;
+
+    let html = `
+        <!-- Tóm tắt phiên bản -->
+        <div class="bg-indigo-950/40 border border-indigo-500/30 rounded-2xl p-3.5 space-y-1.5 shadow-sm">
+            <div class="flex items-center justify-between">
+                <span class="text-[11px] font-black text-indigo-300 uppercase tracking-wider flex items-center space-x-1.5">
+                    <i data-lucide="award" class="w-4 h-4 text-amber-400"></i>
+                    <span>Tóm Tắt Bản Phát Hành</span>
+                </span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">● ${info.status}</span>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">${info.summary}</p>
+        </div>
+
+        <!-- Chi tiết các hạng mục nâng cấp -->
+        <div class="space-y-3 pt-1">
+            <div class="flex items-center space-x-1.5">
+                <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
+                <h3 class="text-xs font-black text-white uppercase tracking-wider">Nội Dung Đã Cập Nhật Ở Phiên Bản Này (${info.version})</h3>
+            </div>
+    `;
+
+    if (info.categories && info.categories.length > 0) {
+        info.categories.forEach(cat => {
+            html += `
+                <div class="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-3 space-y-2">
+                    <div class="flex items-center space-x-2">
+                        <div class="p-1.5 rounded-lg border ${cat.color}">
+                            <i data-lucide="${cat.icon}" class="w-3.5 h-3.5"></i>
+                        </div>
+                        <h4 class="text-xs font-bold text-white">${cat.title}</h4>
+                    </div>
+                    <ul class="space-y-1.5 pl-2">
+            `;
+            cat.items.forEach(item => {
+                html += `
+                    <li class="flex items-start space-x-2 text-[11px] text-slate-300 leading-normal">
+                        <span class="text-emerald-400 font-bold mt-0.5 shrink-0">✓</span>
+                        <span>${item}</span>
+                    </li>
+                `;
+            });
+            html += `
+                    </ul>
+                </div>
+            `;
+        });
+    }
+
+    // Lịch sử các phiên bản trước
+    if (info.history && info.history.length > 0) {
+        html += `
+            <div class="pt-2">
+                <details class="group bg-slate-950/50 border border-slate-800/70 rounded-2xl overflow-hidden transition">
+                    <summary class="p-3 text-xs font-bold text-slate-400 hover:text-white cursor-pointer flex items-center justify-between select-none">
+                        <span class="flex items-center space-x-2">
+                            <i data-lucide="history" class="w-3.5 h-3.5 text-indigo-400"></i>
+                            <span>Lịch Sử Các Phiên Bản Trước</span>
+                        </span>
+                        <span class="text-[10px] text-slate-500 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div class="p-3 pt-0 space-y-2 border-t border-slate-800/60 mt-1">
+        `;
+        info.history.forEach(h => {
+            html += `
+                <div class="p-2.5 bg-slate-900/60 rounded-xl border border-slate-800 text-[11px] space-y-0.5">
+                    <div class="flex items-center justify-between">
+                        <span class="font-extrabold text-indigo-300">${h.version}</span>
+                        <span class="text-[10px] text-slate-500">${h.date}</span>
+                    </div>
+                    <p class="text-slate-400 text-[11px] leading-relaxed">${h.highlight}</p>
+                </div>
+            `;
+        });
+        html += `
+                    </div>
+                </details>
+            </div>
+        `;
+    }
+
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeVersionChangelogModal();
+        if (typeof closeSaveFileModal === 'function') closeSaveFileModal();
+        if (typeof closeFloatingPopover === 'function') closeFloatingPopover();
+    }
+});
+
 window.addEventListener('DOMContentLoaded', async () => {
     pCanvas = document.getElementById('paragraph-factory-canvas');
     if (pCanvas) pCtx = pCanvas.getContext('2d');

@@ -129,23 +129,57 @@ function toggleBatchChainProfileSelect(profId, isChecked) {
     renderBatchTableUI();
 }
 
+function onBatchGroupingModeChanged(mode) {
+    batchGroupingMode = mode || 'topic';
+    const headerElem = document.getElementById('batch-table-header-group');
+    if (headerElem) {
+        headerElem.innerText = (batchGroupingMode === 'genre') ? 'Thể Loại (Genre)' : 'Chủ Đề (Topic)';
+    }
+    refreshBatchTopicsTable();
+    showToast(`Đã chuyển sang gom nhóm tạo file theo: ${batchGroupingMode === 'genre' ? 'Thể Loại Excel' : 'Chủ Đề Excel'}`);
+}
+
 function refreshBatchTopicsTable() {
     ensureSavedParagraphProfiles();
-    const topicMap = new Map();
+    const groupMap = new Map();
+    const isGenreMode = (typeof batchGroupingMode !== 'undefined' && batchGroupingMode === 'genre');
+
     importedDatasets.forEach(ds => {
-        const t = ds.topic || "General";
-        if (!topicMap.has(t)) topicMap.set(t, { topic: t, patternsCount: 0, drillsCount: 0, items: [] });
-        const cur = topicMap.get(t);
+        const groupKey = isGenreMode ? (ds.genre || "General") : (ds.topic || "General");
+        const topicName = ds.topic || "General";
+        const genreName = ds.genre || "General";
+
+        if (!groupMap.has(groupKey)) {
+            groupMap.set(groupKey, {
+                groupKey: groupKey,
+                topic: isGenreMode ? groupKey : topicName,
+                genre: genreName,
+                groupMode: isGenreMode ? 'genre' : 'topic',
+                patternsCount: 0,
+                drillsCount: 0,
+                items: []
+            });
+        }
+        const cur = groupMap.get(groupKey);
         cur.patternsCount++;
         cur.drillsCount += (ds.drills || []).length;
         cur.items.push(ds);
     });
 
-    if (topicMap.size === 0) {
-        topicMap.set("Default Topic", { topic: "Default Topic", patternsCount: 1, drillsCount: 1, items: [] });
+    if (groupMap.size === 0) {
+        const defKey = isGenreMode ? "Default Genre" : "Default Topic";
+        groupMap.set(defKey, {
+            groupKey: defKey,
+            topic: defKey,
+            genre: isGenreMode ? defKey : "General",
+            groupMode: isGenreMode ? 'genre' : 'topic',
+            patternsCount: 1,
+            drillsCount: 1,
+            items: []
+        });
     }
 
-    batchTopicsList = Array.from(topicMap.values()).map((top, idx) => ({
+    batchTopicsList = Array.from(groupMap.values()).map((top, idx) => ({
         ...top,
         stt: idx + 1,
         selected: true,
@@ -252,16 +286,17 @@ function buildBatchQueueList() {
             fileSizeMb: existing ? existing.fileSizeMb : 0
         });
     } else {
-        // Tự động nạp toàn bộ danh sách chủ đề bài học vào hàng đợi render:
+        // Tự động nạp toàn bộ danh sách chủ đề hoặc thể loại bài học vào hàng đợi render:
         // ĐẢM BẢO KHÔNG TĂNG THÊM BỘ DÒNG MỖI CHẾ ĐỘ - SỐ THỨ TỰ MỖI DÒNG ĐÚNG THEO BAN ĐẦU CỦA BÀI HỌC (01, 02, 03...)
         const activeTopics = (batchTopicsList && batchTopicsList.length > 0)
             ? batchTopicsList
-            : [{ topic: "Default Topic", patternsCount: 1, drillsCount: 1, stt: 1 }];
+            : [{ topic: "Default Topic", genre: "General", patternsCount: 1, drillsCount: 1, stt: 1 }];
 
         activeTopics.forEach((top, tIdx) => {
             const sttNum = top.stt || (tIdx + 1);
             const sttStr = String(sttNum).padStart(2, '0');
-            const safeTopic = sanitizeFilename(top.topic);
+            const safeTopic = sanitizeFilename(top.topic || "Topic");
+            const safeGenre = sanitizeFilename(top.genre || top.topic || "Genre");
 
             // Xây dựng danh sách kịch bản và file cho bài học này:
             const isChain = (targetMode === 'mode3_chain');
@@ -271,7 +306,9 @@ function buildBatchQueueList() {
                 let bName = pattern
                     .replace(/\{stt\}/gi, sttStr)
                     .replace(/\{script\}/gi, sTag)
-                    .replace(/\{topic\}/gi, safeTopic);
+                    .replace(/\{topic\}/gi, safeTopic)
+                    .replace(/\{genre\}/gi, safeGenre)
+                    .replace(/\{theloai\}/gi, safeGenre);
                 bName = sanitizeFilename(bName);
                 return {
                     profIndex: pIdx,
@@ -296,7 +333,9 @@ function buildBatchQueueList() {
                 let combBase = pattern
                     .replace(/\{stt\}/gi, sttStr)
                     .replace(/\{script\}/gi, "Chain")
-                    .replace(/\{topic\}/gi, safeTopic);
+                    .replace(/\{topic\}/gi, safeTopic)
+                    .replace(/\{genre\}/gi, safeGenre)
+                    .replace(/\{theloai\}/gi, safeGenre);
                 combBase = sanitizeFilename(combBase);
                 baseName = combBase;
                 expectedFilename = `${combBase}.mp4`;
@@ -325,6 +364,9 @@ function buildBatchQueueList() {
                 chainFiles: chainFiles,
                 isChain: isChain,
                 topic: top.topic,
+                genre: top.genre,
+                groupKey: top.groupKey || top.topic,
+                groupMode: top.groupMode || (typeof batchGroupingMode !== 'undefined' ? batchGroupingMode : 'topic'),
                 patternsCount: top.patternsCount || 1,
                 drillsCount: top.drillsCount || 1,
                 baseName: baseName,
@@ -397,9 +439,12 @@ function renderBatchTableUI() {
                </span>`;
         }
 
+        const isGenreMode = (typeof batchGroupingMode !== 'undefined' && batchGroupingMode === 'genre');
         const topicHtml = item.isOutsideLoopOnly
             ? `<span class="text-amber-300 font-bold flex items-center space-x-1 text-[11px]" title="${item.topic}"><i data-lucide="pin" class="w-3 h-3 shrink-0 text-amber-400"></i><span class="truncate">${item.topic}</span></span>`
-            : `<span class="truncate block" title="${item.topic}">${item.topic}</span>`;
+            : (isGenreMode
+                ? `<span class="truncate block text-amber-300 font-bold" title="Thể loại: ${item.topic}">📁 ${item.topic}</span>`
+                : `<span class="truncate block" title="${item.topic}">${item.topic}</span>`);
 
         const patternsDisplay = item.isOutsideLoopOnly ? '<span class="text-slate-500 font-mono text-[10px]">-</span>' : `<span class="text-indigo-300 font-mono text-[10px]">${item.patternsCount}</span>`;
         const drillsDisplay = item.isOutsideLoopOnly ? '<span class="text-slate-500 font-mono text-[10px]">-</span>' : `<span class="text-teal-300 font-mono text-[10px]">${item.drillsCount}</span>`;

@@ -50,6 +50,7 @@ Dự án tạo video tự động từ file Excel & ảnh, hỗ trợ xem trư�
 ### 3. `js/1_state_config.js`
 - **Chuyên môn:** Khai báo cấu trúc dữ liệu và biến trạng thái toàn cục.
 - **Biến chủ chốt:**
+  - `APP_VERSION_INFO`: Lưu trữ số hiệu phiên bản hiện tại (V12.8), ngày phát hành, trạng thái, danh mục tính năng cập nhật và lịch sử các bản phát hành trước.
   - `importedDatasets`: Mảng chứa danh sách câu, mẫu câu, từ thay thế (drills) trích xuất từ Excel.
   - `paragraphGridConfig`: Cấu hình bố cục lưới Canvas (ma trận cột, danh sách các nhóm/lớp Groups, lề đệm).
   - `paragraphFieldStyles`: Từ điển cấu hình phông, cỡ, màu sắc, kiểu highlight, thụt lề cho từng trường.
@@ -141,6 +142,7 @@ Dự án tạo video tự động từ file Excel & ảnh, hỗ trợ xem trư�
 ### 11. `js/app.js`
 - **Chuyên môn:** Điểm khởi động ứng dụng và quản lý tương tác cấp hệ thống.
 - Lắng nghe `DOMContentLoaded`, khởi tạo Canvas, render danh sách phông chữ, nạp trạng thái từ IndexedDB.
+- `openVersionChangelogModal()`, `closeVersionChangelogModal()`: Quản lý hộp thoại hiển thị số hiệu phiên bản và nhật ký chi tiết các tính năng mới cập nhật.
 - `switchLeftSubTab()`: Chuyển đổi các tab bên cột trái (Kịch bản, Dữ liệu, Lớp & Grid, Hiệu ứng, Định dạng).
 - `showToast()`: Hệ thống thông báo trạng thái góc màn hình.
 - Phím tắt bàn phím toàn cục (Space: Play/Pause, Ctrl+Z / Ctrl+S).

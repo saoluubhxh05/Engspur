@@ -3,9 +3,81 @@
  * Quản lý các biến trạng thái toàn cục và cấu hình kịch bản mẫu
  */
 
+var APP_VERSION_INFO = {
+    version: "V12.9",
+    releaseDate: "13/09/2026",
+    status: "Mới nhất & Ổn định",
+    summary: "Bản nâng cấp V12.9: Bổ sung bộ lọc Thể loại (Genre/Category) & Chủ đề (Topic) trong Quản lý kịch bản JSON, hỗ trợ Render hàng loạt gom nhóm tạo file theo Thể loại hoặc Chủ đề Excel.",
+    categories: [
+        {
+            title: "Lọc & Gom Nhóm Render Theo Thể Loại / Chủ Đề",
+            icon: "filter",
+            color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            items: [
+                "Bổ sung bộ lọc linh hoạt 'Lọc theo Chủ đề' hoặc 'Lọc theo Thể loại' trong Tab 2 Quản Lý Kịch Bản JSON.",
+                "Tự động nhận diện cột Thể loại (Thể loại, The loai, Category, Genre) từ file Excel và cập nhật danh sách chọn.",
+                "Tab 3 Render Hàng Loạt: Thêm tùy chọn gom nhóm xuất file 'Tạo file theo từng Chủ Đề' hoặc 'Tạo file theo từng Thể Loại' Excel.",
+                "Bổ sung tag tên file linh hoạt {theloai} hoặc {genre} bên cạnh {stt}, {script}, {topic}."
+            ]
+        },
+        {
+            title: "Động Cơ Render & Nền (Background Worker)",
+            icon: "cpu",
+            color: "text-sky-400 bg-sky-500/10 border-sky-500/30",
+            items: [
+                "Tích hợp Web Worker nhịp xung ngầm độc lập (33ms) duy trì vòng lặp render mượt mà ngay cả khi chuyển sang tab khác hoặc thu nhỏ trình duyệt.",
+                "Tích hợp Screen Wake Lock API tự động khóa màn hình không bị tắt hoặc rơi vào chế độ ngủ (Sleep) trong suốt tiến trình Batch Render.",
+                "Hỗ trợ chế độ kịch bản 'Ngoài Vòng Lặp' (Outside Loop Only) giúp xuất video gồm các lớp tĩnh (Intro/Outro/Banner) mà không cần câu lặp."
+            ]
+        },
+        {
+            title: "Bảo Vệ Phần Cứng & Giải Nhiệt GPU/RAM",
+            icon: "snowflake",
+            color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+            items: [
+                "Cơ chế giải nhiệt Cool-down bắt buộc: Nghỉ 2.0s giữa pha Full & Clean, nghỉ 2.5s giữa các bài học để GPU/CPU xả tải và hạ nhiệt an toàn.",
+                "Tự động giải phóng triệt để mảng bộ nhớ đệm RAM (pRecordedChunks và pCleanRecordedChunks) sau khi xuất từng bài học.",
+                "Tối ưu bitrate (3.5 Mbps cho Full, 2.0 Mbps cho Clean) giúp máy nhẹ hơn 20%, chống hiện tượng giật lag hoặc quá nhiệt máy tính."
+            ]
+        },
+        {
+            title: "Giọng Đọc AI & Báo Cáo Xuất Bản",
+            icon: "mic",
+            color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/30",
+            items: [
+                "Tích hợp 12 giọng đọc Microsoft Edge Neural Voice (Jenny, Guy, Aria,...) chuẩn ngữ điệu người bản xứ, hoàn toàn miễn phí và không giới hạn.",
+                "Xuất file báo cáo Excel 2 Sheet chi tiết: Sheet 1 (Tổng quan video) và Sheet 2 (Mốc thời gian thực start/end từng câu drills chuẩn ms)."
+            ]
+        }
+    ],
+    history: [
+        {
+            version: "V12.8",
+            date: "13/09/2026",
+            highlight: "Động cơ Render ngầm chống gián đoạn khi chuyển tab, cơ chế giải nhiệt GPU/RAM tự động, và giọng đọc Edge Neural TTS."
+        },
+        {
+            version: "V12.7",
+            date: "05/09/2026",
+            highlight: "Tích hợp Microsoft Edge Neural TTS và xuất file báo cáo Excel 2 Sheet chuẩn mili-giây."
+        },
+        {
+            version: "V12.6",
+            date: "28/08/2026",
+            highlight: "Nâng cấp giao diện Batch Multi-Chain Pipeline, hỗ trợ xuất đồng thời Full MP4 + Clean MP4 + Audio WAV."
+        },
+        {
+            version: "V12.0",
+            date: "15/08/2026",
+            highlight: "Khởi tạo kiến trúc Studio Timeline: Lưới đa cột, tự động ngắt dòng Smart Word-wrap, lưu trữ IndexedDB."
+        }
+    ]
+};
+
 var importedDatasets = [
     {
         sttMau: "1",
+        genre: "Giao tiếp cơ bản",
         topic: "Describe Person",
         pattern: "She looks very [Adj] with her [Noun].",
         question: "What does she look like?",
@@ -18,12 +90,16 @@ var importedDatasets = [
 ];
 
 var excelColumnsList = [
-    "STT", "STT Mẫu", "Chủ đề", "Mẫu câu", "Từ gợi mở", "Câu hỏi cho mẫu câu", "Từ nối",
+    "STT", "STT Mẫu", "Thể loại", "Chủ đề", "Mẫu câu", "Từ gợi mở", "Câu hỏi cho mẫu câu", "Từ nối",
     "Substitution words", "Dịch Substitution words", "Substitution Drills",
     "Phiên âm IPA", "Dịch Substitution Drills", "Minh họa", "ten_file_dinh_kem"
 ];
 
+var paragraphFilterMode = "topic"; // 'topic' | 'genre'
 var paragraphSelectedTopic = "ALL";
+var paragraphSelectedGenre = "ALL";
+var batchGroupingMode = "topic"; // 'topic' (theo từng Chủ Đề) | 'genre' (theo từng Thể Loại)
+var batchGenreFilter = "ALL";
 var localPCImageMap = {}; 
 var localPCImageBase64Map = {}; 
 var canvasBgImage = null;

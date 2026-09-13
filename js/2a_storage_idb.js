@@ -88,6 +88,9 @@ async function saveFullSystemState(showToastMsg = true) {
             canvasBgBase64,
             canvasBadgeBase64,
             paragraphSelectedTopic,
+            paragraphFilterMode: paragraphFilterMode || 'topic',
+            paragraphSelectedGenre: paragraphSelectedGenre || 'ALL',
+            batchGroupingMode: batchGroupingMode || 'topic',
             masterTimelineDuration,
             batchDirectoryHandle: batchDirectoryHandle || null,
             batchDirectoryName: batchDirectoryName || ''
@@ -132,6 +135,21 @@ async function loadFullSystemState(isManual = false) {
             }
             if (saved.paragraphSelectedTopic) {
                 paragraphSelectedTopic = saved.paragraphSelectedTopic;
+            }
+            if (saved.paragraphFilterMode) {
+                paragraphFilterMode = saved.paragraphFilterMode;
+            }
+            if (saved.paragraphSelectedGenre) {
+                paragraphSelectedGenre = saved.paragraphSelectedGenre;
+            }
+            if (saved.batchGroupingMode) {
+                batchGroupingMode = saved.batchGroupingMode;
+                const batchGrpSelect = document.getElementById('batch-grouping-mode-select');
+                if (batchGrpSelect) batchGrpSelect.value = batchGroupingMode;
+                const headerElem = document.getElementById('batch-table-header-group');
+                if (headerElem) {
+                    headerElem.innerText = (batchGroupingMode === 'genre') ? 'Thể Loại (Genre)' : 'Chủ Đề (Topic)';
+                }
             }
             if (saved.masterTimelineDuration) {
                 masterTimelineDuration = saved.masterTimelineDuration;
