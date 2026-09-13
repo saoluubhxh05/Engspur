@@ -4,20 +4,20 @@
  */
 
 var APP_VERSION_INFO = {
-    version: "V12.9",
+    version: "V13.0",
     releaseDate: "13/09/2026",
     status: "Mới nhất & Ổn định",
-    summary: "Bản nâng cấp V12.9: Bổ sung bộ lọc Thể loại (Genre/Category) & Chủ đề (Topic) trong Quản lý kịch bản JSON, hỗ trợ Render hàng loạt gom nhóm tạo file theo Thể loại hoặc Chủ đề Excel.",
+    summary: "Bản nâng cấp V13.0: Hoàn thiện danh sách chọn Thể loại trong 'Quản lý kịch bản JSON' với tùy chọn 'Tất cả thể loại trong Excel', đồng bộ danh sách thể loại thời gian thực và đồng nhất mã nguồn client-side.",
     categories: [
         {
-            title: "Lọc & Gom Nhóm Render Theo Thể Loại / Chủ Đề",
+            title: "Bộ Lọc Kịch Bản JSON & Gom Nhóm Thể Loại / Chủ Đề",
             icon: "filter",
             color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
             items: [
-                "Bổ sung bộ lọc linh hoạt 'Lọc theo Chủ đề' hoặc 'Lọc theo Thể loại' trong Tab 2 Quản Lý Kịch Bản JSON.",
+                "Quản lý kịch bản JSON: Tùy chọn Chế độ lọc Thể loại (Genre) hiển thị chuẩn '-- Tất cả thể loại trong Excel --' cùng toàn bộ các thể loại trích xuất từ Excel.",
+                "Tự động đổi tiêu đề nhãn và bảng dữ liệu theo Thể loại hoặc Chủ đề tương ứng.",
                 "Tự động nhận diện cột Thể loại (Thể loại, The loai, Category, Genre) từ file Excel và cập nhật danh sách chọn.",
-                "Tab 3 Render Hàng Loạt: Thêm tùy chọn gom nhóm xuất file 'Tạo file theo từng Chủ Đề' hoặc 'Tạo file theo từng Thể Loại' Excel.",
-                "Bổ sung tag tên file linh hoạt {theloai} hoặc {genre} bên cạnh {stt}, {script}, {topic}."
+                "Tab 3 Render Hàng Loạt: Gom nhóm xuất file 'Tạo file theo từng Chủ Đề' hoặc 'Tạo file theo từng Thể Loại' Excel với tag {theloai} / {genre}."
             ]
         },
         {
@@ -51,6 +51,16 @@ var APP_VERSION_INFO = {
         }
     ],
     history: [
+        {
+            version: "V13.0",
+            date: "13/09/2026",
+            highlight: "Chuẩn hóa bộ lọc Thể loại trong Quản lý kịch bản JSON với mục 'Tất cả thể loại trong Excel', đồng bộ danh sách thời gian thực."
+        },
+        {
+            version: "V12.9",
+            date: "13/09/2026",
+            highlight: "Bổ sung bộ lọc Thể loại (Genre) & Chủ đề (Topic) và gom nhóm Batch Render theo Thể loại."
+        },
         {
             version: "V12.8",
             date: "13/09/2026",

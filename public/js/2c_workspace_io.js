@@ -157,6 +157,7 @@ async function loadRichDemoDataset(showToastMsg = true) {
     importedDatasets = [
         {
             sttMau: "1",
+            genre: "Giao Tiếp Hàng Ngày",
             topic: "Describe Person",
             pattern: "She looks very [Adj] with her [Noun].",
             question: "What does she look like?",
@@ -168,6 +169,7 @@ async function loadRichDemoDataset(showToastMsg = true) {
         },
         {
             sttMau: "2",
+            genre: "Giao Tiếp Hàng Ngày",
             topic: "Daily Routines",
             pattern: "I usually [Verb] before [Activity].",
             question: "What do you do every morning?",
@@ -179,6 +181,7 @@ async function loadRichDemoDataset(showToastMsg = true) {
         },
         {
             sttMau: "3",
+            genre: "Du Lịch & Đời Sống",
             topic: "Travel & Vacation",
             pattern: "We plan to visit [Place] this [Time].",
             question: "Where are you going on holiday?",
@@ -191,12 +194,13 @@ async function loadRichDemoDataset(showToastMsg = true) {
     ];
 
     excelColumnsList = [
-        "STT", "STT Mẫu", "Chủ đề", "Mẫu câu", "Từ gợi mở", "Câu hỏi cho mẫu câu", "Từ nối",
+        "STT", "STT Mẫu", "Thể loại", "Chủ đề", "Mẫu câu", "Từ gợi mở", "Câu hỏi cho mẫu câu", "Từ nối",
         "Substitution words", "Dịch Substitution words", "Substitution Drills",
         "Phiên âm IPA", "Dịch Substitution Drills", "Minh họa", "ten_file_dinh_kem"
     ];
 
     paragraphSelectedTopic = "ALL";
+    paragraphSelectedGenre = "ALL";
     pCurrentSentenceIndex = 0;
 
     // Đảm bảo có sẵn ít nhất 2 kịch bản mẫu chuẩn

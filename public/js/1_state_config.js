@@ -4,15 +4,26 @@
  */
 
 var APP_VERSION_INFO = {
-    version: "V12.8",
+    version: "V13.0",
     releaseDate: "13/09/2026",
     status: "Mới nhất & Ổn định",
-    summary: "Bản nâng cấp V12.8: Động cơ Render ngầm chống gián đoạn khi chuyển tab, cơ chế giải nhiệt GPU/RAM tự động, và tích hợp giọng đọc Edge Neural TTS.",
+    summary: "Bản nâng cấp V13.0: Hoàn thiện danh sách chọn Thể loại trong 'Quản lý kịch bản JSON' với tùy chọn 'Tất cả thể loại trong Excel', đồng bộ danh sách thể loại thời gian thực và đồng nhất mã nguồn client-side.",
     categories: [
+        {
+            title: "Bộ Lọc Kịch Bản JSON & Gom Nhóm Thể Loại / Chủ Đề",
+            icon: "filter",
+            color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            items: [
+                "Quản lý kịch bản JSON: Tùy chọn Chế độ lọc Thể loại (Genre) hiển thị chuẩn '-- Tất cả thể loại trong Excel --' cùng toàn bộ các thể loại trích xuất từ Excel.",
+                "Tự động đổi tiêu đề nhãn và bảng dữ liệu theo Thể loại hoặc Chủ đề tương ứng.",
+                "Tự động nhận diện cột Thể loại (Thể loại, The loai, Category, Genre) từ file Excel và cập nhật danh sách chọn.",
+                "Tab 3 Render Hàng Loạt: Gom nhóm xuất file 'Tạo file theo từng Chủ Đề' hoặc 'Tạo file theo từng Thể Loại' Excel với tag {theloai} / {genre}."
+            ]
+        },
         {
             title: "Động Cơ Render & Nền (Background Worker)",
             icon: "cpu",
-            color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            color: "text-sky-400 bg-sky-500/10 border-sky-500/30",
             items: [
                 "Tích hợp Web Worker nhịp xung ngầm độc lập (33ms) duy trì vòng lặp render mượt mà ngay cả khi chuyển sang tab khác hoặc thu nhỏ trình duyệt.",
                 "Tích hợp Screen Wake Lock API tự động khóa màn hình không bị tắt hoặc rơi vào chế độ ngủ (Sleep) trong suốt tiến trình Batch Render.",
@@ -22,7 +33,7 @@ var APP_VERSION_INFO = {
         {
             title: "Bảo Vệ Phần Cứng & Giải Nhiệt GPU/RAM",
             icon: "snowflake",
-            color: "text-sky-400 bg-sky-500/10 border-sky-500/30",
+            color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
             items: [
                 "Cơ chế giải nhiệt Cool-down bắt buộc: Nghỉ 2.0s giữa pha Full & Clean, nghỉ 2.5s giữa các bài học để GPU/CPU xả tải và hạ nhiệt an toàn.",
                 "Tự động giải phóng triệt để mảng bộ nhớ đệm RAM (pRecordedChunks và pCleanRecordedChunks) sau khi xuất từng bài học.",
@@ -30,26 +41,31 @@ var APP_VERSION_INFO = {
             ]
         },
         {
-            title: "Giọng Đọc AI & Luồng Âm Thanh WAV",
+            title: "Giọng Đọc AI & Báo Cáo Xuất Bản",
             icon: "mic",
-            color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
-            items: [
-                "Tích hợp 12 giọng đọc Microsoft Edge Neural Voice (Jenny, Guy, Aria,...) chuẩn ngữ điệu người bản xứ, hoàn toàn miễn phí và không giới hạn.",
-                "Tự động đo thời lượng âm thanh và khóa dải Timeline vừa khít với giọng nói.",
-                "Xuất luồng âm thanh PCM không nén đóng gói định dạng WAV 44.1kHz Stereo 16-bit độc lập đồng bộ tuyệt đối."
-            ]
-        },
-        {
-            title: "Báo Cáo & Quản Lý Xuất Bản",
-            icon: "file-spreadsheet",
             color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/30",
             items: [
-                "Xuất file báo cáo Excel 2 Sheet chi tiết: Sheet 1 (Tổng quan video) và Sheet 2 (Mốc thời gian thực start/end từng câu drills chuẩn ms).",
-                "Quản lý kịch bản Multi-Chain và quy tắc đặt tên file linh hoạt {stt}, {script}, {topic}."
+                "Tích hợp 12 giọng đọc Microsoft Edge Neural Voice (Jenny, Guy, Aria,...) chuẩn ngữ điệu người bản xứ, hoàn toàn miễn phí và không giới hạn.",
+                "Xuất file báo cáo Excel 2 Sheet chi tiết: Sheet 1 (Tổng quan video) và Sheet 2 (Mốc thời gian thực start/end từng câu drills chuẩn ms)."
             ]
         }
     ],
     history: [
+        {
+            version: "V13.0",
+            date: "13/09/2026",
+            highlight: "Chuẩn hóa bộ lọc Thể loại trong Quản lý kịch bản JSON với mục 'Tất cả thể loại trong Excel', đồng bộ danh sách thời gian thực."
+        },
+        {
+            version: "V12.9",
+            date: "13/09/2026",
+            highlight: "Bổ sung bộ lọc Thể loại (Genre) & Chủ đề (Topic) và gom nhóm Batch Render theo Thể loại."
+        },
+        {
+            version: "V12.8",
+            date: "13/09/2026",
+            highlight: "Động cơ Render ngầm chống gián đoạn khi chuyển tab, cơ chế giải nhiệt GPU/RAM tự động, và giọng đọc Edge Neural TTS."
+        },
         {
             version: "V12.7",
             date: "05/09/2026",
@@ -71,6 +87,7 @@ var APP_VERSION_INFO = {
 var importedDatasets = [
     {
         sttMau: "1",
+        genre: "Giao tiếp cơ bản",
         topic: "Describe Person",
         pattern: "She looks very [Adj] with her [Noun].",
         question: "What does she look like?",
@@ -83,12 +100,16 @@ var importedDatasets = [
 ];
 
 var excelColumnsList = [
-    "STT", "STT Mẫu", "Chủ đề", "Mẫu câu", "Từ gợi mở", "Câu hỏi cho mẫu câu", "Từ nối",
+    "STT", "STT Mẫu", "Thể loại", "Chủ đề", "Mẫu câu", "Từ gợi mở", "Câu hỏi cho mẫu câu", "Từ nối",
     "Substitution words", "Dịch Substitution words", "Substitution Drills",
     "Phiên âm IPA", "Dịch Substitution Drills", "Minh họa", "ten_file_dinh_kem"
 ];
 
+var paragraphFilterMode = "topic"; // 'topic' | 'genre'
 var paragraphSelectedTopic = "ALL";
+var paragraphSelectedGenre = "ALL";
+var batchGroupingMode = "topic"; // 'topic' (theo từng Chủ Đề) | 'genre' (theo từng Thể Loại)
+var batchGenreFilter = "ALL";
 var localPCImageMap = {}; 
 var localPCImageBase64Map = {}; 
 var canvasBgImage = null;

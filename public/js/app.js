@@ -187,10 +187,10 @@ function renderVersionChangelogModal() {
     if (!container) return;
     
     const info = (typeof APP_VERSION_INFO !== 'undefined') ? APP_VERSION_INFO : {
-        version: "V12.8",
+        version: "V12.9",
         releaseDate: "13/09/2026",
         status: "Mới nhất & Ổn định",
-        summary: "Bản nâng cấp V12.8: Động cơ Render ngầm chống gián đoạn khi chuyển tab, cơ chế giải nhiệt GPU/RAM tự động, và tích hợp giọng đọc Edge Neural TTS.",
+        summary: "Bản nâng cấp V12.9: Bổ sung bộ lọc Thể loại (Genre/Category) & Chủ đề (Topic) trong Quản lý kịch bản JSON, hỗ trợ Render hàng loạt gom nhóm tạo file theo Thể loại hoặc Chủ đề Excel.",
         categories: [],
         history: []
     };

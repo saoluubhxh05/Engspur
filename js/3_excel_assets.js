@@ -57,23 +57,49 @@ function handleExcelUpload(e) {
 function processImportedExcelRows(rows) {
     const patternMap = new Map();
     rows.forEach((row, idx) => {
-        const stt = row["STT"] || idx + 1;
-        let sttMau = row["STT Mẫu"] || row["STT Mau"] || row["STT_Mẫu"] || "";
-        let genre = row["Thể loại"] || row["The loai"] || row["Thể Loại"] || row["The Loai"] || row["Category"] || row["category"] || row["Genre"] || row["genre"] || "Chung";
-        let topic = row["Chủ đề"] || row["Chu de"] || "General";
-        let pattern = row["Mẫu câu"] || row["Mau cau"] || "Pattern";
-        let question = row["Câu hỏi cho mẫu câu"] || row["Câu hỏi"] || row["Cau hoi"] || "";
+        // Trợ giúp tìm giá trị trong dòng theo danh sách tên cột tiềm năng (không phân biệt hoa thường và khoảng trắng)
+        const getRowVal = (potentialKeys) => {
+            for (const key of potentialKeys) {
+                if (row[key] !== undefined && row[key] !== null) return row[key];
+            }
+            const normalizedMap = {};
+            Object.keys(row).forEach(k => {
+                normalizedMap[k.trim().toLowerCase()] = row[k];
+            });
+            for (const key of potentialKeys) {
+                const normK = key.trim().toLowerCase();
+                if (normalizedMap[normK] !== undefined && normalizedMap[normK] !== null) {
+                    return normalizedMap[normK];
+                }
+            }
+            return undefined;
+        };
+
+        const stt = getRowVal(["STT"]) || idx + 1;
+        let sttMau = getRowVal(["STT Mẫu", "STT Mau", "STT_Mẫu", "STT MẪU"]) || "";
+        
+        let rawGenre = getRowVal(["Thể loại", "Thể Loại", "The loai", "The Loai", "THỂ LOẠI", "Category", "category", "CATEGORY", "Genre", "genre", "GENRE", "Chuyên mục", "Phân loại"]);
+        let genre = (rawGenre !== undefined && rawGenre !== null && String(rawGenre).trim() !== "") ? String(rawGenre).trim() : "Chung";
+
+        let rawTopic = getRowVal(["Chủ đề", "Chủ Đề", "Chu de", "Chu De", "CHỦ ĐỀ", "Topic", "topic", "TOPIC"]);
+        let topic = (rawTopic !== undefined && rawTopic !== null && String(rawTopic).trim() !== "") ? String(rawTopic).trim() : "General";
+
+        let rawPattern = getRowVal(["Mẫu câu", "Mẫu Câu", "Mau cau", "Mau Cau", "MẪU CÂU", "Pattern", "pattern"]);
+        let pattern = (rawPattern !== undefined && rawPattern !== null && String(rawPattern).trim() !== "") ? String(rawPattern).trim() : "Pattern";
+
+        let rawQuestion = getRowVal(["Câu hỏi cho mẫu câu", "Câu hỏi", "Cau hoi", "Question", "question"]);
+        let question = (rawQuestion !== undefined && rawQuestion !== null) ? String(rawQuestion).trim() : "";
 
         // Ô "Từ nối" nào không có thì bỏ trống hoàn toàn chuỗi ""
-        const rawTuNoi = row["Từ nối"] !== undefined ? row["Từ nối"] : (row["Tu noi"] !== undefined ? row["Tu noi"] : (row["Từ Nối"] !== undefined ? row["Từ Nối"] : ""));
+        const rawTuNoi = getRowVal(["Từ nối", "Từ Nối", "Tu noi", "Tu Noi", "TỪ NỐI", "Transition", "Conjunction"]);
         const tuNoi = (rawTuNoi !== null && rawTuNoi !== undefined) ? String(rawTuNoi).trim() : "";
 
-        const cueWord = row["Substitution words"] || row["Từ gợi mở"] || row["Từ gợi ý"] || "";
-        const dichCueWord = row["Dịch Substitution words"] || row["Dịch từ gợi mở"] || "";
-        const drillText = row["Substitution Drills"] || "";
-        const ipa = row["Phiên âm Substitution Drill"] || row["Phiên âm IPA"] || "";
-        const dichDrillText = row["Dịch Substitution Drills"] || "";
-        const imageName = row["ten_file_dinh_kem"] || row["Minh họa"] || "";
+        const cueWord = getRowVal(["Substitution words", "Từ gợi mở", "Từ gợi ý", "Từ Gợi Mở", "Cue Word", "Cue words"]) || "";
+        const dichCueWord = getRowVal(["Dịch Substitution words", "Dịch từ gợi mở", "Dịch từ gợi ý", "Dịch Từ Gợi Mở"]) || "";
+        const drillText = getRowVal(["Substitution Drills", "Drill", "Drills", "Câu luyện"]) || "";
+        const ipa = getRowVal(["Phiên âm Substitution Drill", "Phiên âm IPA", "IPA", "Phiên âm"]) || "";
+        const dichDrillText = getRowVal(["Dịch Substitution Drills", "Dịch drill", "Dịch câu luyện", "Dịch"]) || "";
+        const imageName = getRowVal(["ten_file_dinh_kem", "Minh họa", "Minh Họa", "Hình ảnh", "Tên ảnh", "Image", "image"]) || "";
 
         if (!sttMau) sttMau = `M-${patternMap.size + 1}`;
         const groupKey = `${sttMau}___${pattern}`;
@@ -115,6 +141,8 @@ function renderDatasetTable() {
     const activeList = getParagraphFilteredDatasets();
     const badge = document.getElementById('script-count-badge');
     if (badge) badge.innerText = `${activeList.length} Mẫu`;
+    const thTopic = document.getElementById('script-table-header-topic');
+    if (thTopic) thTopic.innerText = (paragraphFilterMode === 'genre') ? 'Thể loại' : 'Chủ đề';
     if (!body) return;
     body.innerHTML = '';
 
@@ -208,32 +236,54 @@ function updateTopicDropdown() {
         if (paragraphFilterMode === 'genre') {
             if (labelElem) labelElem.innerText = "Lọc Theo Thể Loại Excel:";
             const genres = new Set();
-            importedDatasets.forEach(ds => {
-                if (ds.genre) genres.add(ds.genre);
-                else genres.add("Chung");
+            (importedDatasets || []).forEach(ds => {
+                let g = ds.genre;
+                if (!g && ds.drills && ds.drills.length > 0) {
+                    for (const d of ds.drills) {
+                        if (d.rawRow) {
+                            const raw = d.rawRow["Thể loại"] || d.rawRow["Thể Loại"] || d.rawRow["The loai"] || d.rawRow["Category"] || d.rawRow["Genre"];
+                            if (raw) { g = String(raw).trim(); ds.genre = g; break; }
+                        }
+                    }
+                }
+                if (g && String(g).trim() !== "") {
+                    genres.add(String(g).trim());
+                } else {
+                    genres.add("Chung");
+                }
             });
 
             pDropdown.innerHTML = '<option value="ALL">-- Tất cả thể loại trong Excel --</option>';
-            genres.forEach(gen => {
+            Array.from(genres).sort().forEach(gen => {
                 const opt = document.createElement('option');
                 opt.value = gen;
                 opt.innerText = gen;
                 pDropdown.appendChild(opt);
             });
             pDropdown.value = paragraphSelectedGenre || "ALL";
+            if (pDropdown.selectedIndex === -1) {
+                pDropdown.value = "ALL";
+                paragraphSelectedGenre = "ALL";
+            }
         } else {
             if (labelElem) labelElem.innerText = "Lọc Theo Chủ Đề Excel:";
             const topics = new Set();
-            importedDatasets.forEach(ds => { if (ds.topic) topics.add(ds.topic); });
+            (importedDatasets || []).forEach(ds => { 
+                if (ds.topic && String(ds.topic).trim() !== "") topics.add(String(ds.topic).trim()); 
+            });
 
             pDropdown.innerHTML = '<option value="ALL">-- Tất cả chủ đề trong Excel --</option>';
-            topics.forEach(top => {
+            Array.from(topics).sort().forEach(top => {
                 const opt = document.createElement('option');
                 opt.value = top;
                 opt.innerText = top;
                 pDropdown.appendChild(opt);
             });
             pDropdown.value = paragraphSelectedTopic || "ALL";
+            if (pDropdown.selectedIndex === -1) {
+                pDropdown.value = "ALL";
+                paragraphSelectedTopic = "ALL";
+            }
         }
     }
 }
@@ -250,6 +300,7 @@ function onParagraphFilterModeChange(modeVal) {
     pCurrentSentenceIndex = 0;
     seekTimeline(0);
     drawParagraphCanvasFrame();
+    if (typeof triggerAutoSave === 'function') triggerAutoSave();
     showToast(`Đã chuyển chế độ: Lọc theo ${modeVal === 'genre' ? 'Thể loại' : 'Chủ đề'}!`);
 }
 
@@ -265,6 +316,7 @@ function onParagraphTopicChange(val) {
     pCurrentSentenceIndex = 0;
     seekTimeline(0);
     drawParagraphCanvasFrame();
+    if (typeof triggerAutoSave === 'function') triggerAutoSave();
 }
 
 function getParagraphFilteredDatasets() {
