@@ -142,6 +142,14 @@ function checkAndTriggerTimelineAudio(curTime) {
                     speakTTS(textToRead);
                 }
             }
+
+            const sfxItem = (grp.fields || []).find(f => f.type === 'audio_sfx');
+            if (sfxItem) {
+                if (currentSentenceTriggeredAudioGroups) currentSentenceTriggeredAudioGroups.add(gIdx);
+                if (typeof playSfxItem === 'function') {
+                    playSfxItem(sfxItem);
+                }
+            }
         }
     });
 }

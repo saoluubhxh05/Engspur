@@ -16,12 +16,16 @@ function getSharedAudioContext() {
 }
 
 function isAudioLayer(grp) {
-    return (grp.fields || []).some(f => f.type === 'tts');
+    return (grp.fields || []).some(f => f.type === 'tts' || f.type === 'audio_sfx');
 }
 
 function calculateEstimatedTTSDuration(grp, sentenceData) {
     const ttsItem = (grp.fields || []).find(f => f.type === 'tts');
-    if (!ttsItem) return grp.duration || 4.0;
+    if (!ttsItem) {
+        const sfxItem = (grp.fields || []).find(f => f.type === 'audio_sfx');
+        if (sfxItem) return grp.duration || 1.0;
+        return grp.duration || 4.0;
+    }
     
     let text = "";
     if (ttsItem.sourceMode === 'custom') {
@@ -619,4 +623,185 @@ function encodePcmChunksToWavBlob(pcmChunks, targetDurationMs = 0, sampleRate = 
     }
 
     return new Blob([buffer], { type: 'audio/wav' });
+}
+
+/**
+ * TỔNG HỢP ÂM THANH HIỆU ỨNG (SFX) TRỰC TIẾP QUA WEB AUDIO API
+ * Chạy 100% offline không cần kết nối mạng hoặc tải file ngoài
+ */
+function generateSynthesizedSfxBuffer(soundType, audioCtx) {
+    const sampleRate = audioCtx.sampleRate || 44100;
+
+    if (soundType === 'tick') {
+        const dur = 0.08;
+        const numSamples = Math.floor(sampleRate * dur);
+        const buffer = audioCtx.createBuffer(1, numSamples, sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < numSamples; i++) {
+            const t = i / sampleRate;
+            const freq = 1200;
+            const env = Math.exp(-t * 90);
+            data[i] = Math.sin(2 * Math.PI * freq * t) * env;
+        }
+        return buffer;
+    } else if (soundType === 'whoosh') {
+        const dur = 0.35;
+        const numSamples = Math.floor(sampleRate * dur);
+        const buffer = audioCtx.createBuffer(1, numSamples, sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < numSamples; i++) {
+            const t = i / sampleRate;
+            const p = t / dur;
+            const noise = (Math.random() * 2 - 1);
+            const env = Math.sin(p * Math.PI);
+            const sweep = Math.sin(2 * Math.PI * (200 + p * 800) * t);
+            data[i] = (noise * 0.4 + sweep * 0.6) * env * 0.7;
+        }
+        return buffer;
+    } else if (soundType === 'bell') {
+        const dur = 1.2;
+        const numSamples = Math.floor(sampleRate * dur);
+        const buffer = audioCtx.createBuffer(1, numSamples, sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < numSamples; i++) {
+            const t = i / sampleRate;
+            const env = Math.exp(-t * 3.5);
+            const s1 = Math.sin(2 * Math.PI * 587.33 * t);
+            const s2 = 0.5 * Math.sin(2 * Math.PI * 880 * t);
+            const s3 = 0.25 * Math.sin(2 * Math.PI * 1174.66 * t);
+            data[i] = (s1 + s2 + s3) * env * 0.6;
+        }
+        return buffer;
+    } else if (soundType === 'chime') {
+        const dur = 0.9;
+        const numSamples = Math.floor(sampleRate * dur);
+        const buffer = audioCtx.createBuffer(1, numSamples, sampleRate);
+        const data = buffer.getChannelData(0);
+        const notes = [
+            { f: 523.25, start: 0.0, end: 0.5 },
+            { f: 659.25, start: 0.15, end: 0.65 },
+            { f: 783.99, start: 0.3, end: 0.9 }
+        ];
+        for (let i = 0; i < numSamples; i++) {
+            const t = i / sampleRate;
+            let val = 0;
+            notes.forEach(n => {
+                if (t >= n.start && t < n.end) {
+                    const nt = t - n.start;
+                    const env = Math.exp(-nt * 5.0);
+                    val += Math.sin(2 * Math.PI * n.f * nt) * env * 0.4;
+                }
+            });
+            data[i] = val;
+        }
+        return buffer;
+    } else {
+        // Mặc định: 'ding' (Ting Ting sắc nét, vui tai)
+        const dur = 0.7;
+        const numSamples = Math.floor(sampleRate * dur);
+        const buffer = audioCtx.createBuffer(1, numSamples, sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < numSamples; i++) {
+            const t = i / sampleRate;
+            const env = Math.exp(-t * 5.5);
+            const fundamental = Math.sin(2 * Math.PI * 880 * t);
+            const overtone = 0.4 * Math.sin(2 * Math.PI * 1760 * t);
+            data[i] = (fundamental + overtone) * env * 0.7;
+        }
+        return buffer;
+    }
+}
+
+function decodeBase64AudioToBuffer(base64Str, audioCtx) {
+    return new Promise((resolve, reject) => {
+        try {
+            const binaryString = atob(base64Str.split(',')[1] || base64Str);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            audioCtx.decodeAudioData(bytes.buffer, resolve, reject);
+        } catch (err) {
+            reject(err);
+        }
+    });
+}
+
+function playSfxItem(item, callback) {
+    if (!item) {
+        if (callback) callback();
+        return;
+    }
+
+    try {
+        const audioCtx = getSharedAudioContext();
+        const baseVolume = (item.volume !== undefined ? item.volume : 80) / 100;
+
+        // Cơ chế Ducking: Nếu TTS đang đọc thì tự động giảm âm lượng SFX xuống 25%
+        const isDucking = (item.ducking !== false) && (currentPlayingAudioSource !== null);
+        const effectiveVol = isDucking ? (baseVolume * 0.25) : baseVolume;
+
+        const handleBufferPlayback = (buffer) => {
+            if (!buffer) {
+                if (callback) callback();
+                return;
+            }
+
+            const source = audioCtx.createBufferSource();
+            source.buffer = buffer;
+
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.setValueAtTime(effectiveVol, audioCtx.currentTime);
+
+            source.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            if (batchStudioAudioDest) {
+                try {
+                    gainNode.connect(batchStudioAudioDest);
+                } catch(e) {}
+            }
+
+            source.onended = () => {
+                if (callback) callback();
+            };
+
+            source.start(0);
+
+            // Ghi nhận mốc nếu đang xuất video hàng loạt
+            if (typeof isBatchRunning !== 'undefined' && isBatchRunning && typeof batchCurrentVideoStartTime !== 'undefined' && batchCurrentVideoStartTime > 0) {
+                const actualAudioTimeMs = Math.max(0, Math.round(performance.now() - batchCurrentVideoStartTime));
+                if (typeof batchTopicScheduledAudioList !== 'undefined' && Array.isArray(batchTopicScheduledAudioList)) {
+                    batchTopicScheduledAudioList.push({
+                        timeMs: actualAudioTimeMs,
+                        audioBuffer: buffer
+                    });
+                }
+            }
+        };
+
+        if (item.soundType === 'custom' && item.customAudioData) {
+            decodeBase64AudioToBuffer(item.customAudioData, audioCtx)
+                .then(handleBufferPlayback)
+                .catch(() => {
+                    const fallbackBuffer = generateSynthesizedSfxBuffer('ding', audioCtx);
+                    handleBufferPlayback(fallbackBuffer);
+                });
+        } else {
+            const synthBuffer = generateSynthesizedSfxBuffer(item.soundType || 'ding', audioCtx);
+            handleBufferPlayback(synthBuffer);
+        }
+    } catch (e) {
+        console.error("Lỗi phát SFX:", e);
+        if (callback) callback();
+    }
+}
+
+function testPlayAudioSfx(gIdx, fIdx) {
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (!grp || !grp.fields[fIdx]) return;
+    const item = grp.fields[fIdx];
+    playSfxItem(item);
+    showToast(`Đang nghe thử: ${item.customAudioName || item.soundType || 'Ting Ting'}!`);
 }

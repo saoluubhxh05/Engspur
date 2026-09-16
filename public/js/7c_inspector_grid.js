@@ -161,6 +161,33 @@ function renderTimelineLayersListUI() {
                         <button onclick="event.stopPropagation(); removeFieldItemFromGroup(${gIdx}, ${fIdx})" class="text-rose-400 hover:text-white text-[10px] font-bold ml-1" title="Xóa thẻ">✕</button>
                     </div>
                 `;
+            } else if (itemType === 'progress_tracker') {
+                const mode = item.displayMode || 'both';
+                const isPtSel = (typeof selectedProgressTrackerTarget !== 'undefined' && selectedProgressTrackerTarget && selectedProgressTrackerTarget.gIdx === gIdx && selectedProgressTrackerTarget.fIdx === fIdx);
+                const selClass = isPtSel ? 'bg-emerald-900 border-2 border-emerald-400 ring-2 ring-emerald-400/50 shadow-md text-white' : 'bg-emerald-950/80 border border-emerald-700/80 hover:border-emerald-500';
+                return `
+                    <div class="flex items-center space-x-1 p-0.5 px-1.5 rounded-md transition cursor-pointer ${selClass}" onclick="event.stopPropagation(); selectProgressTrackerItem(${gIdx}, ${fIdx})" title="Nhấp để mở bảng định dạng ở cột trái">
+                        <span class="text-[9px] font-bold text-emerald-200 flex items-center space-x-1 cursor-pointer">
+                            <i data-lucide="sliders" class="w-2.5 h-2.5 text-emerald-400"></i>
+                            <span>Tiến độ: ${mode === 'bar' ? 'Thanh Bar' : (mode === 'text' ? 'Đếm số' : 'Bar + Đếm')}</span>
+                        </span>
+                        <button onclick="event.stopPropagation(); removeFieldItemFromGroup(${gIdx}, ${fIdx})" class="text-rose-400 hover:text-white text-[10px] font-bold ml-1" title="Xóa thẻ">✕</button>
+                    </div>
+                `;
+            } else if (itemType === 'audio_sfx') {
+                const sType = item.soundType || 'ding';
+                const sLabel = item.customAudioName || (sType === 'ding' ? 'Ting Ting' : (sType === 'tick' ? 'Tích tắc' : (sType === 'whoosh' ? 'Whoosh' : (sType === 'bell' ? 'Chuông Bell' : (sType === 'chime' ? 'Chime' : 'Âm thanh')))));
+                const isSfxSel = (typeof selectedAudioSfxTarget !== 'undefined' && selectedAudioSfxTarget && selectedAudioSfxTarget.gIdx === gIdx && selectedAudioSfxTarget.fIdx === fIdx);
+                const selClass = isSfxSel ? 'bg-purple-900 border-2 border-purple-400 ring-2 ring-purple-400/50 shadow-md text-white' : 'bg-purple-950/80 border border-purple-700/80 hover:border-purple-500';
+                return `
+                    <div class="flex items-center space-x-1 p-0.5 px-1.5 rounded-md transition cursor-pointer ${selClass}" onclick="event.stopPropagation(); selectAudioSfxItem(${gIdx}, ${fIdx})" title="Nhấp để mở bảng định dạng ở cột trái">
+                        <span class="text-[9px] font-bold text-purple-200 flex items-center space-x-1 cursor-pointer">
+                            <i data-lucide="music" class="w-2.5 h-2.5 text-purple-400"></i>
+                            <span>SFX: ${sLabel}</span>
+                        </span>
+                        <button onclick="event.stopPropagation(); removeFieldItemFromGroup(${gIdx}, ${fIdx})" class="text-rose-400 hover:text-white text-[10px] font-bold ml-1" title="Xóa thẻ">✕</button>
+                    </div>
+                `;
             } else {
                 const fKey = typeof item === 'string' ? item : item.key;
                 const isImg = fKey.toLowerCase().includes('anh') || fKey.toLowerCase().includes('dinh_kem');
@@ -426,6 +453,39 @@ function addSpecialObjectComponent(type) {
             selectCustomTextItem(paragraphSelectedGroupIdx, newIdx);
         }
         showToast("Đã thêm Thẻ Chữ Tự Do!");
+    } else if (type === 'progress_tracker') {
+        grp.fields.push({
+            type: "progress_tracker",
+            displayMode: "both",
+            textTemplate: "Câu {STT}/{Tổng_câu}",
+            position: "top_bar",
+            barThickness: 8,
+            barColor: "#10b981",
+            barBgColor: "rgba(255, 255, 255, 0.2)",
+            pillBgColor: "rgba(15, 23, 42, 0.85)",
+            textColor: "#ffffff",
+            fontSize: 22,
+            posX: 50,
+            posY: 5
+        });
+        if (typeof selectProgressTrackerItem === 'function') {
+            selectProgressTrackerItem(paragraphSelectedGroupIdx, newIdx);
+        }
+        showToast("Đã thêm Thẻ Tiến Độ (Progress & Đếm Câu)!");
+    } else if (type === 'audio_sfx') {
+        grp.fields.push({
+            type: "audio_sfx",
+            soundType: "ding",
+            customAudioName: "",
+            customAudioData: null,
+            volume: 80,
+            ducking: true
+        });
+        grp.trackColor = "#9333ea";
+        if (typeof selectAudioSfxItem === 'function') {
+            selectAudioSfxItem(paragraphSelectedGroupIdx, newIdx);
+        }
+        showToast("Đã thêm Thẻ Âm Thanh (Hiệu Ứng SFX & Nhạc)!");
     }
 
     renderTimelineLayersListUI();

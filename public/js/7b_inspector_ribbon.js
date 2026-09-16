@@ -6,11 +6,15 @@
 var selectedCustomTextTarget = null;
 var selectedTtsTarget = null;
 var selectedCountdownTarget = null;
+var selectedProgressTrackerTarget = null;
+var selectedAudioSfxTarget = null;
 
 function toggleSelectFieldMulti(fKey, e) {
     selectedCustomTextTarget = null;
     selectedTtsTarget = null;
     selectedCountdownTarget = null;
+    selectedProgressTrackerTarget = null;
+    selectedAudioSfxTarget = null;
     if (e && (e.ctrlKey || e.metaKey)) {
         if (selectedFieldKeysList.includes(fKey)) {
             if (selectedFieldKeysList.length > 1) selectedFieldKeysList = selectedFieldKeysList.filter(k => k !== fKey);
@@ -32,6 +36,8 @@ function selectLayerFieldItem(gIdx, fKey, e) {
     selectedCustomTextTarget = null;
     selectedTtsTarget = null;
     selectedCountdownTarget = null;
+    selectedProgressTrackerTarget = null;
+    selectedAudioSfxTarget = null;
     toggleSelectFieldMulti(fKey, e);
     showToast(`Đang định dạng {{${fKey}}} (Lớp ${gIdx + 1})!`);
 }
@@ -43,6 +49,8 @@ function selectCustomTextItem(gIdx, fIdx) {
     selectedCustomTextTarget = { gIdx, fIdx };
     selectedTtsTarget = null;
     selectedCountdownTarget = null;
+    selectedProgressTrackerTarget = null;
+    selectedAudioSfxTarget = null;
     paragraphSelectedFieldKey = '__CUSTOM_TEXT__';
     getCustomTextDefaults(grp.fields[fIdx]);
     if (typeof switchLeftSubTab === 'function') switchLeftSubTab(4);
@@ -59,6 +67,8 @@ function selectTtsItem(gIdx, fIdx) {
     selectedTtsTarget = { gIdx, fIdx };
     selectedCustomTextTarget = null;
     selectedCountdownTarget = null;
+    selectedProgressTrackerTarget = null;
+    selectedAudioSfxTarget = null;
     paragraphSelectedFieldKey = '__TTS__';
     if (typeof switchLeftSubTab === 'function') switchLeftSubTab(4);
     renderTimelineLayersListUI();
@@ -74,12 +84,87 @@ function selectCountdownItem(gIdx, fIdx) {
     selectedCountdownTarget = { gIdx, fIdx };
     selectedCustomTextTarget = null;
     selectedTtsTarget = null;
+    selectedProgressTrackerTarget = null;
+    selectedAudioSfxTarget = null;
     paragraphSelectedFieldKey = '__COUNTDOWN__';
     if (typeof switchLeftSubTab === 'function') switchLeftSubTab(4);
     renderTimelineLayersListUI();
     renderInspectorRibbon();
     drawParagraphCanvasFrame();
     showToast(`Đang cấu hình Đồng Hồ Đếm Ngược trong Lớp ${gIdx + 1}!`);
+}
+
+function selectProgressTrackerItem(gIdx, fIdx) {
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (!grp || !grp.fields[fIdx]) return;
+    paragraphSelectedGroupIdx = gIdx;
+    selectedProgressTrackerTarget = { gIdx, fIdx };
+    selectedCustomTextTarget = null;
+    selectedTtsTarget = null;
+    selectedCountdownTarget = null;
+    selectedAudioSfxTarget = null;
+    paragraphSelectedFieldKey = '__PROGRESS_TRACKER__';
+    if (typeof switchLeftSubTab === 'function') switchLeftSubTab(4);
+    renderTimelineLayersListUI();
+    renderInspectorRibbon();
+    drawParagraphCanvasFrame();
+    showToast(`Đang cấu hình Thẻ Tiến Độ trong Lớp ${gIdx + 1}!`);
+}
+
+function selectAudioSfxItem(gIdx, fIdx) {
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (!grp || !grp.fields[fIdx]) return;
+    paragraphSelectedGroupIdx = gIdx;
+    selectedAudioSfxTarget = { gIdx, fIdx };
+    selectedCustomTextTarget = null;
+    selectedTtsTarget = null;
+    selectedCountdownTarget = null;
+    selectedProgressTrackerTarget = null;
+    paragraphSelectedFieldKey = '__AUDIO_SFX__';
+    if (typeof switchLeftSubTab === 'function') switchLeftSubTab(4);
+    renderTimelineLayersListUI();
+    renderInspectorRibbon();
+    drawParagraphCanvasFrame();
+    showToast(`Đang cấu hình Thẻ Âm Thanh SFX trong Lớp ${gIdx + 1}!`);
+}
+
+function updateProgressTrackerProp(gIdx, fIdx, prop, val) {
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (!grp || !grp.fields[fIdx]) return;
+    grp.fields[fIdx][prop] = val;
+    renderInspectorRibbon();
+    renderTimelineLayersListUI();
+    drawParagraphCanvasFrame();
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
+}
+
+function updateAudioSfxProp(gIdx, fIdx, prop, val) {
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (!grp || !grp.fields[fIdx]) return;
+    grp.fields[fIdx][prop] = val;
+    renderInspectorRibbon();
+    renderTimelineLayersListUI();
+    drawParagraphCanvasFrame();
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
+}
+
+function handleAudioSfxFileUpload(gIdx, fIdx, fileInput) {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const grp = paragraphGridConfig.groups[gIdx];
+        if (grp && grp.fields[fIdx]) {
+            grp.fields[fIdx].customAudioData = e.target.result;
+            grp.fields[fIdx].customAudioName = file.name;
+            grp.fields[fIdx].soundType = 'custom';
+            renderInspectorRibbon();
+            renderTimelineLayersListUI();
+            showToast(`Đã nạp file âm thanh: ${file.name}!`);
+            if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
+        }
+    };
+    reader.readAsDataURL(file);
 }
 
 function updateCustomTextProp(gIdx, fIdx, prop, val) {
@@ -697,6 +782,211 @@ function renderCountdownInspectorRibbon(item, gIdx, fIdx) {
     if (window.lucide && lucide.createIcons) lucide.createIcons();
 }
 
+function renderProgressTrackerInspectorRibbon(item, gIdx, fIdx) {
+    const body = document.getElementById('inspector-panel-body');
+    const targetLabel = document.getElementById('inspector-target-label');
+    if (!body) return;
+
+    if (targetLabel) {
+        targetLabel.innerHTML = `<span class="flex items-center space-x-1"><i data-lucide="sliders" class="w-3 h-3 text-emerald-400"></i><span>Tiến Độ (Lớp ${gIdx + 1})</span></span>`;
+        targetLabel.className = "text-[9px] font-extrabold bg-emerald-950 text-emerald-300 border border-emerald-700/80 px-2 py-0.5 rounded";
+    }
+
+    const mode = item.displayMode || 'both';
+    const pos = item.position || 'top_bar';
+    const template = item.textTemplate || 'Câu {STT}/{Tổng_câu}';
+    const barThick = item.barThickness !== undefined ? item.barThickness : 8;
+    const barColor = item.barColor || '#10b981';
+    const textColor = item.textColor || '#ffffff';
+    const fontSize = item.fontSize || 22;
+
+    body.innerHTML = `
+        <div class="space-y-3 text-xs">
+            <div class="space-y-2.5 bg-slate-900 p-2.5 rounded-xl border border-emerald-500/50 shadow">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                    <span class="text-[10px] font-extrabold text-emerald-300 uppercase tracking-wider flex items-center space-x-1.5">
+                        <i data-lucide="sliders" class="w-3.5 h-3.5 text-emerald-400"></i>
+                        <span>Cài Đặt Thẻ Tiến Độ & Đếm Câu</span>
+                    </span>
+                    <span class="text-[9px] px-1.5 py-0.5 bg-emerald-950 text-emerald-300 border border-emerald-800 rounded font-bold">Lớp ${gIdx + 1}</span>
+                </div>
+
+                <!-- Chế độ hiển thị -->
+                <div>
+                    <label class="text-[9px] text-slate-400 block mb-1 font-bold">Kiểu hiển thị</label>
+                    <div class="grid grid-cols-3 gap-1">
+                        <button type="button" onclick="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'displayMode', 'both')" class="py-1 px-1.5 rounded text-[10px] font-bold border transition ${mode === 'both' ? 'bg-emerald-600 text-white border-emerald-400 shadow' : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'}">
+                            Cả hai (Bar + Chữ)
+                        </button>
+                        <button type="button" onclick="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'displayMode', 'bar')" class="py-1 px-1.5 rounded text-[10px] font-bold border transition ${mode === 'bar' ? 'bg-emerald-600 text-white border-emerald-400 shadow' : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'}">
+                            Chỉ Thanh Bar
+                        </button>
+                        <button type="button" onclick="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'displayMode', 'text')" class="py-1 px-1.5 rounded text-[10px] font-bold border transition ${mode === 'text' ? 'bg-emerald-600 text-white border-emerald-400 shadow' : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'}">
+                            Chỉ Chữ Đếm
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Mẫu câu đếm (Text Template) -->
+                ${mode !== 'bar' ? `
+                <div>
+                    <label class="text-[9px] text-slate-400 block mb-0.5 font-bold flex justify-between items-center">
+                        <span>Định dạng chữ đếm câu</span>
+                        <span class="text-[8px] text-emerald-400 italic">Dùng {STT} và {Tổng_câu}</span>
+                    </label>
+                    <input type="text" value="${template}" oninput="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'textTemplate', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded p-1.5 text-amber-300 font-bold text-xs mb-1">
+                    <div class="flex flex-wrap gap-1">
+                        <button type="button" onclick="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'textTemplate', 'Câu {STT}/{Tổng_câu}')" class="text-[8px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">
+                            Câu {STT}/{Tổng_câu}
+                        </button>
+                        <button type="button" onclick="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'textTemplate', 'Question {STT}/{Tổng_câu}')" class="text-[8px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">
+                            Question {STT}/{Tổng_câu}
+                        </button>
+                        <button type="button" onclick="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'textTemplate', '{STT} / {Tổng_câu}')" class="text-[8px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">
+                            {STT} / {Tổng_câu}
+                        </button>
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Vị trí & Độ dày -->
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-[9px] text-slate-400 block mb-0.5 font-bold">Vị trí hiển thị</label>
+                        <select onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'position', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded p-1.5 text-slate-200 font-bold text-[11px]">
+                            <option value="top_bar" ${pos === 'top_bar' ? 'selected' : ''}>Sát mép trên (Toàn màn)</option>
+                            <option value="bottom_bar" ${pos === 'bottom_bar' ? 'selected' : ''}>Sát mép dưới (Toàn màn)</option>
+                            <option value="top_right" ${pos === 'top_right' ? 'selected' : ''}>Góc trên phải (Hộp nổi)</option>
+                            <option value="top_left" ${pos === 'top_left' ? 'selected' : ''}>Góc trên trái (Hộp nổi)</option>
+                            <option value="bottom_center" ${pos === 'bottom_center' ? 'selected' : ''}>Dưới đáy giữa (Hộp nổi)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[9px] text-slate-400 block mb-0.5 font-bold">Độ dày thanh bar</label>
+                        <select onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'barThickness', parseInt(this.value, 10))" class="w-full bg-slate-950 border border-slate-800 rounded p-1.5 text-slate-200 font-bold text-[11px]">
+                            <option value="4" ${barThick === 4 ? 'selected' : ''}>4px (Mảnh tinh tế)</option>
+                            <option value="8" ${barThick === 8 ? 'selected' : ''}>8px (Tiêu chuẩn)</option>
+                            <option value="12" ${barThick === 12 ? 'selected' : ''}>12px (Dày nổi bật)</option>
+                            <option value="16" ${barThick === 16 ? 'selected' : ''}>16px (Rất dày)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Màu sắc & Cỡ chữ -->
+                <div class="grid grid-cols-2 gap-2 pt-1">
+                    <div>
+                        <label class="text-[9px] text-slate-400 block mb-0.5 font-bold">Màu thanh chạy</label>
+                        <div class="flex items-center space-x-1.5 bg-slate-950 border border-slate-800 rounded p-1">
+                            <input type="color" value="${barColor.startsWith('#') ? barColor : '#10b981'}" onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'barColor', this.value)" class="w-6 h-6 rounded border-0 cursor-pointer bg-transparent">
+                            <span class="text-[10px] font-mono text-slate-300 font-bold">${barColor}</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[9px] text-slate-400 block mb-0.5 font-bold">Cỡ chữ đếm (${fontSize}px)</label>
+                        <input type="range" min="14" max="36" value="${fontSize}" oninput="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'fontSize', parseInt(this.value, 10))" class="w-full accent-emerald-500">
+                    </div>
+                </div>
+
+                <div class="pt-2 border-t border-slate-800 flex items-center justify-between text-[10px]">
+                    <span class="text-[9px] text-slate-400 italic">Tự động tính theo tổng số câu trong bài học.</span>
+                    <button type="button" onclick="removeFieldItemFromGroup(${gIdx}, ${fIdx}); selectedProgressTrackerTarget = null; renderInspectorRibbon(); renderTimelineLayersListUI();" class="py-1 px-2 text-rose-400 hover:text-white hover:bg-rose-950/60 rounded font-bold transition">
+                        ✕ Xóa thẻ này
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    if (window.lucide && lucide.createIcons) lucide.createIcons();
+}
+
+function renderAudioSfxInspectorRibbon(item, gIdx, fIdx) {
+    const body = document.getElementById('inspector-panel-body');
+    const targetLabel = document.getElementById('inspector-target-label');
+    if (!body) return;
+
+    if (targetLabel) {
+        targetLabel.innerHTML = `<span class="flex items-center space-x-1"><i data-lucide="music" class="w-3 h-3 text-purple-400"></i><span>Âm Thanh SFX (Lớp ${gIdx + 1})</span></span>`;
+        targetLabel.className = "text-[9px] font-extrabold bg-purple-950 text-purple-300 border border-purple-700/80 px-2 py-0.5 rounded";
+    }
+
+    const soundType = item.soundType || 'ding';
+    const volume = item.volume !== undefined ? item.volume : 80;
+    const isDucking = item.ducking !== false;
+    const customName = item.customAudioName || '';
+
+    body.innerHTML = `
+        <div class="space-y-3 text-xs">
+            <div class="space-y-2.5 bg-slate-900 p-2.5 rounded-xl border border-purple-500/50 shadow">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                    <span class="text-[10px] font-extrabold text-purple-300 uppercase tracking-wider flex items-center space-x-1.5">
+                        <i data-lucide="music" class="w-3.5 h-3.5 text-purple-400"></i>
+                        <span>Cài Đặt Thẻ Âm Thanh SFX</span>
+                    </span>
+                    <span class="text-[9px] px-1.5 py-0.5 bg-purple-950 text-purple-300 border border-purple-800 rounded font-bold">Lớp ${gIdx + 1}</span>
+                </div>
+
+                <!-- Chọn loại âm thanh -->
+                <div>
+                    <label class="text-[9px] text-slate-400 block mb-0.5 font-bold">Nguồn âm thanh</label>
+                    <select onchange="updateAudioSfxProp(${gIdx}, ${fIdx}, 'soundType', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded p-1.5 text-purple-200 font-bold text-[11px]">
+                        <option value="ding" ${soundType === 'ding' ? 'selected' : ''}>🔔 Ting Ting (Đáp án đúng / Chúc mừng)</option>
+                        <option value="tick" ${soundType === 'tick' ? 'selected' : ''}>⏱ Tích Tắc (Nhịp đồng hồ / Tập trung)</option>
+                        <option value="whoosh" ${soundType === 'whoosh' ? 'selected' : ''}>💨 Whoosh (Chuyển cảnh / Xuất hiện)</option>
+                        <option value="bell" ${soundType === 'bell' ? 'selected' : ''}>🛎 Chuông Bell (Vang, sáng rõ)</option>
+                        <option value="chime" ${soundType === 'chime' ? 'selected' : ''}>✨ Chime (Hợp âm 3 nốt thăng hoa)</option>
+                        <option value="custom" ${soundType === 'custom' ? 'selected' : ''}>📁 Tải file âm thanh riêng (.mp3, .wav)</option>
+                    </select>
+                </div>
+
+                <!-- Nạp file âm thanh riêng nếu chọn custom -->
+                ${soundType === 'custom' ? `
+                <div class="p-2 bg-slate-950 rounded-lg border border-purple-800/60 space-y-1.5">
+                    <label class="text-[9px] text-purple-300 block font-bold">File âm thanh từ máy tính (.mp3, .wav):</label>
+                    <input type="file" accept="audio/*" onchange="handleAudioSfxFileUpload(${gIdx}, ${fIdx}, this)" class="w-full text-[10px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[9px] file:font-bold file:bg-purple-900 file:text-purple-200 hover:file:bg-purple-800 cursor-pointer">
+                    ${customName ? `<div class="text-[9px] text-emerald-400 font-bold flex items-center space-x-1"><i data-lucide="check-circle-2" class="w-2.5 h-2.5"></i><span>Đã nạp: ${customName}</span></div>` : '<div class="text-[9px] text-slate-500 italic">Chưa nạp file (sẽ dùng âm thanh Ting Ting tạm thời)</div>'}
+                </div>
+                ` : ''}
+
+                <!-- Nút nghe thử âm thanh -->
+                <div>
+                    <button type="button" onclick="testPlayAudioSfx(${gIdx}, ${fIdx})" class="w-full py-1.5 px-3 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 text-white font-extrabold rounded-lg text-xs flex items-center justify-center space-x-1.5 shadow active:scale-95 transition cursor-pointer">
+                        <i data-lucide="play" class="w-3.5 h-3.5"></i>
+                        <span>Nghe thử âm thanh này</span>
+                    </button>
+                </div>
+
+                <!-- Âm lượng -->
+                <div>
+                    <div class="flex justify-between items-center mb-0.5">
+                        <label class="text-[9px] text-slate-400 font-bold">Âm lượng SFX</label>
+                        <span class="text-[10px] font-bold text-amber-300 font-mono">${volume}%</span>
+                    </div>
+                    <input type="range" min="0" max="100" value="${volume}" oninput="updateAudioSfxProp(${gIdx}, ${fIdx}, 'volume', parseInt(this.value, 10))" class="w-full accent-purple-500">
+                </div>
+
+                <!-- Né tiếng Ducking -->
+                <div class="p-2 bg-slate-950 rounded-lg border border-slate-800 flex items-start space-x-2">
+                    <input type="checkbox" id="sfx-ducking-cb" ${isDucking ? 'checked' : ''} onchange="updateAudioSfxProp(${gIdx}, ${fIdx}, 'ducking', this.checked)" class="mt-0.5 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-0 cursor-pointer">
+                    <label for="sfx-ducking-cb" class="text-[10px] text-slate-300 font-semibold cursor-pointer select-none leading-snug">
+                        <span class="font-bold text-purple-300 block">Tự động né tiếng (Audio Ducking)</span>
+                        <span class="text-[9px] text-slate-400">Tự động hạ nhỏ âm lượng SFX này khi Giọng đọc AI (TTS) đang nói để không làm át lời.</span>
+                    </label>
+                </div>
+
+                <div class="pt-2 border-t border-slate-800 flex items-center justify-between text-[10px]">
+                    <span class="text-[9px] text-slate-400 italic">Kích hoạt chuẩn xác theo thời điểm bắt đầu lớp.</span>
+                    <button type="button" onclick="removeFieldItemFromGroup(${gIdx}, ${fIdx}); selectedAudioSfxTarget = null; renderInspectorRibbon(); renderTimelineLayersListUI();" class="py-1 px-2 text-rose-400 hover:text-white hover:bg-rose-950/60 rounded font-bold transition">
+                        ✕ Xóa thẻ này
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    if (window.lucide && lucide.createIcons) lucide.createIcons();
+}
+
 function renderInspectorRibbon() {
     const body = document.getElementById('inspector-panel-body');
     const targetLabel = document.getElementById('inspector-target-label');
@@ -738,6 +1028,32 @@ function renderInspectorRibbon() {
             return;
         } else {
             selectedCountdownTarget = null;
+        }
+    }
+
+    // KIỂM TRA NẾU ĐANG CHỌN THẺ TIẾN ĐỘ
+    if (selectedProgressTrackerTarget) {
+        const { gIdx, fIdx } = selectedProgressTrackerTarget;
+        const grp = paragraphGridConfig.groups[gIdx];
+        const item = (grp && grp.fields) ? grp.fields[fIdx] : null;
+        if (item && item.type === 'progress_tracker') {
+            renderProgressTrackerInspectorRibbon(item, gIdx, fIdx);
+            return;
+        } else {
+            selectedProgressTrackerTarget = null;
+        }
+    }
+
+    // KIỂM TRA NẾU ĐANG CHỌN THẺ ÂM THANH SFX
+    if (selectedAudioSfxTarget) {
+        const { gIdx, fIdx } = selectedAudioSfxTarget;
+        const grp = paragraphGridConfig.groups[gIdx];
+        const item = (grp && grp.fields) ? grp.fields[fIdx] : null;
+        if (item && item.type === 'audio_sfx') {
+            renderAudioSfxInspectorRibbon(item, gIdx, fIdx);
+            return;
+        } else {
+            selectedAudioSfxTarget = null;
         }
     }
 

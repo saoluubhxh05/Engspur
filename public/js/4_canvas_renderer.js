@@ -342,6 +342,8 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
                         const countVal = Math.max(1, Math.ceil((grp.startTime + (grp.duration || 3.0)) - currentTimelinePlayTime));
                         drawCountdownOverlay(ctx, width, height, item, countVal);
                     }
+                } else if (itemType === 'progress_tracker') {
+                    drawProgressTrackerOverlay(ctx, width, height, item);
                 }
             });
 
@@ -723,6 +725,137 @@ function drawCountdownOverlay(ctx, width, height, item, countVal) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(countVal.toString(), cx, cy + 2);
+    ctx.restore();
+}
+
+function drawProgressTrackerOverlay(ctx, width, height, item) {
+    ctx.save();
+    let activeTopicList = (typeof getParagraphFilteredDatasets === 'function') ? getParagraphFilteredDatasets() : importedDatasets;
+    if (!activeTopicList || activeTopicList.length === 0) {
+        activeTopicList = (typeof importedDatasets !== 'undefined' && importedDatasets.length > 0) ? importedDatasets : [{ topic: "Default", drills: [{}] }];
+    }
+    const totalCount = Math.max(1, activeTopicList.length);
+    const curIdx = (typeof isParagraphRunning !== 'undefined' && isParagraphRunning) ? pCurrentSentenceIndex : 0;
+    const currentSentence = Math.min(totalCount, curIdx + 1);
+
+    const ratio = Math.min(1, Math.max(0, currentSentence / totalCount));
+    const displayMode = item.displayMode || 'both'; // 'both' | 'bar' | 'text'
+    const position = item.position || 'top_bar'; // 'top_bar' | 'bottom_bar' | 'top_right' | 'top_left' | 'bottom_center' | 'custom'
+    const barThickness = item.barThickness !== undefined ? item.barThickness : 8;
+    const barColor = item.barColor || '#10b981';
+    const barBgColor = item.barBgColor || 'rgba(255, 255, 255, 0.25)';
+    const pillBgColor = item.pillBgColor || 'rgba(15, 23, 42, 0.85)';
+    const textColor = item.textColor || '#ffffff';
+    const fontSize = item.fontSize || 22;
+
+    // Định dạng chữ đếm câu
+    let template = item.textTemplate || "Câu {STT}/{Tổng_câu}";
+    let textStr = template
+        .replace(/\{STT\}|\{stt\}|\{current\}|\{cau\}/gi, currentSentence)
+        .replace(/\{Tổng_câu\}|\{tong_cau\}|\{total\}|\{tong\}/gi, totalCount);
+
+    ctx.font = `900 ${fontSize}px "Plus Jakarta Sans", sans-serif`;
+    const textMetrics = ctx.measureText(textStr);
+    const textW = textMetrics.width;
+    const textH = fontSize;
+
+    if (position === 'top_bar' || position === 'bottom_bar') {
+        const isTop = (position === 'top_bar');
+        const barY = isTop ? 0 : (height - barThickness);
+
+        // 1. Vẽ thanh tiến trình Full bề ngang
+        if (displayMode === 'both' || displayMode === 'bar') {
+            ctx.fillStyle = barBgColor;
+            ctx.fillRect(0, barY, width, barThickness);
+
+            ctx.fillStyle = barColor;
+            ctx.fillRect(0, barY, width * ratio, barThickness);
+        }
+
+        // 2. Vẽ huy hiệu chữ (Pill)
+        if (displayMode === 'both' || displayMode === 'text') {
+            const pillPadX = 14;
+            const pillPadY = 6;
+            const pillW = textW + pillPadX * 2;
+            const pillH = textH + pillPadY * 2;
+            const pillX = (width - pillW) / 2;
+            const pillY = isTop ? (barThickness + 14) : (barY - pillH - 14);
+
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
+            else ctx.rect(pillX, pillY, pillW, pillH);
+            ctx.fillStyle = pillBgColor;
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.fillStyle = textColor;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(textStr, width / 2, pillY + pillH / 2 + 1);
+        }
+    } else if (position === 'top_right' || position === 'top_left' || position === 'bottom_center' || position === 'custom') {
+        let boxX = 0, boxY = 0;
+        const boxPadX = 14;
+        const boxPadY = 8;
+        const miniBarW = Math.max(90, textW);
+        const boxW = (displayMode === 'text' ? textW : Math.max(textW, miniBarW)) + boxPadX * 2;
+        const boxH = (displayMode === 'both' ? (textH + barThickness + 14) : (displayMode === 'bar' ? (barThickness + boxPadY * 2) : (textH + boxPadY * 2)));
+
+        if (position === 'top_right') {
+            boxX = width - boxW - 28;
+            boxY = 24;
+        } else if (position === 'top_left') {
+            boxX = 28;
+            boxY = 24;
+        } else if (position === 'bottom_center') {
+            boxX = (width - boxW) / 2;
+            boxY = height - boxH - 24;
+        } else {
+            boxX = ((item.posX !== undefined ? item.posX : 50) / 100) * width - boxW / 2;
+            boxY = ((item.posY !== undefined ? item.posY : 5) / 100) * height;
+        }
+
+        // Vẽ Hộp Container mờ bo tròn
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(boxX, boxY, boxW, boxH, 14);
+        else ctx.rect(boxX, boxY, boxW, boxH);
+        ctx.fillStyle = pillBgColor;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        let curContentY = boxY + boxPadY;
+
+        if (displayMode === 'both' || displayMode === 'text') {
+            ctx.fillStyle = textColor;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText(textStr, boxX + boxW / 2, curContentY);
+            curContentY += textH + 8;
+        }
+
+        if (displayMode === 'both' || displayMode === 'bar') {
+            const barStartX = boxX + (boxW - miniBarW) / 2;
+            const barStartY = (displayMode === 'bar') ? (boxY + (boxH - barThickness) / 2) : curContentY;
+
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(barStartX, barStartY, miniBarW, barThickness, barThickness / 2);
+            else ctx.rect(barStartX, barStartY, miniBarW, barThickness);
+            ctx.fillStyle = barBgColor;
+            ctx.fill();
+
+            const fillW = Math.max(barThickness, miniBarW * ratio);
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(barStartX, barStartY, fillW, barThickness, barThickness / 2);
+            else ctx.rect(barStartX, barStartY, fillW, barThickness);
+            ctx.fillStyle = barColor;
+            ctx.fill();
+        }
+    }
+
     ctx.restore();
 }
 

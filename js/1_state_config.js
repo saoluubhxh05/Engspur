@@ -4,15 +4,37 @@
  */
 
 var APP_VERSION_INFO = {
-    version: "V13.2",
-    releaseDate: "13/09/2026",
+    version: "V13.3",
+    releaseDate: "16/09/2026",
     status: "Mới nhất & Ổn định",
-    summary: "Bản nâng cấp V13.2: Đồng bộ toàn diện các thông số và tùy chọn của Tab 3 (Render Hàng Loạt) vào nút 'Xuất File' JSON và hệ thống lưu trữ IndexedDB, khôi phục nguyên vẹn 100% khi nhập lại.",
+    summary: "Bản nâng cấp V13.3: Tích hợp Thẻ Tiến Độ (Progress Bar & Bộ đếm câu linh hoạt dạng 'Câu 3/15') và Thẻ Âm Thanh (Kho hiệu ứng SFX tích hợp, tải file âm thanh riêng, né tiếng Audio Ducking và mốc phát Timeline).",
     categories: [
+        {
+            title: "Thẻ Tiến Độ (Progress Bar & Bộ Đếm Câu Hỏi)",
+            icon: "sliders",
+            color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+            items: [
+                "3 Kiểu hiển thị linh hoạt: Cả hai (Thanh Bar + Chữ đếm câu), Chỉ Thanh Bar đồ họa, hoặc Chỉ Huy hiệu chữ đếm số ('Câu 3/15').",
+                "Tùy biến định dạng linh hoạt: Hỗ trợ mẫu chữ 'Câu {STT}/{Tổng_câu}', 'Question {STT}/{Tổng_câu}', '{STT} / {Tổng_câu}' tự động đếm tổng số câu trong file Excel.",
+                "Căn nhanh vị trí: Sát mép trên cùng, Sát đáy màn hình, Góc trên phải, Góc trên trái, Dưới đáy giữa hoặc tọa độ tự do X/Y.",
+                "Tùy biến thẩm mỹ: Độ dày thanh bar (4px, 8px, 12px, 16px), màu sắc thanh tiến trình, màu nền bar, cỡ chữ, màu chữ và khung viền mờ bo tròn (Pill background)."
+            ]
+        },
+        {
+            title: "Thẻ Âm Thanh (Hiệu Ứng SFX & Nhạc Nền)",
+            icon: "music",
+            color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            items: [
+                "Kho âm thanh hiệu ứng có sẵn (Built-in SFX): Tích hợp sẵn tiếng Ting Ting trả lời đúng, Tích tắc đếm ngược, Whoosh xuất hiện, Chuông Bell và Chime khen ngợi tạo bằng Web Audio API chạy trực tiếp không cần mạng.",
+                "Hỗ trợ tải file âm thanh riêng (.mp3, .wav) từ máy tính, xem tên file và nghe thử tức thì ngay tại bảng điều khiển.",
+                "Điều chỉnh âm lượng (0 - 100%) và tính năng Tự Động Né Tiếng (Audio Ducking) tự hạ âm lượng khi Giọng đọc AI (TTS) cất tiếng.",
+                "Đồng bộ mốc phát chuẩn xác theo Timeline và tự động lưu vào luồng thu âm MP4/WAV chuẩn xác từng mili-giây."
+            ]
+        },
         {
             title: "Xuất & Nhập Toàn Diện Cấu Hình Tab 3 (Render Hàng Loạt)",
             icon: "file-cog",
-            color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+            color: "text-teal-400 bg-teal-500/10 border-teal-500/30",
             items: [
                 "Đóng gói trọn vẹn Tab 3 vào file .JSON: Mẫu đặt tên file ({stt}, {script}, {topic}, {genre}, các thẻ {Cột_Excel}), Chế độ/Chuỗi render, Gom nhóm Chủ đề/Thể loại, Quy cách tách file và Danh sách chuỗi kịch bản đã chọn.",
                 "Tự động khôi phục 100% khi Nhập File (.JSON): Tái lập toàn bộ trạng thái giao diện Tab 3, cập nhật danh sách chọn, hàng đợi render và dòng xem trước (preview) tên file tức thì.",
@@ -61,6 +83,11 @@ var APP_VERSION_INFO = {
         }
     ],
     history: [
+        {
+            version: "V13.3",
+            date: "16/09/2026",
+            highlight: "Tích hợp Thẻ Tiến Độ (Progress Bar & Đếm câu linh hoạt) và Thẻ Âm Thanh (Hiệu ứng SFX có sẵn, tải file âm thanh, né tiếng Audio Ducking)."
+        },
         {
             version: "V13.2",
             date: "13/09/2026",
