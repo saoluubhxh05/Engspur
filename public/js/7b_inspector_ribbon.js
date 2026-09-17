@@ -128,21 +128,50 @@ function selectAudioSfxItem(gIdx, fIdx) {
     showToast(`Đang cấu hình Thẻ Âm Thanh SFX trong Lớp ${gIdx + 1}!`);
 }
 
-function updateProgressTrackerProp(gIdx, fIdx, prop, val) {
+function updateProgressTrackerProp(gIdx, fIdx, prop, val, skipRibbonRerender = false) {
     const grp = paragraphGridConfig.groups[gIdx];
     if (!grp || !grp.fields[fIdx]) return;
     grp.fields[fIdx][prop] = val;
-    renderInspectorRibbon();
+
+    if (prop === 'position' && val === 'custom') {
+        if (grp.fields[fIdx].posX === undefined || grp.fields[fIdx].posX <= 100) {
+            grp.fields[fIdx].posX = 1520;
+        }
+        if (grp.fields[fIdx].posY === undefined || grp.fields[fIdx].posY <= 100) {
+            grp.fields[fIdx].posY = 30;
+        }
+    }
+
+    if (!skipRibbonRerender) {
+        renderInspectorRibbon();
+    }
     renderTimelineLayersListUI();
     drawParagraphCanvasFrame();
     if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
 }
 
-function updateAudioSfxProp(gIdx, fIdx, prop, val) {
+function updateAudioSfxProp(gIdx, fIdx, prop, val, skipRibbonRerender = false) {
     const grp = paragraphGridConfig.groups[gIdx];
     if (!grp || !grp.fields[fIdx]) return;
     grp.fields[fIdx][prop] = val;
-    renderInspectorRibbon();
+
+    // Cập nhật âm lượng thời gian thực cho luồng âm thanh đang phát
+    if (prop === 'volume') {
+        if (typeof updateActiveSfxVolume === 'function') {
+            updateActiveSfxVolume(grp.fields[fIdx], val);
+        }
+        const valBadge = document.getElementById(`sfx-vol-badge-${gIdx}-${fIdx}`);
+        if (valBadge) valBadge.innerText = `${val}%`;
+    }
+    if (prop === 'ducking') {
+        if (typeof updateActiveSfxDucking === 'function') {
+            updateActiveSfxDucking(grp.fields[fIdx], val);
+        }
+    }
+
+    if (!skipRibbonRerender) {
+        renderInspectorRibbon();
+    }
     renderTimelineLayersListUI();
     drawParagraphCanvasFrame();
     if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
@@ -151,16 +180,58 @@ function updateAudioSfxProp(gIdx, fIdx, prop, val) {
 function handleAudioSfxFileUpload(gIdx, fIdx, fileInput) {
     const file = fileInput.files && fileInput.files[0];
     if (!file) return;
+
+    const audioCtx = (typeof getSharedAudioContext === 'function') ? getSharedAudioContext() : null;
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+    }
+
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (!grp || !grp.fields[fIdx]) return;
+
+    grp.fields[fIdx].customAudioName = file.name;
+    grp.fields[fIdx].soundType = 'custom';
+
+    // 1. Tận dụng giải mã nhị phân trực tiếp từ ArrayBuffer (nhanh gấp nhiều lần base64)
+    if (file.arrayBuffer && audioCtx && typeof safeDecodeAudioData === 'function') {
+        file.arrayBuffer().then(ab => {
+            return safeDecodeAudioData(audioCtx, ab);
+        }).then(buf => {
+            if (grp && grp.fields[fIdx]) {
+                if (typeof setCachedAudioBuffer === 'function') {
+                    setCachedAudioBuffer(grp.fields[fIdx], buf);
+                } else {
+                    grp.fields[fIdx].customAudioDuration = buf.duration;
+                }
+                renderInspectorRibbon();
+                renderTimelineLayersListUI();
+                showToast(`Đã nạp file âm thanh: ${file.name} (${buf.duration.toFixed(1)}s)!`, "success");
+            }
+        }).catch(err => {
+            console.warn("Giải mã nhanh ArrayBuffer thất bại, chờ FileReader:", err);
+        });
+    }
+
+    // 2. Đồng thời đọc Data URL để lưu vào file dự án / IndexedDB
     const reader = new FileReader();
     reader.onload = (e) => {
-        const grp = paragraphGridConfig.groups[gIdx];
         if (grp && grp.fields[fIdx]) {
-            grp.fields[fIdx].customAudioData = e.target.result;
-            grp.fields[fIdx].customAudioName = file.name;
-            grp.fields[fIdx].soundType = 'custom';
-            renderInspectorRibbon();
-            renderTimelineLayersListUI();
-            showToast(`Đã nạp file âm thanh: ${file.name}!`);
+            const dataUrl = e.target.result;
+            grp.fields[fIdx].customAudioData = dataUrl;
+
+            // Nếu chưa có cache từ arrayBuffer, giải mã từ dataUrl
+            const hasCache = (typeof getCachedAudioBuffer === 'function') && getCachedAudioBuffer(grp.fields[fIdx]);
+            if (!hasCache && typeof decodeBase64AudioToBuffer === 'function') {
+                decodeBase64AudioToBuffer(dataUrl, audioCtx).then(buf => {
+                    if (typeof setCachedAudioBuffer === 'function') {
+                        setCachedAudioBuffer(grp.fields[fIdx], buf);
+                    } else {
+                        grp.fields[fIdx].customAudioDuration = buf.duration;
+                    }
+                    renderInspectorRibbon();
+                    renderTimelineLayersListUI();
+                }).catch(() => {});
+            }
             if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
         }
     };
@@ -782,6 +853,22 @@ function renderCountdownInspectorRibbon(item, gIdx, fIdx) {
     if (window.lucide && lucide.createIcons) lucide.createIcons();
 }
 
+function ptExtractHexAndAlpha(colorVal, defaultHex, defaultAlphaPct) {
+    if (!colorVal) return { hex: defaultHex, alpha: defaultAlphaPct };
+    if (colorVal.startsWith('#')) {
+        return { hex: colorVal.slice(0, 7), alpha: defaultAlphaPct };
+    }
+    const match = colorVal.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/i);
+    if (match) {
+        const r = parseInt(match[1], 10).toString(16).padStart(2, '0');
+        const g = parseInt(match[2], 10).toString(16).padStart(2, '0');
+        const b = parseInt(match[3], 10).toString(16).padStart(2, '0');
+        const a = match[4] !== undefined ? Math.round(parseFloat(match[4]) * 100) : defaultAlphaPct;
+        return { hex: `#${r}${g}${b}`, alpha: a };
+    }
+    return { hex: defaultHex, alpha: defaultAlphaPct };
+}
+
 function renderProgressTrackerInspectorRibbon(item, gIdx, fIdx) {
     const body = document.getElementById('inspector-panel-body');
     const targetLabel = document.getElementById('inspector-target-label');
@@ -794,11 +881,25 @@ function renderProgressTrackerInspectorRibbon(item, gIdx, fIdx) {
 
     const mode = item.displayMode || 'both';
     const pos = item.position || 'top_bar';
+    const isCustomPos = (pos === 'custom');
     const template = item.textTemplate || 'Câu {STT}/{Tổng_câu}';
     const barThick = item.barThickness !== undefined ? item.barThickness : 8;
-    const barColor = item.barColor || '#10b981';
-    const textColor = item.textColor || '#ffffff';
+    const bRadius = item.borderRadius !== undefined ? item.borderRadius : 14;
+    const bWidth = item.borderWidth !== undefined ? item.borderWidth : 1.5;
+    const opacity = item.opacity !== undefined ? item.opacity : 100;
     const fontSize = item.fontSize || 22;
+    const fontWeight = item.fontWeight || 900;
+    const boxW = item.boxWidth !== undefined ? item.boxWidth : 0;
+    const boxH = item.boxHeight !== undefined ? item.boxHeight : 0;
+    const posX = item.posX !== undefined ? item.posX : 1520;
+    const posY = item.posY !== undefined ? item.posY : 30;
+    const hasShadow = item.shadow !== false;
+
+    const pillColorData = ptExtractHexAndAlpha(item.pillBgColor, '#0f172a', item.pillBgOpacity !== undefined ? item.pillBgOpacity : 85);
+    const borderColorData = ptExtractHexAndAlpha(item.borderColor, '#ffffff', item.borderOpacity !== undefined ? item.borderOpacity : 25);
+    const barColor = (item.barColor && item.barColor.startsWith('#')) ? item.barColor : '#10b981';
+    const barBgData = ptExtractHexAndAlpha(item.barBgColor, '#ffffff', item.barBgOpacity !== undefined ? item.barBgOpacity : 25);
+    const textColor = (item.textColor && item.textColor.startsWith('#')) ? item.textColor : '#ffffff';
 
     body.innerHTML = `
         <div class="space-y-3 text-xs">
@@ -811,7 +912,7 @@ function renderProgressTrackerInspectorRibbon(item, gIdx, fIdx) {
                     <span class="text-[9px] px-1.5 py-0.5 bg-emerald-950 text-emerald-300 border border-emerald-800 rounded font-bold">Lớp ${gIdx + 1}</span>
                 </div>
 
-                <!-- Chế độ hiển thị -->
+                <!-- 1. Chế độ hiển thị -->
                 <div>
                     <label class="text-[9px] text-slate-400 block mb-1 font-bold">Kiểu hiển thị</label>
                     <div class="grid grid-cols-3 gap-1">
@@ -827,14 +928,14 @@ function renderProgressTrackerInspectorRibbon(item, gIdx, fIdx) {
                     </div>
                 </div>
 
-                <!-- Mẫu câu đếm (Text Template) -->
+                <!-- 2. Mẫu câu đếm (Text Template) -->
                 ${mode !== 'bar' ? `
                 <div>
                     <label class="text-[9px] text-slate-400 block mb-0.5 font-bold flex justify-between items-center">
                         <span>Định dạng chữ đếm câu</span>
                         <span class="text-[8px] text-emerald-400 italic">Dùng {STT} và {Tổng_câu}</span>
                     </label>
-                    <input type="text" value="${template}" oninput="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'textTemplate', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded p-1.5 text-amber-300 font-bold text-xs mb-1">
+                    <input type="text" value="${template}" oninput="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'textTemplate', this.value, true)" onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'textTemplate', this.value, false)" class="w-full bg-slate-950 border border-slate-800 rounded p-1.5 text-amber-300 font-bold text-xs mb-1">
                     <div class="flex flex-wrap gap-1">
                         <button type="button" onclick="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'textTemplate', 'Câu {STT}/{Tổng_câu}')" class="text-[8px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">
                             Câu {STT}/{Tổng_câu}
@@ -845,48 +946,220 @@ function renderProgressTrackerInspectorRibbon(item, gIdx, fIdx) {
                         <button type="button" onclick="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'textTemplate', '{STT} / {Tổng_câu}')" class="text-[8px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">
                             {STT} / {Tổng_câu}
                         </button>
+                        <button type="button" onclick="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'textTemplate', 'Part {STT}')" class="text-[8px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">
+                            Part {STT}
+                        </button>
                     </div>
                 </div>
                 ` : ''}
 
-                <!-- Vị trí & Độ dày -->
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="text-[9px] text-slate-400 block mb-0.5 font-bold">Vị trí hiển thị</label>
-                        <select onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'position', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded p-1.5 text-slate-200 font-bold text-[11px]">
-                            <option value="top_bar" ${pos === 'top_bar' ? 'selected' : ''}>Sát mép trên (Toàn màn)</option>
-                            <option value="bottom_bar" ${pos === 'bottom_bar' ? 'selected' : ''}>Sát mép dưới (Toàn màn)</option>
-                            <option value="top_right" ${pos === 'top_right' ? 'selected' : ''}>Góc trên phải (Hộp nổi)</option>
-                            <option value="top_left" ${pos === 'top_left' ? 'selected' : ''}>Góc trên trái (Hộp nổi)</option>
-                            <option value="bottom_center" ${pos === 'bottom_center' ? 'selected' : ''}>Dưới đáy giữa (Hộp nổi)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-[9px] text-slate-400 block mb-0.5 font-bold">Độ dày thanh bar</label>
-                        <select onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'barThickness', parseInt(this.value, 10))" class="w-full bg-slate-950 border border-slate-800 rounded p-1.5 text-slate-200 font-bold text-[11px]">
-                            <option value="4" ${barThick === 4 ? 'selected' : ''}>4px (Mảnh tinh tế)</option>
-                            <option value="8" ${barThick === 8 ? 'selected' : ''}>8px (Tiêu chuẩn)</option>
-                            <option value="12" ${barThick === 12 ? 'selected' : ''}>12px (Dày nổi bật)</option>
-                            <option value="16" ${barThick === 16 ? 'selected' : ''}>16px (Rất dày)</option>
-                        </select>
-                    </div>
+                <!-- 3. Vị trí hiển thị -->
+                <div>
+                    <label class="text-[9px] text-slate-400 block mb-0.5 font-bold flex justify-between items-center">
+                        <span>Vị trí hiển thị</span>
+                        ${isCustomPos ? '<span class="text-[8px] text-sky-400 font-mono font-bold">Chế độ Tọa độ Pixel Tự Do</span>' : ''}
+                    </label>
+                    <select onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'position', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded p-1.5 text-slate-200 font-bold text-[11px]">
+                        <option value="top_bar" ${pos === 'top_bar' ? 'selected' : ''}>Sát mép trên (Toàn màn ngang)</option>
+                        <option value="bottom_bar" ${pos === 'bottom_bar' ? 'selected' : ''}>Sát mép dưới (Toàn màn ngang)</option>
+                        <option value="top_right" ${pos === 'top_right' ? 'selected' : ''}>Góc trên phải (Hộp nổi)</option>
+                        <option value="top_left" ${pos === 'top_left' ? 'selected' : ''}>Góc trên trái (Hộp nổi)</option>
+                        <option value="bottom_center" ${pos === 'bottom_center' ? 'selected' : ''}>Dưới đáy giữa (Hộp nổi)</option>
+                        <option value="custom" ${isCustomPos ? 'selected' : ''}>📍 Tọa độ tự do Pixel (X, Y px)</option>
+                    </select>
                 </div>
 
-                <!-- Màu sắc & Cỡ chữ -->
-                <div class="grid grid-cols-2 gap-2 pt-1">
-                    <div>
-                        <label class="text-[9px] text-slate-400 block mb-0.5 font-bold">Màu thanh chạy</label>
-                        <div class="flex items-center space-x-1.5 bg-slate-950 border border-slate-800 rounded p-1">
-                            <input type="color" value="${barColor.startsWith('#') ? barColor : '#10b981'}" onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'barColor', this.value)" class="w-6 h-6 rounded border-0 cursor-pointer bg-transparent">
-                            <span class="text-[10px] font-mono text-slate-300 font-bold">${barColor}</span>
+                <!-- 4. Tọa độ tự do Pixel (X, Y px) -->
+                ${isCustomPos ? `
+                <div class="space-y-2 bg-slate-950 p-2 rounded-lg border border-sky-500/40">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-bold text-sky-300 flex items-center space-x-1">
+                            <i data-lucide="crosshair" class="w-3 h-3 text-sky-400"></i>
+                            <span>Tọa Độ Pixel (Chuẩn 1920x1080)</span>
+                        </span>
+                        <span class="text-[9px] text-slate-400 font-mono">X:${posX}px | Y:${posY}px</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <div class="flex items-center justify-between text-[9px] text-slate-400 mb-0.5">
+                                <span>Tọa độ X (px)</span>
+                                <span id="pt-posx-badge" class="font-mono text-sky-300 font-bold">${posX}px</span>
+                            </div>
+                            <input id="pt-posx-input" type="number" min="0" max="1920" step="10" value="${posX}" oninput="document.getElementById('pt-posx-badge').innerText = this.value + 'px'; document.getElementById('pt-posx-range').value = this.value; updateProgressTrackerProp(${gIdx}, ${fIdx}, 'posX', parseInt(this.value, 10) || 0, true);" onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'posX', parseInt(this.value, 10) || 0, false);" class="w-full bg-slate-900 border border-slate-700 rounded p-1 text-slate-200 text-xs font-mono font-bold mb-1">
+                            <input id="pt-posx-range" type="range" min="0" max="1920" step="10" value="${posX}" oninput="document.getElementById('pt-posx-input').value = this.value; document.getElementById('pt-posx-badge').innerText = this.value + 'px'; updateProgressTrackerProp(${gIdx}, ${fIdx}, 'posX', parseInt(this.value, 10), true);" onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'posX', parseInt(this.value, 10), false);" class="w-full accent-sky-500">
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between text-[9px] text-slate-400 mb-0.5">
+                                <span>Tọa độ Y (px)</span>
+                                <span id="pt-posy-badge" class="font-mono text-sky-300 font-bold">${posY}px</span>
+                            </div>
+                            <input id="pt-posy-input" type="number" min="0" max="1080" step="10" value="${posY}" oninput="document.getElementById('pt-posy-badge').innerText = this.value + 'px'; document.getElementById('pt-posy-range').value = this.value; updateProgressTrackerProp(${gIdx}, ${fIdx}, 'posY', parseInt(this.value, 10) || 0, true);" onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'posY', parseInt(this.value, 10) || 0, false);" class="w-full bg-slate-900 border border-slate-700 rounded p-1 text-slate-200 text-xs font-mono font-bold mb-1">
+                            <input id="pt-posy-range" type="range" min="0" max="1080" step="10" value="${posY}" oninput="document.getElementById('pt-posy-input').value = this.value; document.getElementById('pt-posy-badge').innerText = this.value + 'px'; updateProgressTrackerProp(${gIdx}, ${fIdx}, 'posY', parseInt(this.value, 10), true);" onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'posY', parseInt(this.value, 10), false);" class="w-full accent-sky-500">
                         </div>
                     </div>
-                    <div>
-                        <label class="text-[9px] text-slate-400 block mb-0.5 font-bold">Cỡ chữ đếm (${fontSize}px)</label>
-                        <input type="range" min="14" max="36" value="${fontSize}" oninput="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'fontSize', parseInt(this.value, 10))" class="w-full accent-emerald-500">
+
+                    <!-- Nút căn vị trí nhanh theo Pixel -->
+                    <div class="flex flex-wrap gap-1 pt-1 border-t border-slate-800">
+                        <button type="button" onclick="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'posX', 30, true); updateProgressTrackerProp(${gIdx}, ${fIdx}, 'posY', 30, false);" class="text-[8px] bg-slate-800 hover:bg-slate-700 text-sky-300 px-1.5 py-0.5 rounded font-mono">
+                            ↖ Trên-Trái (30, 30)
+                        </button>
+                        <button type="button" onclick="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'posX', 800, true); updateProgressTrackerProp(${gIdx}, ${fIdx}, 'posY', 30, false);" class="text-[8px] bg-slate-800 hover:bg-slate-700 text-sky-300 px-1.5 py-0.5 rounded font-mono">
+                            ↑ Giữa-Trên (800, 30)
+                        </button>
+                        <button type="button" onclick="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'posX', 1520, true); updateProgressTrackerProp(${gIdx}, ${fIdx}, 'posY', 30, false);" class="text-[8px] bg-slate-800 hover:bg-slate-700 text-sky-300 px-1.5 py-0.5 rounded font-mono">
+                            ↗ Trên-Phải (1520, 30)
+                        </button>
+                        <button type="button" onclick="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'posX', 800, true); updateProgressTrackerProp(${gIdx}, ${fIdx}, 'posY', 980, false);" class="text-[8px] bg-slate-800 hover:bg-slate-700 text-sky-300 px-1.5 py-0.5 rounded font-mono">
+                            ↓ Đáy-Giữa (800, 980)
+                        </button>
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- 5. Kích thước Khung & Thanh Bar (px) -->
+                <div class="space-y-2 bg-slate-950 p-2 rounded-lg border border-slate-800">
+                    <span class="text-[10px] font-bold text-slate-300 block">Kích Thước Khung & Thanh Bar (px)</span>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-[9px] text-slate-400 block mb-0.5">Chiều Rộng (W px)</label>
+                            <input type="number" min="0" max="1920" step="10" value="${boxW}" placeholder="0 = Tự động co" oninput="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'boxWidth', parseInt(this.value, 10) || 0, true);" onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'boxWidth', parseInt(this.value, 10) || 0, false);" class="w-full bg-slate-900 border border-slate-700 rounded p-1 text-slate-200 text-xs font-mono font-bold">
+                            <span class="text-[8px] text-slate-500 italic block mt-0.5">Nhập 0 để tự co theo chữ</span>
+                        </div>
+                        <div>
+                            <label class="text-[9px] text-slate-400 block mb-0.5">Chiều Cao (H px)</label>
+                            <input type="number" min="0" max="400" step="5" value="${boxH}" placeholder="0 = Tự động co" oninput="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'boxHeight', parseInt(this.value, 10) || 0, true);" onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'boxHeight', parseInt(this.value, 10) || 0, false);" class="w-full bg-slate-900 border border-slate-700 rounded p-1 text-slate-200 text-xs font-mono font-bold">
+                            <span class="text-[8px] text-slate-500 italic block mt-0.5">Nhập 0 để tự co theo nội dung</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-900">
+                        <div>
+                            <div class="flex items-center justify-between text-[9px] text-slate-400 mb-0.5">
+                                <span>Độ dày thanh bar</span>
+                                <span id="pt-bar-thick-badge" class="font-mono text-emerald-400 font-bold">${barThick}px</span>
+                            </div>
+                            <input type="range" min="2" max="30" value="${barThick}" oninput="document.getElementById('pt-bar-thick-badge').innerText = this.value + 'px'; updateProgressTrackerProp(${gIdx}, ${fIdx}, 'barThickness', parseInt(this.value, 10), true);" onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'barThickness', parseInt(this.value, 10), false);" class="w-full accent-emerald-500">
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between text-[9px] text-slate-400 mb-0.5">
+                                <span>Bo góc khung</span>
+                                <span id="pt-radius-badge" class="font-mono text-emerald-400 font-bold">${bRadius}px</span>
+                            </div>
+                            <input type="range" min="0" max="40" value="${bRadius}" oninput="document.getElementById('pt-radius-badge').innerText = this.value + 'px'; updateProgressTrackerProp(${gIdx}, ${fIdx}, 'borderRadius', parseInt(this.value, 10), true);" onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'borderRadius', parseInt(this.value, 10), false);" class="w-full accent-emerald-500">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-900">
+                        <div>
+                            <div class="flex items-center justify-between text-[9px] text-slate-400 mb-0.5">
+                                <span>Độ dày viền khung</span>
+                                <span id="pt-border-badge" class="font-mono text-emerald-400 font-bold">${bWidth}px</span>
+                            </div>
+                            <input type="range" min="0" max="8" step="0.5" value="${bWidth}" oninput="document.getElementById('pt-border-badge').innerText = this.value + 'px'; updateProgressTrackerProp(${gIdx}, ${fIdx}, 'borderWidth', parseFloat(this.value), true);" onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'borderWidth', parseFloat(this.value), false);" class="w-full accent-emerald-500">
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between text-[9px] text-slate-400 mb-0.5">
+                                <span>Độ mờ toàn thẻ</span>
+                                <span id="pt-opacity-badge" class="font-mono text-emerald-400 font-bold">${opacity}%</span>
+                            </div>
+                            <input type="range" min="10" max="100" value="${opacity}" oninput="document.getElementById('pt-opacity-badge').innerText = this.value + '%'; updateProgressTrackerProp(${gIdx}, ${fIdx}, 'opacity', parseInt(this.value, 10), true);" onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'opacity', parseInt(this.value, 10), false);" class="w-full accent-emerald-500">
+                        </div>
                     </div>
                 </div>
 
+                <!-- 6. Tùy Biến Màu Sắc & Khung Nền -->
+                <div class="space-y-2 bg-slate-950 p-2 rounded-lg border border-slate-800">
+                    <span class="text-[10px] font-bold text-slate-300 block">Tùy Biến Màu Sắc Khung & Chi Tiết</span>
+
+                    <!-- Màu nền khung chứa -->
+                    <div>
+                        <div class="flex items-center justify-between text-[9px] text-slate-400 mb-0.5">
+                            <span>Màu nền khung</span>
+                            <span class="font-mono text-slate-300 font-bold">Độ mờ: <span id="pt-bg-alpha-badge">${pillColorData.alpha}%</span></span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 items-center">
+                            <div class="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded p-1">
+                                <input type="color" value="${pillColorData.hex}" onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'pillBgColor', this.value, false)" class="w-5 h-5 rounded border-0 cursor-pointer bg-transparent">
+                                <span class="text-[10px] font-mono text-slate-300 font-bold">${pillColorData.hex}</span>
+                            </div>
+                            <input type="range" min="0" max="100" value="${pillColorData.alpha}" oninput="document.getElementById('pt-bg-alpha-badge').innerText = this.value + '%'; updateProgressTrackerProp(${gIdx}, ${fIdx}, 'pillBgOpacity', parseInt(this.value, 10), true);" onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'pillBgOpacity', parseInt(this.value, 10), false);" class="w-full accent-emerald-500">
+                        </div>
+                    </div>
+
+                    <!-- Màu viền khung -->
+                    <div>
+                        <div class="flex items-center justify-between text-[9px] text-slate-400 mb-0.5">
+                            <span>Màu viền khung</span>
+                            <span class="font-mono text-slate-300 font-bold">Độ mờ: <span id="pt-border-alpha-badge">${borderColorData.alpha}%</span></span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 items-center">
+                            <div class="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded p-1">
+                                <input type="color" value="${borderColorData.hex}" onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'borderColor', this.value, false)" class="w-5 h-5 rounded border-0 cursor-pointer bg-transparent">
+                                <span class="text-[10px] font-mono text-slate-300 font-bold">${borderColorData.hex}</span>
+                            </div>
+                            <input type="range" min="0" max="100" value="${borderColorData.alpha}" oninput="document.getElementById('pt-border-alpha-badge').innerText = this.value + '%'; updateProgressTrackerProp(${gIdx}, ${fIdx}, 'borderOpacity', parseInt(this.value, 10), true);" onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'borderOpacity', parseInt(this.value, 10), false);" class="w-full accent-emerald-500">
+                        </div>
+                    </div>
+
+                    <!-- Màu thanh chạy & Màu rãnh -->
+                    <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-900">
+                        <div>
+                            <label class="text-[9px] text-slate-400 block mb-0.5">Màu thanh chạy</label>
+                            <div class="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded p-1">
+                                <input type="color" value="${barColor}" onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'barColor', this.value, false)" class="w-5 h-5 rounded border-0 cursor-pointer bg-transparent">
+                                <span class="text-[10px] font-mono text-slate-300 font-bold">${barColor}</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-[9px] text-slate-400 block mb-0.5">Màu rãnh nền thanh</label>
+                            <div class="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded p-1">
+                                <input type="color" value="${barBgData.hex}" onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'barBgColor', this.value, false)" class="w-5 h-5 rounded border-0 cursor-pointer bg-transparent">
+                                <span class="text-[10px] font-mono text-slate-300 font-bold">${barBgData.hex}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chữ đếm câu & Cỡ chữ (nếu mode !== 'bar') -->
+                    ${mode !== 'bar' ? `
+                    <div class="pt-1 border-t border-slate-900 space-y-1.5">
+                        <div class="grid grid-cols-2 gap-2 items-center">
+                            <div>
+                                <label class="text-[9px] text-slate-400 block mb-0.5">Màu chữ đếm</label>
+                                <div class="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded p-1">
+                                    <input type="color" value="${textColor}" onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'textColor', this.value, false)" class="w-5 h-5 rounded border-0 cursor-pointer bg-transparent">
+                                    <span class="text-[10px] font-mono text-slate-300 font-bold">${textColor}</span>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between text-[9px] text-slate-400 mb-0.5">
+                                    <span>Cỡ chữ</span>
+                                    <span id="pt-font-size-badge" class="font-mono text-emerald-400 font-bold">${fontSize}px</span>
+                                </div>
+                                <input type="range" min="14" max="42" value="${fontSize}" oninput="document.getElementById('pt-font-size-badge').innerText = this.value + 'px'; updateProgressTrackerProp(${gIdx}, ${fIdx}, 'fontSize', parseInt(this.value, 10), true);" onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'fontSize', parseInt(this.value, 10), false);" class="w-full accent-emerald-500">
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between pt-1">
+                            <span class="text-[9px] text-slate-400">Độ đậm font chữ:</span>
+                            <div class="flex items-center space-x-1">
+                                <button type="button" onclick="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'fontWeight', 700)" class="px-2 py-0.5 rounded text-[10px] font-bold ${fontWeight === 700 ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}">Đậm (700)</button>
+                                <button type="button" onclick="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'fontWeight', 900)" class="px-2 py-0.5 rounded text-[10px] font-bold ${fontWeight === 900 ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}">Siêu Đậm (900)</button>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <!-- Tùy chọn đổ bóng -->
+                    <div class="pt-1 border-t border-slate-900">
+                        <label class="flex items-center justify-between cursor-pointer">
+                            <span class="text-[10px] text-slate-300 font-medium">Đổ bóng mờ nổi khối (Box Shadow)</span>
+                            <input type="checkbox" ${hasShadow ? 'checked' : ''} onchange="updateProgressTrackerProp(${gIdx}, ${fIdx}, 'shadow', this.checked)" class="rounded bg-slate-900 border-slate-700 text-emerald-500 w-3.5 h-3.5 focus:ring-0">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Thao tác xóa -->
                 <div class="pt-2 border-t border-slate-800 flex items-center justify-between text-[10px]">
                     <span class="text-[9px] text-slate-400 italic">Tự động tính theo tổng số câu trong bài học.</span>
                     <button type="button" onclick="removeFieldItemFromGroup(${gIdx}, ${fIdx}); selectedProgressTrackerTarget = null; renderInspectorRibbon(); renderTimelineLayersListUI();" class="py-1 px-2 text-rose-400 hover:text-white hover:bg-rose-950/60 rounded font-bold transition">
@@ -949,10 +1222,14 @@ function renderAudioSfxInspectorRibbon(item, gIdx, fIdx) {
                 ` : ''}
 
                 <!-- Nút nghe thử âm thanh -->
-                <div>
-                    <button type="button" onclick="testPlayAudioSfx(${gIdx}, ${fIdx})" class="w-full py-1.5 px-3 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 text-white font-extrabold rounded-lg text-xs flex items-center justify-center space-x-1.5 shadow active:scale-95 transition cursor-pointer">
-                        <i data-lucide="play" class="w-3.5 h-3.5"></i>
-                        <span>Nghe thử âm thanh này</span>
+                <div class="space-y-1.5">
+                    <button type="button" id="sfx-test-play-btn" onclick="testPlayAudioSfx(${gIdx}, ${fIdx})" class="w-full py-1.5 px-3 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 text-white font-extrabold rounded-lg text-xs flex items-center justify-center space-x-1.5 shadow active:scale-95 transition cursor-pointer">
+                        <i data-lucide="play" id="sfx-test-btn-icon" class="w-3.5 h-3.5"></i>
+                        <span id="sfx-test-btn-text">Nghe thử âm thanh này</span>
+                    </button>
+                    <button type="button" onclick="testPlayAudioSfxWithDucking(${gIdx}, ${fIdx})" class="w-full py-1.5 px-2.5 bg-slate-950 hover:bg-purple-950/60 border border-purple-800/80 text-purple-200 font-bold rounded-lg text-[11px] flex items-center justify-center space-x-1.5 shadow active:scale-95 transition cursor-pointer" title="Phát SFX kèm giọng đọc AI để nghe hiệu ứng né tiếng tự động">
+                        <i data-lucide="headphones" class="w-3.5 h-3.5 text-purple-400"></i>
+                        <span>Nghe thử Né Tiếng (Ducking) với Giọng đọc AI</span>
                     </button>
                 </div>
 
@@ -960,14 +1237,14 @@ function renderAudioSfxInspectorRibbon(item, gIdx, fIdx) {
                 <div>
                     <div class="flex justify-between items-center mb-0.5">
                         <label class="text-[9px] text-slate-400 font-bold">Âm lượng SFX</label>
-                        <span class="text-[10px] font-bold text-amber-300 font-mono">${volume}%</span>
+                        <span id="sfx-vol-badge-${gIdx}-${fIdx}" class="text-[10px] font-bold text-amber-300 font-mono">${volume}%</span>
                     </div>
-                    <input type="range" min="0" max="100" value="${volume}" oninput="updateAudioSfxProp(${gIdx}, ${fIdx}, 'volume', parseInt(this.value, 10))" class="w-full accent-purple-500">
+                    <input type="range" min="0" max="100" value="${volume}" oninput="updateAudioSfxProp(${gIdx}, ${fIdx}, 'volume', parseInt(this.value, 10), true)" onchange="updateAudioSfxProp(${gIdx}, ${fIdx}, 'volume', parseInt(this.value, 10), false)" class="w-full accent-purple-500 cursor-pointer">
                 </div>
 
                 <!-- Né tiếng Ducking -->
                 <div class="p-2 bg-slate-950 rounded-lg border border-slate-800 flex items-start space-x-2">
-                    <input type="checkbox" id="sfx-ducking-cb" ${isDucking ? 'checked' : ''} onchange="updateAudioSfxProp(${gIdx}, ${fIdx}, 'ducking', this.checked)" class="mt-0.5 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-0 cursor-pointer">
+                    <input type="checkbox" id="sfx-ducking-cb" ${isDucking ? 'checked' : ''} onchange="updateAudioSfxProp(${gIdx}, ${fIdx}, 'ducking', this.checked, false)" class="mt-0.5 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-0 cursor-pointer">
                     <label for="sfx-ducking-cb" class="text-[10px] text-slate-300 font-semibold cursor-pointer select-none leading-snug">
                         <span class="font-bold text-purple-300 block">Tự động né tiếng (Audio Ducking)</span>
                         <span class="text-[9px] text-slate-400">Tự động hạ nhỏ âm lượng SFX này khi Giọng đọc AI (TTS) đang nói để không làm át lời.</span>

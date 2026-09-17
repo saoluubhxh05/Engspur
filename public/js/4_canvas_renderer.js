@@ -172,8 +172,18 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
     const currentActiveFallbackWord = currentSentenceData["Substitution words"] || "";
 
     const isSingleMode = (paragraphGridConfig.presentationMode === 'single');
-    const startSentenceIdx = isSingleMode ? (isParagraphRunning ? pCurrentSentenceIndex : 0) : 0;
-    const maxSentencesToDraw = isSingleMode ? (startSentenceIdx + 1) : (isParagraphRunning ? Math.min(pCurrentSentenceIndex + 1, totalSentences) : totalSentences);
+    const isAllMode = (paragraphGridConfig.presentationMode === 'all');
+    const startSentenceIdx = (isSingleMode && isParagraphRunning) ? pCurrentSentenceIndex : 0;
+    let maxSentencesToDraw = totalSentences;
+    if (isSingleMode) {
+        maxSentencesToDraw = isParagraphRunning ? (pCurrentSentenceIndex + 1) : 1;
+    } else if (!isAllMode) {
+        // Chế độ xếp tầng (stack)
+        maxSentencesToDraw = isParagraphRunning ? Math.min(pCurrentSentenceIndex + 1, totalSentences) : totalSentences;
+    } else {
+        // Chế độ hiện tất cả dòng cùng 1 lúc (all)
+        maxSentencesToDraw = totalSentences;
+    }
 
     let colVerticalPositions = new Array(colCount + 1).fill(paddingTop);
     let totalLockedBlockTop = paddingTop;
@@ -189,15 +199,41 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
         let lockedColumnsInRow = [];
 
         paragraphGridConfig.groups.forEach(grp => {
-            if (grp.isInsideLoop === false && sIdx > 0) return;
-            if (isOutsideOnlyRender && grp.isInsideLoop !== false) return;
+            const grpPos = grp.loopPosition || (grp.isInsideLoop === false ? 'outside' : 'inside');
+            const isInside = (grpPos === 'inside');
+
+            if (!isInside && sIdx > 0) return;
+            if (isOutsideOnlyRender && isInside) return;
+            if (isParagraphRunning) {
+                if (grpPos === 'before' && pCurrentSentenceIndex > 0) return;
+                if (grpPos === 'after' && pCurrentSentenceIndex < totalSentences - 1) return;
+            }
+
             const targetColIdx = Math.max(1, Math.min(grp.targetColumn || 1, colCount));
             const isColLocked = matrix.colSyncSettings && matrix.colSyncSettings[targetColIdx] ? matrix.colSyncSettings[targetColIdx].locked : true;
 
             if (isColLocked) {
                 lockedColumnsInRow.push(targetColIdx);
                 const colLayout = colLayouts[targetColIdx - 1] || colLayouts[0];
-                const groupW = colLayout.w;
+                let groupW = colLayout.w;
+
+                // Tính toán bề rộng gộp nhiều cột (ColSpan)
+                if (grp.colSpan) {
+                    if (grp.colSpan === 'all') {
+                        const firstCol = colLayouts[0];
+                        const lastCol = colLayouts[colCount - 1];
+                        groupW = (lastCol.x + lastCol.w) - firstCol.x;
+                    } else {
+                        const spanCount = Math.min(parseInt(grp.colSpan) || 1, colCount - targetColIdx + 1);
+                        if (spanCount > 1) {
+                            const endCol = colLayouts[targetColIdx - 1 + spanCount - 1];
+                            if (endCol) {
+                                groupW = (endCol.x + endCol.w) - colLayout.x;
+                            }
+                        }
+                    }
+                }
+
                 const customSpacing = (grp.fieldSpacing !== undefined ? grp.fieldSpacing : 12);
                 let estimatedGroupH = 0;
 
@@ -207,7 +243,7 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
                         const fKey = typeof item === 'string' ? item : item.key;
                         const st = paragraphFieldStyles[fKey];
                         if (st && st.type !== 'image') {
-                            const rawVal = (grp.isInsideLoop === false && sentenceDataMaps[0]) ? sentenceDataMaps[0][fKey] : dataMap[fKey];
+                            const rawVal = (!isInside && sentenceDataMaps[0]) ? sentenceDataMaps[0][fKey] : dataMap[fKey];
                             const val = (rawVal !== undefined && rawVal !== null) ? String(rawVal).trim() : '';
                             if (!val) return;
                             let size = st.size || 28;
@@ -231,8 +267,16 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
         });
 
         paragraphGridConfig.groups.forEach(grp => {
-            if (grp.isInsideLoop === false && sIdx > 0) return;
-            if (isOutsideOnlyRender && grp.isInsideLoop !== false) return;
+            const grpPos = grp.loopPosition || (grp.isInsideLoop === false ? 'outside' : 'inside');
+            const isInside = (grpPos === 'inside');
+
+            if (!isInside && sIdx > 0) return;
+            if (isOutsideOnlyRender && isInside) return;
+            if (isParagraphRunning) {
+                if (grpPos === 'before' && pCurrentSentenceIndex > 0) return;
+                if (grpPos === 'after' && pCurrentSentenceIndex < totalSentences - 1) return;
+            }
+
             if (isCurrentSentence) {
                 const start = grp.startTime || 0;
                 let end = start + (grp.duration || masterTimelineDuration);
@@ -254,8 +298,7 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
                 // loại bỏ triệt để hiện tượng mất nội dung hoặc chớp tắt giữa các câu.
             }
 
-            const isGrpInsideLoop = (grp.isInsideLoop !== false);
-            const activeDataMap = (!isGrpInsideLoop && sentenceDataMaps[0]) ? sentenceDataMaps[0] : dataMap;
+            const activeDataMap = (!isInside && sentenceDataMaps[0]) ? sentenceDataMaps[0] : dataMap;
 
             const targetColIdx = Math.max(1, Math.min(grp.targetColumn || 1, colCount));
             const colLayout = colLayouts[targetColIdx - 1] || colLayouts[0];
@@ -264,8 +307,27 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
 
             const offX = grp.offsetX || 0;
             const offY = grp.offsetY || 0;
-            const originX = colLayout.x + offX;
-            const groupW = colLayout.w;
+            let originX = colLayout.x + offX;
+            let groupW = colLayout.w;
+
+            // Tính toán bề rộng gộp nhiều cột (ColSpan)
+            if (grp.colSpan) {
+                if (grp.colSpan === 'all') {
+                    const firstCol = colLayouts[0];
+                    const lastCol = colLayouts[colCount - 1];
+                    originX = firstCol.x + offX;
+                    groupW = (lastCol.x + lastCol.w) - firstCol.x;
+                } else {
+                    const spanCount = Math.min(parseInt(grp.colSpan) || 1, colCount - targetColIdx + 1);
+                    if (spanCount > 1) {
+                        const endCol = colLayouts[targetColIdx - 1 + spanCount - 1];
+                        if (endCol) {
+                            groupW = (endCol.x + endCol.w) - colLayout.x;
+                        }
+                    }
+                }
+            }
+
             const rowOffsetPx = (grp.startRowOffset || 0) * 45;
 
             let currentFieldY = (isSingleMode ? paddingTop : colVerticalPositions[targetColIdx]) + rowOffsetPx + offY;
@@ -728,6 +790,24 @@ function drawCountdownOverlay(ctx, width, height, item, countVal) {
     ctx.restore();
 }
 
+function ptHexToRgbaStr(hex, alphaRatio = 1) {
+    if (!hex) return `rgba(15, 23, 42, ${alphaRatio})`;
+    if (hex.startsWith('rgba(')) {
+        return hex.replace(/[\d.]+\)$/g, `${alphaRatio})`);
+    }
+    if (hex.startsWith('rgb(')) {
+        return hex.replace('rgb(', 'rgba(').replace(')', `, ${alphaRatio})`);
+    }
+    let c = hex.replace('#', '');
+    if (c.length === 3) c = c.split('').map(x => x + x).join('');
+    const num = parseInt(c, 16);
+    if (isNaN(num)) return `rgba(15, 23, 42, ${alphaRatio})`;
+    const r = (num >> 16) & 255;
+    const g = (num >> 8) & 255;
+    const b = num & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alphaRatio})`;
+}
+
 function drawProgressTrackerOverlay(ctx, width, height, item) {
     ctx.save();
     let activeTopicList = (typeof getParagraphFilteredDatasets === 'function') ? getParagraphFilteredDatasets() : importedDatasets;
@@ -741,12 +821,36 @@ function drawProgressTrackerOverlay(ctx, width, height, item) {
     const ratio = Math.min(1, Math.max(0, currentSentence / totalCount));
     const displayMode = item.displayMode || 'both'; // 'both' | 'bar' | 'text'
     const position = item.position || 'top_bar'; // 'top_bar' | 'bottom_bar' | 'top_right' | 'top_left' | 'bottom_center' | 'custom'
+
+    // Áp dụng độ mờ đục toàn thẻ (Opacity)
+    const overallOpacity = (item.opacity !== undefined ? item.opacity : 100) / 100;
+    ctx.globalAlpha = Math.max(0.05, Math.min(1, overallOpacity));
+
     const barThickness = item.barThickness !== undefined ? item.barThickness : 8;
     const barColor = item.barColor || '#10b981';
-    const barBgColor = item.barBgColor || 'rgba(255, 255, 255, 0.25)';
-    const pillBgColor = item.pillBgColor || 'rgba(15, 23, 42, 0.85)';
+
+    // Helper đổi màu kèm alpha
+    function resolveColor(val, defaultHex, defaultAlphaPct) {
+        if (!val) return ptHexToRgbaStr(defaultHex, defaultAlphaPct / 100);
+        if (val.startsWith('rgba') || val.startsWith('rgb')) return val;
+        return ptHexToRgbaStr(val, defaultAlphaPct / 100);
+    }
+
+    const pillBgAlpha = item.pillBgOpacity !== undefined ? item.pillBgOpacity : 85;
+    const pillBgColor = resolveColor(item.pillBgColor, '#0f172a', pillBgAlpha);
+
+    const borderAlpha = item.borderOpacity !== undefined ? item.borderOpacity : 25;
+    const borderColor = resolveColor(item.borderColor, '#ffffff', borderAlpha);
+    const borderWidth = item.borderWidth !== undefined ? item.borderWidth : 1.5;
+    const borderRadius = item.borderRadius !== undefined ? item.borderRadius : 14;
+
+    const barBgAlpha = item.barBgOpacity !== undefined ? item.barBgOpacity : 25;
+    const barBgColor = resolveColor(item.barBgColor, '#ffffff', barBgAlpha);
+
     const textColor = item.textColor || '#ffffff';
     const fontSize = item.fontSize || 22;
+    const fontWeight = item.fontWeight || 900;
+    const hasShadow = item.shadow !== false;
 
     // Định dạng chữ đếm câu
     let template = item.textTemplate || "Câu {STT}/{Tổng_câu}";
@@ -754,7 +858,7 @@ function drawProgressTrackerOverlay(ctx, width, height, item) {
         .replace(/\{STT\}|\{stt\}|\{current\}|\{cau\}/gi, currentSentence)
         .replace(/\{Tổng_câu\}|\{tong_cau\}|\{total\}|\{tong\}/gi, totalCount);
 
-    ctx.font = `900 ${fontSize}px "Plus Jakarta Sans", sans-serif`;
+    ctx.font = `${fontWeight} ${fontSize}px "Plus Jakarta Sans", sans-serif`;
     const textMetrics = ctx.measureText(textStr);
     const textW = textMetrics.width;
     const textH = fontSize;
@@ -774,35 +878,53 @@ function drawProgressTrackerOverlay(ctx, width, height, item) {
 
         // 2. Vẽ huy hiệu chữ (Pill)
         if (displayMode === 'both' || displayMode === 'text') {
-            const pillPadX = 14;
-            const pillPadY = 6;
-            const pillW = textW + pillPadX * 2;
-            const pillH = textH + pillPadY * 2;
+            const pillPadX = 16;
+            const pillPadY = 8;
+            const pillW = (item.boxWidth && item.boxWidth > 0) ? item.boxWidth : (textW + pillPadX * 2);
+            const pillH = (item.boxHeight && item.boxHeight > 0) ? item.boxHeight : (textH + pillPadY * 2);
             const pillX = (width - pillW) / 2;
             const pillY = isTop ? (barThickness + 14) : (barY - pillH - 14);
 
+            if (hasShadow) {
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+                ctx.shadowBlur = 10;
+                ctx.shadowOffsetY = 3;
+            }
+
             ctx.beginPath();
-            if (ctx.roundRect) ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
+            const rRadius = Math.min(borderRadius, pillH / 2);
+            if (ctx.roundRect) ctx.roundRect(pillX, pillY, pillW, pillH, rRadius);
             else ctx.rect(pillX, pillY, pillW, pillH);
             ctx.fillStyle = pillBgColor;
             ctx.fill();
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
+
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetY = 0;
+
+            if (borderWidth > 0) {
+                ctx.strokeStyle = borderColor;
+                ctx.lineWidth = borderWidth;
+                ctx.stroke();
+            }
 
             ctx.fillStyle = textColor;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(textStr, width / 2, pillY + pillH / 2 + 1);
+            ctx.fillText(textStr, pillX + pillW / 2, pillY + pillH / 2 + 1);
         }
-    } else if (position === 'top_right' || position === 'top_left' || position === 'bottom_center' || position === 'custom') {
-        let boxX = 0, boxY = 0;
-        const boxPadX = 14;
-        const boxPadY = 8;
+    } else {
+        // top_right | top_left | bottom_center | custom
+        const boxPadX = 16;
+        const boxPadY = 10;
         const miniBarW = Math.max(90, textW);
-        const boxW = (displayMode === 'text' ? textW : Math.max(textW, miniBarW)) + boxPadX * 2;
-        const boxH = (displayMode === 'both' ? (textH + barThickness + 14) : (displayMode === 'bar' ? (barThickness + boxPadY * 2) : (textH + boxPadY * 2)));
+        const autoBoxW = (displayMode === 'text' ? textW : Math.max(textW, miniBarW)) + boxPadX * 2;
+        const autoBoxH = (displayMode === 'both' ? (textH + barThickness + 18) : (displayMode === 'bar' ? (barThickness + boxPadY * 2) : (textH + boxPadY * 2)));
 
+        const boxW = (item.boxWidth && item.boxWidth > 0) ? item.boxWidth : autoBoxW;
+        const boxH = (item.boxHeight && item.boxHeight > 0) ? item.boxHeight : autoBoxH;
+
+        let boxX = 0, boxY = 0;
         if (position === 'top_right') {
             boxX = width - boxW - 28;
             boxY = 24;
@@ -813,46 +935,71 @@ function drawProgressTrackerOverlay(ctx, width, height, item) {
             boxX = (width - boxW) / 2;
             boxY = height - boxH - 24;
         } else {
-            boxX = ((item.posX !== undefined ? item.posX : 50) / 100) * width - boxW / 2;
-            boxY = ((item.posY !== undefined ? item.posY : 5) / 100) * height;
+            // custom: Tọa độ Pixel tự do
+            boxX = item.posX !== undefined ? item.posX : (width - boxW - 28);
+            boxY = item.posY !== undefined ? item.posY : 24;
         }
 
         // Vẽ Hộp Container mờ bo tròn
+        if (hasShadow) {
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+            ctx.shadowBlur = 12;
+            ctx.shadowOffsetY = 4;
+        }
+
         ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(boxX, boxY, boxW, boxH, 14);
+        const rRadius = Math.min(borderRadius, boxH / 2);
+        if (ctx.roundRect) ctx.roundRect(boxX, boxY, boxW, boxH, rRadius);
         else ctx.rect(boxX, boxY, boxW, boxH);
         ctx.fillStyle = pillBgColor;
         ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+
+        if (borderWidth > 0) {
+            ctx.strokeStyle = borderColor;
+            ctx.lineWidth = borderWidth;
+            ctx.stroke();
+        }
 
         let curContentY = boxY + boxPadY;
 
         if (displayMode === 'both' || displayMode === 'text') {
             ctx.fillStyle = textColor;
             ctx.textAlign = 'center';
-            ctx.textBaseline = 'top';
-            ctx.fillText(textStr, boxX + boxW / 2, curContentY);
-            curContentY += textH + 8;
+            if (displayMode === 'text') {
+                ctx.textBaseline = 'middle';
+                ctx.fillText(textStr, boxX + boxW / 2, boxY + boxH / 2 + 1);
+            } else {
+                ctx.textBaseline = 'top';
+                ctx.fillText(textStr, boxX + boxW / 2, curContentY);
+                curContentY += textH + 8;
+            }
         }
 
         if (displayMode === 'both' || displayMode === 'bar') {
-            const barStartX = boxX + (boxW - miniBarW) / 2;
-            const barStartY = (displayMode === 'bar') ? (boxY + (boxH - barThickness) / 2) : curContentY;
+            const availW = Math.max(20, boxW - boxPadX * 2);
+            const actualBarW = (item.barWidth && item.barWidth > 0) ? Math.min(availW, item.barWidth) : availW;
+            const barStartX = boxX + (boxW - actualBarW) / 2;
+            const barStartY = (displayMode === 'bar') ? (boxY + (boxH - barThickness) / 2) : (curContentY + (boxH - curContentY - barThickness) / 2);
+            const barRadius = barThickness / 2;
 
             ctx.beginPath();
-            if (ctx.roundRect) ctx.roundRect(barStartX, barStartY, miniBarW, barThickness, barThickness / 2);
-            else ctx.rect(barStartX, barStartY, miniBarW, barThickness);
+            if (ctx.roundRect) ctx.roundRect(barStartX, barStartY, actualBarW, barThickness, barRadius);
+            else ctx.rect(barStartX, barStartY, actualBarW, barThickness);
             ctx.fillStyle = barBgColor;
             ctx.fill();
 
-            const fillW = Math.max(barThickness, miniBarW * ratio);
-            ctx.beginPath();
-            if (ctx.roundRect) ctx.roundRect(barStartX, barStartY, fillW, barThickness, barThickness / 2);
-            else ctx.rect(barStartX, barStartY, fillW, barThickness);
-            ctx.fillStyle = barColor;
-            ctx.fill();
+            const fillW = Math.min(actualBarW, Math.max(0, actualBarW * ratio));
+            if (fillW > 0) {
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(barStartX, barStartY, fillW, barThickness, barRadius);
+                else ctx.rect(barStartX, barStartY, fillW, barThickness);
+                ctx.fillStyle = barColor;
+                ctx.fill();
+            }
         }
     }
 

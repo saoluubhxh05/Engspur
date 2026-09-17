@@ -33,20 +33,43 @@ function toggleAddLayerDropdown(event) {
     }
 }
 
-function selectAddLayerType(isInsideLoop) {
+function selectAddLayerType(loopType) {
     const menu = document.getElementById('add-layer-dropdown-menu');
     if (menu) {
         menu.classList.add('hidden');
         menu.classList.remove('dropdown-menu-open');
     }
-    addNewGridGroupRow(isInsideLoop);
+    addNewGridGroupRow(loopType);
 }
 
-function toggleGroupLoopMode(gIdx) {
+function getGroupLoopPosition(grp) {
+    if (!grp) return 'inside';
+    if (grp.loopPosition) return grp.loopPosition;
+    if (grp.isInsideLoop === false) return 'outside';
+    return 'inside';
+}
+
+function cycleGroupLoopMode(gIdx) {
     const grp = paragraphGridConfig.groups[gIdx];
     if (!grp) return;
-    grp.isInsideLoop = (grp.isInsideLoop === false) ? true : false;
-    const modeText = grp.isInsideLoop ? "Trong vòng lặp (Drills)" : "Ngoài vòng lặp (Cố định toàn video)";
+    const current = getGroupLoopPosition(grp);
+    let next = 'inside';
+    let modeText = 'Trong vòng lặp (Drills)';
+    if (current === 'before') {
+        next = 'inside';
+        modeText = 'Trong vòng lặp (Drills)';
+    } else if (current === 'inside') {
+        next = 'after';
+        modeText = 'Sau vòng lặp (Outro)';
+    } else if (current === 'after') {
+        next = 'outside';
+        modeText = 'Cố định toàn video';
+    } else {
+        next = 'before';
+        modeText = 'Trước vòng lặp (Intro)';
+    }
+    grp.loopPosition = next;
+    grp.isInsideLoop = (next === 'inside');
     renderTimelineLayersListUI();
     renderTimelineTracksUI();
     drawParagraphCanvasFrame();
@@ -54,18 +77,41 @@ function toggleGroupLoopMode(gIdx) {
     if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
 }
 
-function addNewGridGroupRow(isInsideLoop = true) {
+function toggleGroupLoopMode(gIdx) {
+    cycleGroupLoopMode(gIdx);
+}
+
+function addNewGridGroupRow(loopType = 'inside') {
     const nextId = paragraphGridConfig.groups.length + 1;
     const colCount = (paragraphGridConfig.gridMatrix && paragraphGridConfig.gridMatrix.columnCount) ? paragraphGridConfig.gridMatrix.columnCount : 2;
-    const insideColors = ["#3b82f6", "#10b981", "#8b5cf6", "#06b6d4", "#ec4899"];
-    const outsideColors = ["#f59e0b", "#d97706", "#b45309", "#ea580c", "#e11d48"];
-    const assignedColor = isInsideLoop 
-        ? insideColors[(nextId - 1) % insideColors.length]
-        : outsideColors[(nextId - 1) % outsideColors.length];
+    
+    // Normalize boolean if passed from legacy callers
+    let resolvedType = loopType;
+    if (loopType === true) resolvedType = 'inside';
+    else if (loopType === false) resolvedType = 'outside';
 
-    const defaultName = isInsideLoop 
-        ? `Lớp ${nextId}: Trong Lặp`
-        : `Lớp ${nextId}: Ngoài Lặp (Cố định)`;
+    const colorPalette = {
+        before: ["#3b82f6", "#2563eb", "#1d4ed8"],
+        inside: ["#10b981", "#059669", "#047857", "#06b6d4", "#0891b2"],
+        after: ["#8b5cf6", "#7c3aed", "#6d28d9", "#ec4899", "#db2777"],
+        outside: ["#f59e0b", "#d97706", "#b45309", "#ea580c", "#e11d48"]
+    };
+
+    const colors = colorPalette[resolvedType] || colorPalette.inside;
+    const assignedColor = colors[(nextId - 1) % colors.length];
+
+    let defaultName = `Lớp ${nextId}: Trong Lặp`;
+    let toastName = 'Lớp Trong Vòng Lặp';
+    if (resolvedType === 'before') {
+        defaultName = `Lớp ${nextId}: Trước Lặp (Intro)`;
+        toastName = 'Lớp Trước Vòng Lặp (Intro)';
+    } else if (resolvedType === 'after') {
+        defaultName = `Lớp ${nextId}: Sau Lặp (Outro)`;
+        toastName = 'Lớp Sau Vòng Lặp (Outro)';
+    } else if (resolvedType === 'outside') {
+        defaultName = `Lớp ${nextId}: Cố định (Xuyên suốt)`;
+        toastName = 'Lớp Cố Định Toàn Video';
+    }
 
     paragraphGridConfig.groups.push({
         id: nextId,
@@ -74,8 +120,10 @@ function addNewGridGroupRow(isInsideLoop = true) {
         startTime: 0.0,
         duration: masterTimelineDuration,
         snapEndToTotalDuration: false,
-        isInsideLoop: isInsideLoop,
+        loopPosition: resolvedType,
+        isInsideLoop: (resolvedType === 'inside'),
         targetColumn: Math.min(nextId, colCount),
+        colSpan: 1,
         startRowOffset: 0,
         customHeightPx: 0,
         opacity: 100,
@@ -91,7 +139,7 @@ function addNewGridGroupRow(isInsideLoop = true) {
     renderTimelineTracksUI();
     renderInspectorRibbon();
     drawParagraphCanvasFrame();
-    showToast(`Đã thêm ${isInsideLoop ? 'Lớp Trong Vòng Lặp' : 'Lớp Ngoài Vòng Lặp (Cố định)'} ${nextId}!`);
+    showToast(`Đã thêm ${toastName} ${nextId}!`);
     if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
 }
 
@@ -115,6 +163,16 @@ function renderTimelineLayersListUI() {
         for (let c = 1; c <= colCount; c++) {
             const sel = (grp.targetColumn === c) ? 'selected' : '';
             colOptionsHtml += `<option value="${c}" ${sel}>Cột ${c}</option>`;
+        }
+
+        const maxSpan = Math.max(1, colCount - (grp.targetColumn || 1) + 1);
+        const curSpan = Math.max(1, Math.min(grp.colSpan || 1, colCount));
+        let spanOptionsHtml = `<option value="1" ${curSpan === 1 ? 'selected' : ''}>1 Cột</option>`;
+        for (let s = 2; s <= maxSpan; s++) {
+            spanOptionsHtml += `<option value="${s}" ${curSpan === s ? 'selected' : ''}>Gộp ${s} cột</option>`;
+        }
+        if (colCount > 1) {
+            spanOptionsHtml += `<option value="all" ${grp.colSpan === 'all' ? 'selected' : ''}>Tràn tất cả cột</option>`;
         }
 
         let fieldsChipsHtml = grp.fields.map((item, fIdx) => {
@@ -211,10 +269,17 @@ function renderTimelineLayersListUI() {
         const curOffset = grp.startRowOffset !== undefined ? grp.startRowOffset : 0;
         const audioBadge = isAudio ? `<span class="bg-purple-950 text-purple-300 border border-purple-800 text-[8px] font-bold px-1 rounded flex items-center space-x-0.5"><i data-lucide="lock" class="w-2 h-2"></i><span>AI Khóa</span></span>` : `<span class="bg-slate-800 text-slate-400 text-[8px] px-1 rounded">Tĩnh</span>`;
 
-        const isInside = (grp.isInsideLoop !== false);
-        const loopBadge = isInside
-            ? `<button onclick="event.stopPropagation(); toggleGroupLoopMode(${gIdx})" title="Đang trong vòng lặp (Drills). Nhấp để đổi sang Ngoài vòng lặp (Cố định toàn video)." class="bg-teal-950/80 hover:bg-teal-900 text-teal-300 border border-teal-700/80 text-[8px] font-bold px-1.5 py-0.5 rounded flex items-center space-x-0.5 transition cursor-pointer shrink-0"><i data-lucide="repeat" class="w-2.5 h-2.5"></i><span>Trong lặp</span></button>`
-            : `<button onclick="event.stopPropagation(); toggleGroupLoopMode(${gIdx})" title="Đang ngoài vòng lặp (Cố định). Nhấp để đổi sang Trong vòng lặp (Drills)." class="bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-700/80 text-[8px] font-bold px-1.5 py-0.5 rounded flex items-center space-x-0.5 transition cursor-pointer shrink-0"><i data-lucide="pin" class="w-2.5 h-2.5"></i><span>Ngoài lặp</span></button>`;
+        const curPos = getGroupLoopPosition(grp);
+        let loopBadge = '';
+        if (curPos === 'before') {
+            loopBadge = `<button onclick="event.stopPropagation(); cycleGroupLoopMode(${gIdx})" title="Vị trí: Trước vòng lặp (Intro). Bấm để chuyển tiếp." class="bg-blue-950/90 hover:bg-blue-900 text-blue-300 border border-blue-700/80 text-[8px] font-bold px-1.5 py-0.5 rounded flex items-center space-x-0.5 transition cursor-pointer shrink-0"><i data-lucide="arrow-left-to-line" class="w-2.5 h-2.5"></i><span>Trước lặp</span></button>`;
+        } else if (curPos === 'after') {
+            loopBadge = `<button onclick="event.stopPropagation(); cycleGroupLoopMode(${gIdx})" title="Vị trí: Sau vòng lặp (Outro). Bấm để chuyển tiếp." class="bg-purple-950/90 hover:bg-purple-900 text-purple-300 border border-purple-700/80 text-[8px] font-bold px-1.5 py-0.5 rounded flex items-center space-x-0.5 transition cursor-pointer shrink-0"><i data-lucide="arrow-right-to-line" class="w-2.5 h-2.5"></i><span>Sau lặp</span></button>`;
+        } else if (curPos === 'outside') {
+            loopBadge = `<button onclick="event.stopPropagation(); cycleGroupLoopMode(${gIdx})" title="Vị trí: Cố định toàn video. Bấm để chuyển tiếp." class="bg-amber-950/90 hover:bg-amber-900 text-amber-300 border border-amber-700/80 text-[8px] font-bold px-1.5 py-0.5 rounded flex items-center space-x-0.5 transition cursor-pointer shrink-0"><i data-lucide="pin" class="w-2.5 h-2.5"></i><span>Cố định</span></button>`;
+        } else {
+            loopBadge = `<button onclick="event.stopPropagation(); cycleGroupLoopMode(${gIdx})" title="Vị trí: Trong vòng lặp (Drills). Bấm để chuyển tiếp." class="bg-teal-950/90 hover:bg-teal-900 text-teal-300 border border-teal-700/80 text-[8px] font-bold px-1.5 py-0.5 rounded flex items-center space-x-0.5 transition cursor-pointer shrink-0"><i data-lucide="repeat" class="w-2.5 h-2.5"></i><span>Trong lặp</span></button>`;
+        }
 
         blockDiv.innerHTML = `
             <div class="flex items-center justify-between gap-1 border-b border-slate-800/80 pb-1">
@@ -233,7 +298,7 @@ function renderTimelineLayersListUI() {
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-1 text-[9px] bg-slate-950 p-1.5 rounded-lg border border-slate-800/80">
+            <div class="grid grid-cols-3 gap-1 text-[9px] bg-slate-950 p-1.5 rounded-lg border border-slate-800/80">
                 <div>
                     <label class="text-indigo-400 block font-bold">Cột Grid:</label>
                     <select onchange="updateGroupTargetColumn(${gIdx}, parseInt(this.value))" class="w-full bg-slate-900 border border-slate-700 rounded p-0.5 font-bold text-slate-200">
@@ -241,8 +306,14 @@ function renderTimelineLayersListUI() {
                     </select>
                 </div>
                 <div>
-                    <label class="text-emerald-400 block font-bold">Dòng bắt đầu (Offset):</label>
-                    <div class="flex items-center space-x-1 bg-slate-900 border border-slate-700 rounded p-0.5">
+                    <label class="text-cyan-400 block font-bold" title="Gộp số cột kế tiếp trên lưới">Gộp cột:</label>
+                    <select onchange="updateGroupColSpan(${gIdx}, this.value)" class="w-full bg-slate-900 border border-slate-700 rounded p-0.5 font-bold text-cyan-200" title="Gộp cột trải dài">
+                        ${spanOptionsHtml}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-emerald-400 block font-bold">Dòng (Offset):</label>
+                    <div class="flex items-center space-x-0.5 bg-slate-900 border border-slate-700 rounded p-0.5">
                         <button onclick="event.stopPropagation(); adjustGroupRowOffset(${gIdx}, -1)" class="px-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-black rounded">-</button>
                         <input type="number" value="${curOffset}" onchange="updateGroupRowOffset(${gIdx}, parseInt(this.value))" class="w-full bg-transparent text-center font-bold text-amber-300 border-0 p-0 text-[10px] focus:ring-0">
                         <button onclick="event.stopPropagation(); adjustGroupRowOffset(${gIdx}, 1)" class="px-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-black rounded">+</button>
@@ -343,8 +414,25 @@ function updateGroupName(gIdx, val) {
 function updateGroupTargetColumn(gIdx, colIdx) {
     if (paragraphGridConfig.groups[gIdx]) {
         paragraphGridConfig.groups[gIdx].targetColumn = colIdx;
+        renderTimelineLayersListUI();
         drawParagraphCanvasFrame();
         showToast(`Lớp chuyển sang Cột ${colIdx}!`);
+        if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
+    }
+}
+
+function updateGroupColSpan(gIdx, spanVal) {
+    if (paragraphGridConfig.groups[gIdx]) {
+        if (spanVal === 'all') {
+            paragraphGridConfig.groups[gIdx].colSpan = 'all';
+            showToast(`Lớp "${paragraphGridConfig.groups[gIdx].name}" gộp Tràn tất cả cột!`);
+        } else {
+            const num = parseInt(spanVal) || 1;
+            paragraphGridConfig.groups[gIdx].colSpan = Math.max(1, num);
+            showToast(`Lớp "${paragraphGridConfig.groups[gIdx].name}" gộp ${num} cột!`);
+        }
+        drawParagraphCanvasFrame();
+        if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
     }
 }
 
@@ -461,12 +549,23 @@ function addSpecialObjectComponent(type) {
             position: "top_bar",
             barThickness: 8,
             barColor: "#10b981",
-            barBgColor: "rgba(255, 255, 255, 0.2)",
-            pillBgColor: "rgba(15, 23, 42, 0.85)",
+            barBgColor: "#ffffff",
+            barBgOpacity: 25,
+            pillBgColor: "#0f172a",
+            pillBgOpacity: 85,
+            borderColor: "#ffffff",
+            borderOpacity: 25,
+            borderWidth: 1.5,
+            borderRadius: 14,
+            opacity: 100,
             textColor: "#ffffff",
             fontSize: 22,
-            posX: 50,
-            posY: 5
+            fontWeight: 900,
+            boxWidth: 0,
+            boxHeight: 0,
+            posX: 1520,
+            posY: 30,
+            shadow: true
         });
         if (typeof selectProgressTrackerItem === 'function') {
             selectProgressTrackerItem(paragraphSelectedGroupIdx, newIdx);

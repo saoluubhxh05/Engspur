@@ -4,11 +4,74 @@
  */
 
 var APP_VERSION_INFO = {
-    version: "V13.3",
-    releaseDate: "16/09/2026",
+    version: "V13.7",
+    releaseDate: "17/09/2026",
     status: "Mới nhất & Ổn định",
-    summary: "Bản nâng cấp V13.3: Tích hợp Thẻ Tiến Độ (Progress Bar & Bộ đếm câu linh hoạt dạng 'Câu 3/15') và Thẻ Âm Thanh (Kho hiệu ứng SFX tích hợp, tải file âm thanh riêng, né tiếng Audio Ducking và mốc phát Timeline).",
+    summary: "Bản nâng cấp V13.7: Bổ sung cấu hình Lớp Trước Vòng Lặp (Intro) và Sau Vòng Lặp (Outro); Tính năng Gộp Nhiều Cột (Merge Columns / ColSpan) cho các lớp tiêu đề và banner trải dài; và Chế độ Trình Chiếu Mới: Hiện Tất Cả Dòng Cùng 1 Lúc ngay từ đầu.",
     categories: [
+        {
+            title: "Lớp Trước / Trong / Sau Vòng Lặp & Cố Định Toàn Video (V13.7)",
+            icon: "repeat",
+            color: "text-blue-400 bg-blue-500/10 border-blue-500/30",
+            items: [
+                "Trước vòng lặp (Intro / Mở đầu): Lớp chỉ hiển thị ở đầu video trước khi các câu lặp bắt đầu (rất phù hợp cho tiêu đề bài học, lời chào, mục tiêu bài học).",
+                "Trong vòng lặp (Drills / Từng câu): Lớp nội dung lặp lại và cập nhật theo từng câu trong file bài tập Excel.",
+                "Sau vòng lặp (Outro / Kết bài): Lớp chỉ xuất hiện sau khi tất cả các câu bài tập kết thúc (lời cảm ơn, kêu gọi đăng ký, tóm tắt).",
+                "Cố định toàn video (Xuyên suốt): Lớp hiển thị liên tục xuyên suốt từ đầu tới cuối video (Khung viền, Header, Logo, Nhạc nền BGM)."
+            ]
+        },
+        {
+            title: "Tính Năng Lớp Gộp Nhiều Cột (Merge Columns / ColSpan) (V13.7)",
+            icon: "columns",
+            color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+            items: [
+                "Tùy chọn Số cột gộp (ColSpan): Cho phép chọn lớp đối tượng trải rộng qua 1 cột, 2 cột, 3 cột hoặc 'Tràn tất cả các cột' trên lưới.",
+                "Tự động tính toán bề rộng: Canvas renderer tự động gộp các cột kế tiếp kèm khoảng cách giữa các cột (Column Gap), giúp tiêu đề, bảng hoặc ảnh minh họa dàn trang hoàn hảo.",
+                "Tương thích tuyệt đối: Áp dụng mượt mà cho mọi loại thẻ (Trường Excel, Chữ tùy chọn, Ảnh, Âm thanh, Tiến độ, Đếm ngược)."
+            ]
+        },
+        {
+            title: "Chế Độ Trình Chiếu: Hiện Tất Cả Dòng Cùng 1 Lúc (V13.7)",
+            icon: "layout-grid",
+            color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/30",
+            items: [
+                "Hiển thị toàn bộ câu ngay từ đầu: Bên cạnh '1 Câu / Làm mới' và 'Xếp tầng', chế độ mới vẽ đầy đủ tất cả các dòng bài học ngay từ khung hình đầu tiên.",
+                "Tự động canh đều dòng: Kết hợp mượt mà với khoảng cách đệm (Gap px) giữa các dòng để tạo bố cục bài giảng hoàn chỉnh."
+            ]
+        },
+        {
+            title: "Khắc Phục & Tối Ưu Âm Thanh: Nhạc Tải Lên & Nhạc Nền Xuyên Suốt (V13.6)",
+            icon: "music",
+            color: "text-purple-400 bg-purple-500/10 border-purple-500/30",
+            items: [
+                "Mở khóa AudioContext tức thì: Tự động kích hoạt luồng âm thanh ngay khi người dùng bấm 'Chạy Thử Toàn Bộ (Preview)' hoặc 'Play thử câu', khắc phục triệt để lỗi trình duyệt chặn âm thanh ngầm.",
+                "Giải mã nhị phân siêu tốc (Direct Binary Buffer): Tối ưu giải mã file MP3/WAV tải từ máy tính trực tiếp từ luồng nhị phân và native fetch ArrayBuffer, loại bỏ hoàn toàn độ trễ và lỗi treo bộ nhớ của cơ chế cũ.",
+                "Nhạc nền liên tục Ngoài Vòng Lặp (Continuous BGM): Thẻ Âm Thanh đặt tại lớp 'Ngoài vòng lặp (Cố định toàn video)' tự động phát liên tục êm ái xuyên suốt toàn bộ các câu bài học mà không bị ngắt quãng hay lặp chồng.",
+                "Tự động nạp trước bộ đệm (Preload Audio): Toàn bộ file âm thanh riêng được nạp sẵn vào bộ nhớ ngay khi tải lên, đảm bảo khi chạy thử hoặc Xuất video Batch Render âm thanh khớp chuẩn 100% không độ trễ."
+            ]
+        },
+        {
+            title: "Nâng Cấp Thẻ Tiến Độ: Tọa Độ Pixel & Màu Sắc Khung (V13.5)",
+            icon: "sliders",
+            color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+            items: [
+                "Tọa độ tự do Pixel (X, Y px): Cho phép nhập chính xác pixel trên khung hình 1920x1080 kèm thanh trượt kép và 4 nút căn vị trí nhanh (Trên-Trái, Giữa-Trên, Trên-Phải, Đáy-Giữa).",
+                "Kích thước khung theo px: Tùy chỉnh Chiều Rộng (Width px) và Chiều Cao (Height px) với cơ chế co giãn thông minh (0 = Tự động co theo chữ).",
+                "Tùy biến khung chứa & viền: Điều chỉnh Màu nền khung kèm Độ mờ đục (Opacity), Màu viền khung, Độ dày viền (0 - 8px), Bo góc hộp (0 - 40px) và Tùy chọn Đổ bóng mờ nổi khối (Box Shadow).",
+                "Độ dày thanh bar & font chữ: Tinh chỉnh độ dày thanh bar chạy (2 - 30px), màu thanh chạy & màu rãnh nền bar, kích cỡ font chữ đếm và tùy chọn độ đậm (Bold 700 / Black 900)."
+            ]
+        },
+        {
+            title: "Tối Ưu Âm Lượng & Né Tiếng SFX (Smart Audio Ducking)",
+            icon: "volume-2",
+            color: "text-purple-400 bg-purple-500/10 border-purple-500/30",
+            items: [
+                "Điều chỉnh âm lượng thời gian thực (Live Volume): Kéo thanh trượt âm lượng (0 - 100%) nghe thấy độ lớn âm thanh đổi ngay lập tức trên luồng đang phát mà không bị gián đoạn hay mất nét giao diện.",
+                "Cơ chế Né Tiếng thông minh (Audio Ducking): Tự động liên kết mượt mà với Web Audio Gain Node. Khi Giọng đọc AI (TTS) cất tiếng, âm lượng SFX tự động lùi xuống 20% và tự động phục hồi về 100% khi AI nói xong.",
+                "Nút nghe thử Né Tiếng chuyên dụng: Bấm 'Nghe thử Né Tiếng (Ducking) với Giọng đọc AI' để trải nghiệm ngay lập tức cách SFX tự động nhường lời cho giọng đọc.",
+                "Bổ sung nút Dừng phát (Play/Stop toggle): Cho phép dừng âm thanh nghe thử bất cứ lúc nào, đặc biệt tiện lợi khi tải lên file nhạc hoặc hiệu ứng âm thanh dài."
+            ]
+        },
         {
             title: "Thẻ Tiến Độ (Progress Bar & Bộ Đếm Câu Hỏi)",
             icon: "sliders",
@@ -213,6 +276,8 @@ var batchCurrentTopicRealSentenceLogs = [];
 var currentBatchSentenceLog = null;
 var currentSentenceStartWallTime = 0;
 var currentSentenceTriggeredAudioGroups = new Set();
+var outsideLoopTriggeredAudioGroups = new Set();
+var runtimeAudioBufferCache = new Map();
 var batchAudioSampleRate = 44100;
 
 var selectedFieldKeysList = ["Substitution words"];

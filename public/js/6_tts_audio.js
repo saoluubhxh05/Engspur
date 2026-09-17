@@ -191,11 +191,13 @@ function playAudioBufferDirectly(buffer, callback) {
         }
 
         currentPlayingAudioSource = source;
+        if (typeof setTtsSpeakingState === 'function') setTtsSpeakingState(true);
         let finished = false;
         const onFinished = () => {
             if (!finished) {
                 finished = true;
                 currentPlayingAudioSource = null;
+                if (typeof setTtsSpeakingState === 'function') setTtsSpeakingState(false);
                 if (callback) callback();
             }
         };
@@ -275,6 +277,7 @@ function speakWithSpeechSynthesisFallback(text, callback) {
         const safeCallback = () => {
             if (!done) {
                 done = true;
+                if (typeof setTtsSpeakingState === 'function') setTtsSpeakingState(false);
                 if (watchdogTimer) clearTimeout(watchdogTimer);
                 if (callback) callback();
             }
@@ -286,6 +289,7 @@ function speakWithSpeechSynthesisFallback(text, callback) {
         const calculatedTimeout = Math.max(2500, (text.length / 5) * 1000 + 1500);
         watchdogTimer = setTimeout(safeCallback, calculatedTimeout);
 
+        if (typeof setTtsSpeakingState === 'function') setTtsSpeakingState(true);
         window.speechSynthesis.speak(utterance);
     } else {
         if (callback) callback();
@@ -712,23 +716,250 @@ function generateSynthesizedSfxBuffer(soundType, audioCtx) {
     }
 }
 
-function decodeBase64AudioToBuffer(base64Str, audioCtx) {
+// TRẠNG THÁI TOÀN CỤC PHỤC VỤ NÉ TIẾNG DUCKING & ÂM LƯỢNG THỜI GIAN THỰC
+var isTtsAudioSpeaking = false;
+var activeSfxInstances = [];
+
+function setTtsSpeakingState(isSpeaking) {
+    isTtsAudioSpeaking = isSpeaking;
+    if (typeof duckAllActiveSfx === 'function') {
+        duckAllActiveSfx(isSpeaking);
+    }
+}
+
+function duckAllActiveSfx(isDuckingActive) {
+    const audioCtx = getSharedAudioContext();
+    const now = audioCtx.currentTime;
+    activeSfxInstances.forEach(inst => {
+        if (inst.isDucking && inst.gainNode) {
+            const target = isDuckingActive ? (inst.baseVolume * 0.2) : inst.baseVolume;
+            try {
+                inst.gainNode.gain.cancelScheduledValues(now);
+                inst.gainNode.gain.setTargetAtTime(target, now, 0.08);
+            } catch(e) {}
+        }
+    });
+}
+
+function updateActiveSfxVolume(item, newVolume) {
+    const audioCtx = getSharedAudioContext();
+    const now = audioCtx.currentTime;
+    const baseVol = (newVolume !== undefined ? newVolume : 80) / 100;
+    activeSfxInstances.forEach(inst => {
+        if (inst.item === item && inst.gainNode) {
+            inst.baseVolume = baseVol;
+            const target = (inst.isDucking && isTtsAudioSpeaking) ? (baseVol * 0.2) : baseVol;
+            try {
+                inst.gainNode.gain.cancelScheduledValues(now);
+                inst.gainNode.gain.setTargetAtTime(target, now, 0.02);
+            } catch(e) {}
+        }
+    });
+}
+
+function updateActiveSfxDucking(item, isDucking) {
+    const audioCtx = getSharedAudioContext();
+    const now = audioCtx.currentTime;
+    activeSfxInstances.forEach(inst => {
+        if (inst.item === item && inst.gainNode) {
+            inst.isDucking = isDucking;
+            const target = (isDucking && isTtsAudioSpeaking) ? (inst.baseVolume * 0.2) : inst.baseVolume;
+            try {
+                inst.gainNode.gain.cancelScheduledValues(now);
+                inst.gainNode.gain.setTargetAtTime(target, now, 0.05);
+            } catch(e) {}
+        }
+    });
+}
+
+function stopInsideLoopSfxAudio() {
+    const remaining = [];
+    activeSfxInstances.forEach(inst => {
+        if (!inst.isOutsideLoop) {
+            try {
+                if (inst.source) {
+                    inst.source.stop();
+                    inst.source.disconnect();
+                }
+            } catch(e) {}
+        } else {
+            remaining.push(inst);
+        }
+    });
+    activeSfxInstances = remaining;
+    if (activeSfxInstances.length === 0) {
+        updateSfxTestButtonState(false);
+    }
+}
+
+function stopAllSfxAudio() {
+    activeSfxInstances.forEach(inst => {
+        try {
+            if (inst.source) {
+                inst.source.stop();
+                inst.source.disconnect();
+            }
+        } catch(e) {}
+    });
+    activeSfxInstances = [];
+    if (typeof outsideLoopTriggeredAudioGroups !== 'undefined' && outsideLoopTriggeredAudioGroups) {
+        outsideLoopTriggeredAudioGroups.clear();
+    }
+    updateSfxTestButtonState(false);
+}
+
+function updateSfxTestButtonState(isPlaying) {
+    const btnText = document.getElementById('sfx-test-btn-text');
+    const btnIcon = document.getElementById('sfx-test-btn-icon');
+    const btn = document.getElementById('sfx-test-play-btn');
+    if (btnText && btnIcon) {
+        if (isPlaying) {
+            btnText.innerText = "Dừng phát âm thanh";
+            btnIcon.setAttribute('data-lucide', 'square');
+            if (btn) btn.className = "w-full py-1.5 px-3 bg-rose-700 hover:bg-rose-600 text-white font-extrabold rounded-lg text-xs flex items-center justify-center space-x-1.5 shadow active:scale-95 transition cursor-pointer";
+        } else {
+            btnText.innerText = "Nghe thử âm thanh này";
+            btnIcon.setAttribute('data-lucide', 'play');
+            if (btn) btn.className = "w-full py-1.5 px-3 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 text-white font-extrabold rounded-lg text-xs flex items-center justify-center space-x-1.5 shadow active:scale-95 transition cursor-pointer";
+        }
+        if (window.lucide && lucide.createIcons) lucide.createIcons();
+    }
+}
+
+function safeDecodeAudioData(audioCtx, arrayBuffer) {
     return new Promise((resolve, reject) => {
         try {
-            const binaryString = atob(base64Str.split(',')[1] || base64Str);
+            if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+                return reject(new Error("ArrayBuffer rỗng"));
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume().catch(() => {});
+            }
+            const bufCopy = arrayBuffer.slice(0);
+            let settled = false;
+            const onOk = (buf) => {
+                if (!settled) {
+                    settled = true;
+                    resolve(buf);
+                }
+            };
+            const onFail = (err) => {
+                if (!settled) {
+                    settled = true;
+                    reject(err || new Error("decodeAudioData failed"));
+                }
+            };
+
+            const p = audioCtx.decodeAudioData(bufCopy, onOk, onFail);
+            if (p && typeof p.then === 'function') {
+                p.then(onOk).catch(onFail);
+            }
+        } catch (e) {
+            reject(e);
+        }
+    });
+}
+
+function fallbackDecodeBase64(base64Str, audioCtx) {
+    return new Promise((resolve, reject) => {
+        try {
+            const rawStr = base64Str.indexOf(',') !== -1 ? base64Str.split(',')[1] : base64Str;
+            const binaryString = atob(rawStr);
             const len = binaryString.length;
             const bytes = new Uint8Array(len);
             for (let i = 0; i < len; i++) {
                 bytes[i] = binaryString.charCodeAt(i);
             }
-            audioCtx.decodeAudioData(bytes.buffer, resolve, reject);
+            safeDecodeAudioData(audioCtx, bytes.buffer).then(resolve).catch(reject);
         } catch (err) {
+            console.error("Lỗi fallback decodeBase64:", err);
             reject(err);
         }
     });
 }
 
-function playSfxItem(item, callback) {
+function decodeBase64AudioToBuffer(base64Str, audioCtx) {
+    return new Promise((resolve, reject) => {
+        if (!base64Str) {
+            return reject(new Error("Dữ liệu âm thanh rỗng"));
+        }
+        if (!audioCtx) {
+            audioCtx = getSharedAudioContext();
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume().catch(() => {});
+        }
+
+        // Nếu truyền trực tiếp ArrayBuffer (từ File.arrayBuffer())
+        if (base64Str instanceof ArrayBuffer) {
+            return safeDecodeAudioData(audioCtx, base64Str).then(resolve).catch(reject);
+        }
+
+        // Nếu là Data URL, trình duyệt xử lý native C++ giải mã nhanh hơn gấp 10 lần atob
+        if (typeof base64Str === 'string' && base64Str.startsWith('data:')) {
+            fetch(base64Str)
+                .then(res => res.arrayBuffer())
+                .then(arrBuf => safeDecodeAudioData(audioCtx, arrBuf))
+                .then(resolve)
+                .catch(() => {
+                    fallbackDecodeBase64(base64Str, audioCtx).then(resolve).catch(reject);
+                });
+            return;
+        }
+
+        fallbackDecodeBase64(base64Str, audioCtx).then(resolve).catch(reject);
+    });
+}
+
+function getCachedAudioBuffer(item) {
+    if (!item) return null;
+    if (typeof runtimeAudioBufferCache !== 'undefined' && runtimeAudioBufferCache) {
+        if (item.customAudioData && runtimeAudioBufferCache.has(item.customAudioData)) {
+            return runtimeAudioBufferCache.get(item.customAudioData);
+        }
+    }
+    return null;
+}
+
+function setCachedAudioBuffer(item, buf) {
+    if (!item || !buf) return;
+    if (typeof runtimeAudioBufferCache !== 'undefined' && runtimeAudioBufferCache) {
+        if (item.customAudioData) {
+            runtimeAudioBufferCache.set(item.customAudioData, buf);
+        }
+    }
+    item.customAudioDuration = buf.duration;
+}
+
+function preloadAllCustomAudioBuffers() {
+    const audioCtx = getSharedAudioContext();
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+    }
+    const promises = [];
+    if (typeof paragraphGridConfig !== 'undefined' && Array.isArray(paragraphGridConfig.groups)) {
+        paragraphGridConfig.groups.forEach(grp => {
+            (grp.fields || []).forEach(f => {
+                if (f.type === 'audio_sfx' && f.soundType === 'custom' && f.customAudioData) {
+                    const existingBuf = getCachedAudioBuffer(f);
+                    if (!existingBuf) {
+                        const p = decodeBase64AudioToBuffer(f.customAudioData, audioCtx)
+                            .then(buf => {
+                                setCachedAudioBuffer(f, buf);
+                            })
+                            .catch(err => {
+                                console.warn("Không thể giải mã trước audio buffer:", f.customAudioName, err);
+                            });
+                        promises.push(p);
+                    }
+                }
+            });
+        });
+    }
+    return Promise.all(promises);
+}
+
+function playSfxItem(item, callback, isOutsideLoop = false) {
     if (!item) {
         if (callback) callback();
         return;
@@ -736,11 +967,13 @@ function playSfxItem(item, callback) {
 
     try {
         const audioCtx = getSharedAudioContext();
-        const baseVolume = (item.volume !== undefined ? item.volume : 80) / 100;
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume().catch(() => {});
+        }
 
-        // Cơ chế Ducking: Nếu TTS đang đọc thì tự động giảm âm lượng SFX xuống 25%
-        const isDucking = (item.ducking !== false) && (currentPlayingAudioSource !== null);
-        const effectiveVol = isDucking ? (baseVolume * 0.25) : baseVolume;
+        const baseVolume = (item.volume !== undefined ? item.volume : 80) / 100;
+        const isDucking = item.ducking !== false;
+        const initialVol = (isDucking && isTtsAudioSpeaking) ? (baseVolume * 0.2) : baseVolume;
 
         const handleBufferPlayback = (buffer) => {
             if (!buffer) {
@@ -750,9 +983,13 @@ function playSfxItem(item, callback) {
 
             const source = audioCtx.createBufferSource();
             source.buffer = buffer;
+            // Với nhạc nền ngoài vòng lặp: cho phép lặp liên tục nếu file ngắn hơn video
+            if (isOutsideLoop && item.loop !== false) {
+                source.loop = true;
+            }
 
             const gainNode = audioCtx.createGain();
-            gainNode.gain.setValueAtTime(effectiveVol, audioCtx.currentTime);
+            gainNode.gain.setValueAtTime(initialVol, audioCtx.currentTime);
 
             source.connect(gainNode);
             gainNode.connect(audioCtx.destination);
@@ -763,7 +1000,23 @@ function playSfxItem(item, callback) {
                 } catch(e) {}
             }
 
+            const inst = {
+                item,
+                source,
+                gainNode,
+                baseVolume,
+                isDucking,
+                isOutsideLoop: !!isOutsideLoop
+            };
+            activeSfxInstances.push(inst);
+            updateSfxTestButtonState(true);
+
             source.onended = () => {
+                const idx = activeSfxInstances.indexOf(inst);
+                if (idx !== -1) activeSfxInstances.splice(idx, 1);
+                if (activeSfxInstances.length === 0) {
+                    updateSfxTestButtonState(false);
+                }
                 if (callback) callback();
             };
 
@@ -782,12 +1035,20 @@ function playSfxItem(item, callback) {
         };
 
         if (item.soundType === 'custom' && item.customAudioData) {
-            decodeBase64AudioToBuffer(item.customAudioData, audioCtx)
-                .then(handleBufferPlayback)
-                .catch(() => {
-                    const fallbackBuffer = generateSynthesizedSfxBuffer('ding', audioCtx);
-                    handleBufferPlayback(fallbackBuffer);
-                });
+            const cachedBuf = getCachedAudioBuffer(item);
+            if (cachedBuf) {
+                handleBufferPlayback(cachedBuf);
+            } else {
+                decodeBase64AudioToBuffer(item.customAudioData, audioCtx)
+                    .then(buf => {
+                        setCachedAudioBuffer(item, buf);
+                        handleBufferPlayback(buf);
+                    })
+                    .catch(() => {
+                        const fallbackBuffer = generateSynthesizedSfxBuffer('ding', audioCtx);
+                        handleBufferPlayback(fallbackBuffer);
+                    });
+            }
         } else {
             const synthBuffer = generateSynthesizedSfxBuffer(item.soundType || 'ding', audioCtx);
             handleBufferPlayback(synthBuffer);
@@ -799,9 +1060,32 @@ function playSfxItem(item, callback) {
 }
 
 function testPlayAudioSfx(gIdx, fIdx) {
+    if (activeSfxInstances.length > 0) {
+        stopAllSfxAudio();
+        showToast("Đã dừng phát âm thanh.");
+        return;
+    }
     const grp = paragraphGridConfig.groups[gIdx];
     if (!grp || !grp.fields[fIdx]) return;
     const item = grp.fields[fIdx];
     playSfxItem(item);
-    showToast(`Đang nghe thử: ${item.customAudioName || item.soundType || 'Ting Ting'}!`);
+    showToast(`Đang nghe thử: ${item.customAudioName || item.soundType || 'Ting Ting'} (Âm lượng ${item.volume !== undefined ? item.volume : 80}%)!`);
+}
+
+function testPlayAudioSfxWithDucking(gIdx, fIdx) {
+    stopAllSfxAudio();
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (!grp || !grp.fields[fIdx]) return;
+    const item = grp.fields[fIdx];
+
+    // Phát âm thanh SFX
+    playSfxItem(item);
+    showToast("Đang phát SFX, giọng đọc AI sẽ cất tiếng sau 0.5s để thử tính năng Né Tiếng...");
+
+    // Kích hoạt giọng đọc AI sau 500ms để người dùng nghe rõ âm lượng SFX tự hạ xuống rồi tự tăng lại
+    setTimeout(() => {
+        speakTTS("EngSpur Studio. Testing smart audio ducking.", () => {
+            showToast("Giọng đọc kết thúc. SFX đã tự khôi phục âm lượng ban đầu!", "success");
+        });
+    }, 500);
 }

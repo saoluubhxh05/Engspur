@@ -345,6 +345,15 @@ async function runCurrentBatchQueueItem() {
         await prepareTopicEdgeTtsAudios(currentItem.topic, currentItem.groupMode || 'topic');
     }
 
+    // Tải trước và giải mã 100% các file âm thanh riêng vào buffer để âm thanh khớp chuẩn 100% không độ trễ
+    if (typeof preloadAllCustomAudioBuffers === 'function') {
+        await preloadAllCustomAudioBuffers();
+    }
+
+    if (typeof outsideLoopTriggeredAudioGroups !== 'undefined' && outsideLoopTriggeredAudioGroups) {
+        outsideLoopTriggeredAudioGroups.clear();
+    }
+
     // Đảm bảo audio track phòng thu luôn tươi mới cho từng bài học
     try {
         const audioCtx = (typeof getSharedAudioContext === 'function') ? getSharedAudioContext() : new (window.AudioContext || window.webkitAudioContext)();

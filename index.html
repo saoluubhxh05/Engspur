@@ -700,29 +700,53 @@
                             <span>+ Thêm Lớp</span>
                             <i data-lucide="chevron-down" class="w-2.5 h-2.5 opacity-80"></i>
                         </button>
-                        <div id="add-layer-dropdown-menu" class="hidden absolute right-0 mt-1.5 w-64 rounded-xl bg-slate-900 border border-slate-700/80 shadow-2xl z-50 p-1.5 space-y-1 text-left backdrop-blur-md">
-                            <button onclick="selectAddLayerType(true)" class="w-full text-left p-2 rounded-lg hover:bg-teal-950/70 border border-transparent hover:border-teal-700/50 transition flex items-start space-x-2.5 group cursor-pointer">
+                        <div id="add-layer-dropdown-menu" class="hidden absolute right-0 mt-1.5 w-72 rounded-xl bg-slate-900 border border-slate-700/80 shadow-2xl z-50 p-1.5 space-y-1 text-left backdrop-blur-md">
+                            <button onclick="selectAddLayerType('before')" class="w-full text-left p-2 rounded-lg hover:bg-blue-950/70 border border-transparent hover:border-blue-700/50 transition flex items-start space-x-2.5 group cursor-pointer">
+                                <div class="p-1 rounded bg-blue-500/20 text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition mt-0.5 shrink-0">
+                                    <i data-lucide="arrow-left-to-line" class="w-3.5 h-3.5"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-[11px] font-bold text-blue-300 group-hover:text-white flex items-center justify-between">
+                                        <span>Trước vòng lặp</span>
+                                        <span class="text-[8px] bg-blue-900/60 text-blue-300 px-1 rounded">Intro / Mở đầu</span>
+                                    </div>
+                                    <div class="text-[9px] text-slate-400 leading-tight mt-0.5">Tiêu đề, lời chào, giới thiệu trước khi lặp</div>
+                                </div>
+                            </button>
+                            <button onclick="selectAddLayerType('inside')" class="w-full text-left p-2 rounded-lg hover:bg-teal-950/70 border border-transparent hover:border-teal-700/50 transition flex items-start space-x-2.5 group cursor-pointer">
                                 <div class="p-1 rounded bg-teal-500/20 text-teal-400 group-hover:bg-teal-500 group-hover:text-white transition mt-0.5 shrink-0">
                                     <i data-lucide="repeat" class="w-3.5 h-3.5"></i>
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <div class="text-[11px] font-bold text-teal-300 group-hover:text-white flex items-center justify-between">
                                         <span>Trong vòng lặp</span>
-                                        <span class="text-[8px] bg-teal-900/60 text-teal-300 px-1 rounded">Drills</span>
+                                        <span class="text-[8px] bg-teal-900/60 text-teal-300 px-1 rounded">Drills / Từng câu</span>
                                     </div>
-                                    <div class="text-[9px] text-slate-400 leading-tight mt-0.5">Lặp theo từng câu/mẫu câu của chủ đề</div>
+                                    <div class="text-[9px] text-slate-400 leading-tight mt-0.5">Lặp theo từng câu/mẫu câu của bài học</div>
                                 </div>
                             </button>
-                            <button onclick="selectAddLayerType(false)" class="w-full text-left p-2 rounded-lg hover:bg-amber-950/70 border border-transparent hover:border-amber-700/50 transition flex items-start space-x-2.5 group cursor-pointer">
+                            <button onclick="selectAddLayerType('after')" class="w-full text-left p-2 rounded-lg hover:bg-purple-950/70 border border-transparent hover:border-purple-700/50 transition flex items-start space-x-2.5 group cursor-pointer">
+                                <div class="p-1 rounded bg-purple-500/20 text-purple-400 group-hover:bg-purple-500 group-hover:text-white transition mt-0.5 shrink-0">
+                                    <i data-lucide="arrow-right-to-line" class="w-3.5 h-3.5"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-[11px] font-bold text-purple-300 group-hover:text-white flex items-center justify-between">
+                                        <span>Sau vòng lặp</span>
+                                        <span class="text-[8px] bg-purple-900/60 text-purple-300 px-1 rounded">Outro / Kết bài</span>
+                                    </div>
+                                    <div class="text-[9px] text-slate-400 leading-tight mt-0.5">Lời cảm ơn, subscribe, phần kết sau các câu</div>
+                                </div>
+                            </button>
+                            <button onclick="selectAddLayerType('outside')" class="w-full text-left p-2 rounded-lg hover:bg-amber-950/70 border border-transparent hover:border-amber-700/50 transition flex items-start space-x-2.5 group cursor-pointer">
                                 <div class="p-1 rounded bg-amber-500/20 text-amber-400 group-hover:bg-amber-500 group-hover:text-white transition mt-0.5 shrink-0">
                                     <i data-lucide="pin" class="w-3.5 h-3.5"></i>
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <div class="text-[11px] font-bold text-amber-300 group-hover:text-white flex items-center justify-between">
-                                        <span>Ngoài vòng lặp</span>
-                                        <span class="text-[8px] bg-amber-900/60 text-amber-300 px-1 rounded">Cố định</span>
+                                        <span>Cố định toàn video</span>
+                                        <span class="text-[8px] bg-amber-900/60 text-amber-300 px-1 rounded">Xuyên suốt</span>
                                     </div>
-                                    <div class="text-[9px] text-slate-400 leading-tight mt-0.5">Cố định toàn video (Tiêu đề, Header, Khung cố định)</div>
+                                    <div class="text-[9px] text-slate-400 leading-tight mt-0.5">Cố định toàn video (Header, Logo, Nhạc nền)</div>
                                 </div>
                             </button>
                         </div>
@@ -796,8 +820,9 @@
                             <span>Chế Độ Trình Chiếu:</span>
                         </span>
                         <div class="flex bg-slate-900 p-0.5 rounded-lg border border-slate-800 text-[9px] font-bold">
-                            <button id="loop-mode-single-btn" onclick="setLoopPresentationMode('single')" class="px-2 py-0.5 rounded transition text-slate-400">1 Câu / Làm mới</button>
-                            <button id="loop-mode-stack-btn" onclick="setLoopPresentationMode('stack')" class="px-2 py-0.5 rounded transition bg-indigo-600 text-white shadow">Xếp tầng</button>
+                            <button id="loop-mode-single-btn" onclick="setLoopPresentationMode('single')" class="px-2 py-0.5 rounded transition text-slate-400 hover:text-white" title="Mỗi lượt chỉ hiển thị 1 câu, qua câu mới làm mới khung hình">1 Câu / Làm mới</button>
+                            <button id="loop-mode-stack-btn" onclick="setLoopPresentationMode('stack')" class="px-2 py-0.5 rounded transition bg-indigo-600 text-white shadow" title="Hiện câu hiện tại kèm giữ lại các câu trước xếp chồng nối tiếp">Xếp tầng</button>
+                            <button id="loop-mode-all-btn" onclick="setLoopPresentationMode('all')" class="px-2 py-0.5 rounded transition text-slate-400 hover:text-white" title="Hiển thị tất cả các dòng/câu cùng một lúc ngay từ đầu">Hiện tất cả dòng</button>
                         </div>
                     </div>
                     
@@ -1071,7 +1096,7 @@
 
     <!-- FOOTER NHỎ GỌN -->
     <footer class="bg-slate-900/95 text-slate-400 text-[10px] py-1.5 px-3 border-t border-slate-800 flex items-center justify-between shrink-0">
-        <span>EngSpur Studio v13.3 • Multi-Chain Batch Pipeline & Smart File Naming</span>
+        <span>EngSpur Studio v13.7 • Lớp Trước/Sau Vòng Lặp & Gộp Cột & Hiện Tất Cả Dòng</span>
         <span>Kiến trúc Web Đa Tệp Hoàn Chỉnh (ARCHITECTURE.md)</span>
     </footer>
 

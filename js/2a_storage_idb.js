@@ -72,6 +72,22 @@ function updateAutoSaveStatusBadge(text) {
     }
 }
 
+function cleanStateForStorage(obj) {
+    if (!obj || typeof obj !== 'object') return obj;
+    try {
+        return JSON.parse(JSON.stringify(obj, (key, value) => {
+            // Loại bỏ các thuộc tính nội bộ hoặc đối tượng không tuần tự hóa được
+            if (key.startsWith('_') && key.includes('Buffer')) return undefined;
+            if (value instanceof AudioBuffer) return undefined;
+            if (value instanceof AudioContext || value instanceof BaseAudioContext) return undefined;
+            if (value instanceof AudioNode) return undefined;
+            return value;
+        }));
+    } catch (e) {
+        return obj;
+    }
+}
+
 async function saveFullSystemState(showToastMsg = true) {
     if (isAutoSaving) return;
     isAutoSaving = true;
@@ -80,7 +96,7 @@ async function saveFullSystemState(showToastMsg = true) {
         const namingPattern = document.getElementById('batch-naming-pattern-input')?.value || '{stt}-[{script}]-[{topic}]';
         const separateOutputType = document.getElementById('batch-separate-output-type')?.value || 'per_script';
 
-        const state = {
+        const rawState = {
             importedDatasets,
             excelColumnsList,
             videoConfig,
@@ -104,6 +120,7 @@ async function saveFullSystemState(showToastMsg = true) {
             batchDirectoryHandle: batchDirectoryHandle || null,
             batchDirectoryName: batchDirectoryName || ''
         };
+        const state = cleanStateForStorage(rawState);
         await idbSet("saved_state", state);
         updateAutoSaveStatusBadge("Đã tự động lưu");
         if (showToastMsg) {

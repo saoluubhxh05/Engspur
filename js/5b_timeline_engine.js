@@ -13,6 +13,14 @@ function toggleTimelinePlayback() {
     const icon = document.getElementById('timeline-play-icon');
 
     if (isTimelinePlaying) {
+        const audioCtx = (typeof getSharedAudioContext === 'function') ? getSharedAudioContext() : null;
+        if (audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume().catch(() => {});
+        }
+        if (typeof preloadAllCustomAudioBuffers === 'function') {
+            preloadAllCustomAudioBuffers();
+        }
+
         isSingleSentencePreview = true;
         if (icon) icon.setAttribute('data-lucide', 'pause');
         activePlayingAudioGroupIdx = -1;
@@ -24,6 +32,7 @@ function toggleTimelinePlayback() {
         if (icon) icon.setAttribute('data-lucide', 'play');
         if (timelinePlayAnimFrame) cancelAnimationFrame(timelinePlayAnimFrame);
         if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        if (typeof stopAllSfxAudio === 'function') stopAllSfxAudio();
         activePlayingAudioGroupIdx = -1;
         const statusBadge = document.getElementById('p-status-badge-text');
         if (statusBadge) statusBadge.innerText = "Trạng thái: Đã tạm dừng!";
@@ -100,10 +109,27 @@ function checkAndTriggerTimelineAudio(curTime) {
     const isOutsideOnly = (typeof isBatchRunning !== 'undefined' && isBatchRunning && typeof batchRenderQueue !== 'undefined' && batchRenderQueue[currentBatchQueueIndex] && batchRenderQueue[currentBatchQueueIndex].isOutsideLoopOnly) || (typeof isStaticOutsideLoopRunning !== 'undefined' && isStaticOutsideLoopRunning);
 
     paragraphGridConfig.groups.forEach((grp, gIdx) => {
-        if (isOutsideOnly && grp.isInsideLoop !== false) return;
+        const grpPos = grp.loopPosition || (grp.isInsideLoop === false ? 'outside' : 'inside');
+        const isInside = (grpPos === 'inside');
+
+        if (isOutsideOnly && isInside) return;
+        if (isParagraphRunning) {
+            let activeTopicList = getParagraphFilteredDatasets();
+            const totalSentences = (activeTopicList && activeTopicList.length > 0) ? activeTopicList.length : 1;
+            if (grpPos === 'before' && pCurrentSentenceIndex > 0) return;
+            if (grpPos === 'after' && pCurrentSentenceIndex < totalSentences - 1) return;
+        }
+
         const start = grp.startTime || 0;
-        // Kích hoạt chuẩn xác khi playhead chạm tới mốc bắt đầu layer và chưa từng trigger trong câu này
-        const isAlreadyTriggered = currentSentenceTriggeredAudioGroups ? currentSentenceTriggeredAudioGroups.has(gIdx) : (activePlayingAudioGroupIdx === gIdx);
+        const isOutsideLoop = !isInside;
+
+        // Kích hoạt chuẩn xác:
+        // - Với lớp Ngoài vòng lặp (BGM / Intro / Outro): kiểm tra outsideLoopTriggeredAudioGroups (không bị lặp lại mỗi câu)
+        // - Với lớp Trong vòng lặp: kiểm tra currentSentenceTriggeredAudioGroups (mỗi câu trigger 1 lần khi playhead chạm tới)
+        const isAlreadyTriggered = isOutsideLoop
+            ? (typeof outsideLoopTriggeredAudioGroups !== 'undefined' && outsideLoopTriggeredAudioGroups ? outsideLoopTriggeredAudioGroups.has(gIdx) : false)
+            : (currentSentenceTriggeredAudioGroups ? currentSentenceTriggeredAudioGroups.has(gIdx) : (activePlayingAudioGroupIdx === gIdx));
+
         if (curTime >= start && !isAlreadyTriggered) {
             // Khi đang ở pha quay bản Clean (Render Kép pha 2): tuyệt đối không phát âm thanh để tiết kiệm tài nguyên
             if (isBatchRunning && typeof batchCurrentSubPhase !== 'undefined' && batchCurrentSubPhase === 'clean') {
@@ -125,7 +151,11 @@ function checkAndTriggerTimelineAudio(curTime) {
 
             const ttsItem = (grp.fields || []).find(f => f.type === 'tts');
             if (ttsItem) {
-                if (currentSentenceTriggeredAudioGroups) currentSentenceTriggeredAudioGroups.add(gIdx);
+                if (isOutsideLoop) {
+                    if (typeof outsideLoopTriggeredAudioGroups !== 'undefined' && outsideLoopTriggeredAudioGroups) outsideLoopTriggeredAudioGroups.add(gIdx);
+                } else {
+                    if (currentSentenceTriggeredAudioGroups) currentSentenceTriggeredAudioGroups.add(gIdx);
+                }
                 activePlayingAudioGroupIdx = gIdx;
                 let textToRead = "";
                 if (ttsItem.sourceMode === 'custom') {
@@ -145,9 +175,13 @@ function checkAndTriggerTimelineAudio(curTime) {
 
             const sfxItem = (grp.fields || []).find(f => f.type === 'audio_sfx');
             if (sfxItem) {
-                if (currentSentenceTriggeredAudioGroups) currentSentenceTriggeredAudioGroups.add(gIdx);
+                if (isOutsideLoop) {
+                    if (typeof outsideLoopTriggeredAudioGroups !== 'undefined' && outsideLoopTriggeredAudioGroups) outsideLoopTriggeredAudioGroups.add(gIdx);
+                } else {
+                    if (currentSentenceTriggeredAudioGroups) currentSentenceTriggeredAudioGroups.add(gIdx);
+                }
                 if (typeof playSfxItem === 'function') {
-                    playSfxItem(sfxItem);
+                    playSfxItem(sfxItem, null, isOutsideLoop);
                 }
             }
         }
@@ -158,11 +192,22 @@ function togglePreviewAllPlayback() {
     const btnIcon = document.getElementById('p-preview-btn-icon');
     const btnText = document.getElementById('p-preview-btn-text');
 
+    const audioCtx = (typeof getSharedAudioContext === 'function') ? getSharedAudioContext() : null;
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+    }
+    if (typeof preloadAllCustomAudioBuffers === 'function') {
+        preloadAllCustomAudioBuffers();
+    }
+
     if (!isParagraphRunning) {
         isParagraphRunning = true;
         isParagraphPaused = false;
         pCurrentSentenceIndex = 0;
         currentTimelinePlayTime = 0.0;
+        if (typeof outsideLoopTriggeredAudioGroups !== 'undefined' && outsideLoopTriggeredAudioGroups) {
+            outsideLoopTriggeredAudioGroups.clear();
+        }
         if (btnIcon) btnIcon.setAttribute('data-lucide', 'pause-circle');
         if (btnText) btnText.innerText = "Tạm Dừng Chạy Thử";
         const statusBadge = document.getElementById('p-status-badge-text');
@@ -172,6 +217,9 @@ function togglePreviewAllPlayback() {
     } else if (isParagraphRunning && !isParagraphPaused) {
         isParagraphPaused = true;
         if ('speechSynthesis' in window) window.speechSynthesis.pause();
+        if (audioCtx && audioCtx.state === 'running') {
+            audioCtx.suspend().catch(() => {});
+        }
         stopStudioRenderClock();
         if (pRenderTimer) cancelAnimationFrame(pRenderTimer);
         if (btnIcon) btnIcon.setAttribute('data-lucide', 'play-circle');
@@ -183,6 +231,9 @@ function togglePreviewAllPlayback() {
     } else if (isParagraphRunning && isParagraphPaused) {
         isParagraphPaused = false;
         if ('speechSynthesis' in window) window.speechSynthesis.resume();
+        if (audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume().catch(() => {});
+        }
         if (btnIcon) btnIcon.setAttribute('data-lucide', 'pause-circle');
         if (btnText) btnText.innerText = "Tạm Dừng Chạy Thử";
         const statusBadge = document.getElementById('p-status-badge-text');
@@ -224,6 +275,7 @@ function runUnifiedSentenceSequence() {
     updateParagraphProgressBar();
     activePlayingAudioGroupIdx = -1;
     if (currentSentenceTriggeredAudioGroups) currentSentenceTriggeredAudioGroups.clear();
+    if (typeof stopInsideLoopSfxAudio === 'function') stopInsideLoopSfxAudio();
 
     // Ghi nhận mốc thời gian bắt đầu câu thực tế cho Báo cáo Sheet 2 của Batch Render
     if (isBatchRunning && batchCurrentVideoStartTime > 0) {
@@ -398,6 +450,10 @@ function finishParagraphExport() {
 
             isParagraphRunning = false;
             isParagraphPaused = false;
+            if (typeof stopAllSfxAudio === 'function') stopAllSfxAudio();
+            if (typeof outsideLoopTriggeredAudioGroups !== 'undefined' && outsideLoopTriggeredAudioGroups) {
+                outsideLoopTriggeredAudioGroups.clear();
+            }
             const btnIcon = document.getElementById('p-preview-btn-icon');
             const btnText = document.getElementById('p-preview-btn-text');
             if (btnIcon) btnIcon.setAttribute('data-lucide', 'play-circle');
@@ -426,6 +482,10 @@ function resetParagraphEngine() {
     activePlayingAudioGroupIdx = -1;
 
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    if (typeof stopAllSfxAudio === 'function') stopAllSfxAudio();
+    if (typeof outsideLoopTriggeredAudioGroups !== 'undefined' && outsideLoopTriggeredAudioGroups) {
+        outsideLoopTriggeredAudioGroups.clear();
+    }
     stopStudioRenderClock();
     if (pRenderTimer) cancelAnimationFrame(pRenderTimer);
     if (timelinePlayAnimFrame) cancelAnimationFrame(timelinePlayAnimFrame);

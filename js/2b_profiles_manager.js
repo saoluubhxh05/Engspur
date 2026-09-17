@@ -240,27 +240,29 @@ function setLoopPresentationMode(mode) {
     paragraphGridConfig.presentationMode = mode;
     updateLoopPresentationModeUI();
     drawParagraphCanvasFrame();
-    showToast(mode === 'single' ? "Đã chuyển sang chế độ 1 Câu / Làm mới" : "Đã chuyển sang chế độ Xếp tầng");
+    let label = "Đã chuyển sang chế độ Xếp tầng";
+    if (mode === 'single') label = "Đã chuyển sang chế độ 1 Câu / Làm mới";
+    else if (mode === 'all') label = "Đã chuyển sang chế độ Hiện tất cả dòng cùng 1 lúc";
+    showToast(label);
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
 }
 
 function updateLoopPresentationModeUI() {
     const btnSingle = document.getElementById('loop-mode-single-btn');
     const btnStack = document.getElementById('loop-mode-stack-btn');
+    const btnAll = document.getElementById('loop-mode-all-btn');
     const selectFormula = document.getElementById('loop-stack-formula-select');
-    const isSingle = (paragraphGridConfig.presentationMode === 'single');
+    const mode = paragraphGridConfig.presentationMode || 'stack';
 
-    if (btnSingle && btnStack) {
-        if (isSingle) {
-            btnSingle.className = "px-2 py-0.5 rounded transition bg-indigo-600 text-white shadow";
-            btnStack.className = "px-2 py-0.5 rounded transition text-slate-400 hover:text-white";
-        } else {
-            btnStack.className = "px-2 py-0.5 rounded transition bg-indigo-600 text-white shadow";
-            btnSingle.className = "px-2 py-0.5 rounded transition text-slate-400 hover:text-white";
-        }
-    }
+    const activeClass = "px-2 py-0.5 rounded transition bg-indigo-600 text-white shadow font-bold";
+    const inactiveClass = "px-2 py-0.5 rounded transition text-slate-400 hover:text-white";
+
+    if (btnSingle) btnSingle.className = (mode === 'single') ? activeClass : inactiveClass;
+    if (btnStack) btnStack.className = (mode === 'stack') ? activeClass : inactiveClass;
+    if (btnAll) btnAll.className = (mode === 'all') ? activeClass : inactiveClass;
 
     if (selectFormula) {
-        selectFormula.value = paragraphGridConfig.stackingFormula || (isSingle ? "0" : "auto");
+        selectFormula.value = paragraphGridConfig.stackingFormula || (mode === 'single' ? "0" : "auto");
     }
 }
 
