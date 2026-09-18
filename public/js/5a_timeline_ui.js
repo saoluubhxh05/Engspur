@@ -1,18 +1,180 @@
 /**
  * 5a_timeline_ui.js
- * Giao diện trục thời gian Timeline: vẽ tracks, thước đo (ruler), kéo thả di chuyển/đổi thời lượng ray
+ * Giao diện trục thời gian Timeline: vẽ tracks, thước đo (ruler), kéo thả di chuyển/đổi thời lượng ray,
+ * khóa ranh giới từng phân khu (Intro, Drills, Outro, Cố định) và chỉnh sửa thời lượng từng khu trực tiếp.
  */
+
+function updateTimelineZonesBarUI() {
+    if (typeof getZoneDurations !== 'function') return;
+    const zones = getZoneDurations();
+
+    const segIntro = document.getElementById('zone-segment-intro');
+    const segDrills = document.getElementById('zone-segment-drills');
+    const segOutro = document.getElementById('zone-segment-outro');
+    const zonesBar = document.getElementById('timeline-zones-bar');
+    if (!zonesBar) return;
+
+    // Kiểm tra xem phân khu nào có lớp
+    const hasIntro = typeof hasZoneLayers === 'function' ? hasZoneLayers('intro') : true;
+    const hasDrills = typeof hasZoneLayers === 'function' ? hasZoneLayers('drills') : true;
+    const hasOutro = typeof hasZoneLayers === 'function' ? hasZoneLayers('outro') : true;
+
+    // Trên timeline, phân khu nào không có lớp thì KHÔNG HIỆN RA
+    if (segIntro) segIntro.style.display = hasIntro ? 'flex' : 'none';
+    if (segDrills) segDrills.style.display = hasDrills ? 'flex' : 'none';
+    if (segOutro) segOutro.style.display = hasOutro ? 'flex' : 'none';
+
+    // Tập hợp các phân khu đang được hiển thị
+    const activeSegments = [];
+    if (hasIntro && segIntro) {
+        activeSegments.push({ key: 'intro', el: segIntro, dur: zones.intro || 2.0 });
+    }
+    if (hasDrills && segDrills) {
+        const drillsDur = (!hasIntro && !hasOutro) 
+            ? (typeof masterTimelineDuration === 'number' && masterTimelineDuration > 0 ? masterTimelineDuration : 8.0) 
+            : (zones.drills || 4.5);
+        activeSegments.push({ key: 'drills', el: segDrills, dur: drillsDur });
+    }
+    if (hasOutro && segOutro) {
+        activeSegments.push({ key: 'outro', el: segOutro, dur: zones.outro || 1.5 });
+    }
+
+    if (activeSegments.length === 0) {
+        zonesBar.style.display = 'none';
+    } else {
+        zonesBar.style.display = 'flex';
+
+        if (activeSegments.length === 1) {
+            activeSegments[0].el.style.width = '100%';
+            activeSegments[0].el.classList.remove('border-r');
+        } else {
+            const totalDur = activeSegments.reduce((sum, s) => sum + s.dur, 0);
+            let accumulatedPct = 0;
+            activeSegments.forEach((segObj, idx) => {
+                const isLast = (idx === activeSegments.length - 1);
+                let pct = isLast ? Math.max(5, 100 - accumulatedPct) : ((segObj.dur / totalDur) * 100);
+                pct = Math.max(5, Math.min(100, pct));
+                accumulatedPct += pct;
+
+                segObj.el.style.width = `${pct.toFixed(2)}%`;
+
+                if (isLast) {
+                    segObj.el.classList.remove('border-r');
+                } else {
+                    segObj.el.classList.add('border-r');
+                }
+            });
+        }
+    }
+
+    const inpIntro = document.getElementById('zone-duration-input-intro');
+    const inpDrills = document.getElementById('zone-duration-input-drills');
+    const inpOutro = document.getElementById('zone-duration-input-outro');
+
+    if (inpIntro && document.activeElement !== inpIntro) inpIntro.value = (zones.intro || 0).toFixed(1);
+    if (inpDrills && document.activeElement !== inpDrills) {
+        const drillsVal = (!hasIntro && !hasOutro) 
+            ? (typeof masterTimelineDuration === 'number' && masterTimelineDuration > 0 ? masterTimelineDuration : 8.0) 
+            : (zones.drills || 4.5);
+        inpDrills.value = drillsVal.toFixed(1);
+    }
+    if (inpOutro && document.activeElement !== inpOutro) inpOutro.value = (zones.outro || 0).toFixed(1);
+}
+
+function onZoneDurationInputChange(zoneKey, val) {
+    const num = parseFloat(val);
+    if (isNaN(num) || num < 0) {
+        showToast("Vui lòng nhập số giây hợp lệ (>= 0)!", "warning");
+        updateTimelineZonesBarUI();
+        return;
+    }
+    updateZoneDuration(zoneKey, num);
+}
+
+function updateZoneDuration(zoneKey, newDuration) {
+    if (typeof getZoneDurations !== 'function') return;
+    const zones = getZoneDurations();
+    
+    if (zoneKey === 'intro') {
+        zones.intro = Math.max(0, Math.round(newDuration * 10) / 10);
+    } else if (zoneKey === 'drills') {
+        zones.drills = Math.max(0.5, Math.round(newDuration * 10) / 10);
+    } else if (zoneKey === 'outro') {
+        zones.outro = Math.max(0, Math.round(newDuration * 10) / 10);
+    }
+
+    paragraphGridConfig.zoneDurations = zones;
+
+    const hasIntro = typeof hasZoneLayers === 'function' ? hasZoneLayers('intro') : true;
+    const hasDrills = typeof hasZoneLayers === 'function' ? hasZoneLayers('drills') : true;
+    const hasOutro = typeof hasZoneLayers === 'function' ? hasZoneLayers('outro') : true;
+
+    // Tổng thời lượng được tính dựa trên các phân khu đang có lớp
+    let newTotal = 0;
+    if (hasIntro) newTotal += zones.intro;
+    if (hasDrills) newTotal += zones.drills;
+    if (hasOutro) newTotal += zones.outro;
+    if (newTotal <= 0) newTotal = masterTimelineDuration || 8.0;
+
+    masterTimelineDuration = Math.max(1.0, Math.round(newTotal * 10) / 10);
+
+    const masterInp = document.getElementById('master-loop-duration-input');
+    if (masterInp) masterInp.value = masterTimelineDuration.toFixed(1);
+
+    // Tự động giới hạn (clamp) các lớp thuộc các khu để không bị tràn ra ngoài ranh giới
+    paragraphGridConfig.groups.forEach(grp => {
+        const grpPos = typeof getGroupLoopPosition === 'function' ? getGroupLoopPosition(grp) : (grp.loopPosition || 'inside');
+        const bound = (typeof getZoneBoundary === 'function') ? getZoneBoundary(grpPos) : { start: 0, end: masterTimelineDuration };
+
+        if (grp.snapEndToTotalDuration) {
+            grp.startTime = Math.max(bound.start, Math.min(bound.end - 0.5, grp.startTime || 0));
+            grp.duration = Math.round(Math.max(0.5, bound.end - grp.startTime) * 10) / 10;
+        } else {
+            if ((grp.startTime || 0) < bound.start) grp.startTime = bound.start;
+            if ((grp.startTime || 0) >= bound.end) grp.startTime = Math.max(bound.start, bound.end - 0.5);
+            if (grp.startTime + (grp.duration || 1) > bound.end) {
+                grp.duration = Math.round(Math.max(0.5, bound.end - grp.startTime) * 10) / 10;
+            }
+        }
+    });
+
+    updateTimelineZonesBarUI();
+    renderTimelineTracksUI();
+    renderTimelineLayersListUI();
+    drawParagraphCanvasFrame();
+    showToast(`Đã chỉnh thời lượng ${zoneKey === 'intro' ? 'Khu 1 (Intro)' : (zoneKey === 'drills' ? 'Khu 2 (Drills)' : 'Khu 3 (Outro)')}: ${newDuration.toFixed(1)}s (Tổng: ${masterTimelineDuration.toFixed(1)}s)!`);
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
+}
 
 function updateMasterLoopDuration(val) {
     if (isNaN(val) || val <= 1) val = 8.0;
     masterTimelineDuration = val;
+
+    // Cập nhật lại thời lượng các khu cho vừa tổng thời lượng (chỉ xét các khu đang có lớp)
+    if (typeof getZoneDurations === 'function') {
+        const zones = getZoneDurations();
+        const hasIntro = typeof hasZoneLayers === 'function' ? hasZoneLayers('intro') : false;
+        const hasOutro = typeof hasZoneLayers === 'function' ? hasZoneLayers('outro') : false;
+        const activeIntro = hasIntro ? (zones.intro || 0) : 0;
+        const activeOutro = hasOutro ? (zones.outro || 0) : 0;
+        const remain = Math.max(0.5, masterTimelineDuration - activeIntro - activeOutro);
+        zones.drills = Math.round(remain * 10) / 10;
+        paragraphGridConfig.zoneDurations = zones;
+    }
+
     paragraphGridConfig.groups.forEach(g => {
+        const grpPos = typeof getGroupLoopPosition === 'function' ? getGroupLoopPosition(g) : (g.loopPosition || 'inside');
+        const bound = (typeof getZoneBoundary === 'function') ? getZoneBoundary(grpPos) : { start: 0, end: masterTimelineDuration };
+
         if (g.snapEndToTotalDuration) {
-            g.duration = Math.max(0.5, masterTimelineDuration - (g.startTime || 0));
-        } else if (g.startTime + g.duration > masterTimelineDuration) {
-            g.duration = Math.max(1, masterTimelineDuration - g.startTime);
+            g.startTime = Math.max(bound.start, Math.min(bound.end - 0.5, g.startTime || 0));
+            g.duration = Math.max(0.5, bound.end - g.startTime);
+        } else if (g.startTime + g.duration > bound.end) {
+            g.duration = Math.max(0.5, bound.end - g.startTime);
         }
     });
+
+    updateTimelineZonesBarUI();
     renderTimelineTracksUI();
     renderTimelineLayersListUI();
     seekTimeline(currentTimelinePlayTime);
@@ -108,10 +270,18 @@ function renderTimelineTracksUI() {
         trackRow.style.height = `${trackHeight}px`;
 
         const isAudio = typeof isAudioLayer === 'function' ? isAudioLayer(grp) : false;
-        const isInsideLoop = grp.isInsideLoop !== false;
-        const loopTag = isInsideLoop 
-            ? '' 
-            : `<span class="relative z-10 text-[7px] bg-amber-950/90 text-amber-300 border border-amber-600/70 px-1 py-0.2 rounded font-extrabold flex items-center space-x-0.5 shrink-0"><i data-lucide="pin" class="w-2 h-2"></i><span>Cố định</span></span>`;
+        const grpPos = typeof getGroupLoopPosition === 'function' ? getGroupLoopPosition(grp) : (grp.loopPosition || (grp.isInsideLoop === false ? 'outside' : 'inside'));
+        
+        let loopTag = '';
+        if (grpPos === 'before') {
+            loopTag = `<span class="relative z-10 text-[7px] bg-blue-950/90 text-blue-300 border border-blue-600/70 px-1 py-0.2 rounded font-extrabold flex items-center space-x-0.5 shrink-0" title="Phân khu 1: Mở đầu (Intro)"><i data-lucide="arrow-left-to-line" class="w-2 h-2"></i><span>Intro</span></span>`;
+        } else if (grpPos === 'after') {
+            loopTag = `<span class="relative z-10 text-[7px] bg-purple-950/90 text-purple-300 border border-purple-600/70 px-1 py-0.2 rounded font-extrabold flex items-center space-x-0.5 shrink-0" title="Phân khu 3: Kết bài (Outro)"><i data-lucide="arrow-right-to-line" class="w-2 h-2"></i><span>Outro</span></span>`;
+        } else if (grpPos === 'outside') {
+            loopTag = `<span class="relative z-10 text-[7px] bg-amber-950/90 text-amber-300 border border-amber-600/70 px-1 py-0.2 rounded font-extrabold flex items-center space-x-0.5 shrink-0" title="Cố định xuyên suốt"><i data-lucide="pin" class="w-2 h-2"></i><span>Cố định</span></span>`;
+        } else {
+            loopTag = `<span class="relative z-10 text-[7px] bg-teal-950/90 text-teal-300 border border-teal-600/70 px-1 py-0.2 rounded font-extrabold flex items-center space-x-0.5 shrink-0" title="Phân khu 2: Vòng lặp chính (Drills)"><i data-lucide="repeat" class="w-2 h-2"></i><span>Từng câu</span></span>`;
+        }
 
         const isSnapEnd = grp.snapEndToTotalDuration === true;
         const start = Math.max(0, grp.startTime || 0);
@@ -195,6 +365,7 @@ function renderTimelineTracksUI() {
     });
 
     updatePlayheadNeedlePosition();
+    updateTimelineZonesBarUI();
     if (window.lucide && lucide.createIcons) lucide.createIcons();
 }
 
@@ -207,36 +378,41 @@ function promptEditTrackTimes(gIdx) {
         return;
     }
 
+    const grpPos = typeof getGroupLoopPosition === 'function' ? getGroupLoopPosition(grp) : (grp.loopPosition || 'inside');
+    const bound = (typeof getZoneBoundary === 'function') ? getZoneBoundary(grpPos) : { start: 0, end: masterTimelineDuration, name: 'Toàn video' };
+
     if (grp.snapEndToTotalDuration) {
-        const newStartStr = prompt(`Nhập giây bắt đầu cho "${grp.name}" (Thời điểm cuối đã ghim trùng mốc cuối ${masterTimelineDuration.toFixed(1)}s):`, grp.startTime.toFixed(1));
+        const newStartStr = prompt(`Nhập giây bắt đầu cho "${grp.name}" trong [${bound.name}: ${bound.start.toFixed(1)}s - ${bound.end.toFixed(1)}s] (Ghim đuôi tại ${bound.end.toFixed(1)}s):`, grp.startTime.toFixed(1));
         if (newStartStr === null) return;
         const newStart = parseFloat(newStartStr);
         if (!isNaN(newStart)) {
-            grp.startTime = Math.max(0, Math.min(masterTimelineDuration - 0.5, newStart));
-            grp.duration = Math.max(0.5, masterTimelineDuration - grp.startTime);
+            grp.startTime = Math.max(bound.start, Math.min(bound.end - 0.5, newStart));
+            grp.duration = Math.round(Math.max(0.5, bound.end - grp.startTime) * 10) / 10;
             renderTimelineTracksUI();
             renderTimelineLayersListUI();
             drawParagraphCanvasFrame();
-            showToast(`Đã cập nhật ${grp.name}: ${grp.startTime.toFixed(1)}s - ${(grp.startTime + grp.duration).toFixed(1)}s (Trùng đuôi)`);
+            showToast(`Đã cập nhật ${grp.name}: ${grp.startTime.toFixed(1)}s - ${(grp.startTime + grp.duration).toFixed(1)}s (${bound.name})`);
         }
         return;
     }
 
-    const newStartStr = prompt(`Nhập giây bắt đầu cho "${grp.name}":`, grp.startTime.toFixed(1));
+    const newStartStr = prompt(`Nhập giây bắt đầu cho "${grp.name}" trong [${bound.name}: ${bound.start.toFixed(1)}s - ${bound.end.toFixed(1)}s]:`, grp.startTime.toFixed(1));
     if (newStartStr === null) return;
     const newStart = parseFloat(newStartStr);
 
-    const newDurStr = prompt(`Nhập thời lượng (giây) cho "${grp.name}":`, grp.duration.toFixed(1));
+    const candidateStart = !isNaN(newStart) ? Math.max(bound.start, Math.min(bound.end - 0.2, newStart)) : grp.startTime;
+    const maxAvailDur = Math.max(0.5, bound.end - candidateStart);
+    const newDurStr = prompt(`Nhập thời lượng (tối đa ${maxAvailDur.toFixed(1)}s để không tràn ${bound.name}):`, Math.min(grp.duration, maxAvailDur).toFixed(1));
     if (newDurStr === null) return;
     const newDur = parseFloat(newDurStr);
 
     if (!isNaN(newStart) && !isNaN(newDur) && newDur > 0) {
-        grp.startTime = Math.max(0, Math.min(masterTimelineDuration - 0.2, newStart));
-        grp.duration = Math.max(0.5, Math.min(masterTimelineDuration - grp.startTime, newDur));
+        grp.startTime = candidateStart;
+        grp.duration = Math.max(0.5, Math.min(bound.end - grp.startTime, newDur));
         renderTimelineTracksUI();
         renderTimelineLayersListUI();
         drawParagraphCanvasFrame();
-        showToast(`Đã cập nhật ${grp.name}: ${grp.startTime.toFixed(1)}s - ${(grp.startTime + grp.duration).toFixed(1)}s`);
+        showToast(`Đã cập nhật ${grp.name}: ${grp.startTime.toFixed(1)}s - ${(grp.startTime + grp.duration).toFixed(1)}s (${bound.name})`);
     }
 }
 
@@ -275,26 +451,31 @@ function onTimelineBarMouseMove(e) {
     const deltaSec = (deltaX / viewportWidth) * masterTimelineDuration;
     const isAudio = typeof isAudioLayer === 'function' ? isAudioLayer(grp) : false;
 
+    // Khóa chặt ranh giới theo phân khu của lớp, tuyệt đối không cho tràn ra ngoài khu khác
+    const grpPos = typeof getGroupLoopPosition === 'function' ? getGroupLoopPosition(grp) : (grp.loopPosition || 'inside');
+    const bound = (typeof getZoneBoundary === 'function') ? getZoneBoundary(grpPos) : { start: 0, end: masterTimelineDuration };
+
     if (mode === 'move') {
         let newStart = initialStart + deltaSec;
-        const maxStart = grp.snapEndToTotalDuration ? (masterTimelineDuration - 0.5) : (masterTimelineDuration - initialDuration);
-        newStart = Math.max(0, Math.min(maxStart, newStart));
+        const maxStart = grp.snapEndToTotalDuration ? (bound.end - 0.5) : (bound.end - initialDuration);
+        newStart = Math.max(bound.start, Math.min(maxStart, newStart));
         grp.startTime = Math.round(newStart * 10) / 10;
         if (grp.snapEndToTotalDuration) {
-            grp.duration = Math.round(Math.max(0.5, masterTimelineDuration - grp.startTime) * 10) / 10;
+            grp.duration = Math.round(Math.max(0.5, bound.end - grp.startTime) * 10) / 10;
         }
     } else if (mode === 'resize-left' && !isAudio) {
         let newStart = initialStart + deltaSec;
-        const maxStart = grp.snapEndToTotalDuration ? (masterTimelineDuration - 0.5) : (initialStart + initialDuration - 0.5);
-        newStart = Math.max(0, Math.min(maxStart, newStart));
+        const maxStart = grp.snapEndToTotalDuration ? (bound.end - 0.5) : (initialStart + initialDuration - 0.5);
+        newStart = Math.max(bound.start, Math.min(maxStart, newStart));
         grp.startTime = Math.round(newStart * 10) / 10;
         const newDur = grp.snapEndToTotalDuration 
-            ? (masterTimelineDuration - grp.startTime) 
+            ? (bound.end - grp.startTime) 
             : ((initialStart + initialDuration) - newStart);
         grp.duration = Math.round(Math.max(0.5, newDur) * 10) / 10;
     } else if (mode === 'resize-right' && !isAudio && !grp.snapEndToTotalDuration) {
         let newDur = initialDuration + deltaSec;
-        newDur = Math.max(0.5, Math.min(masterTimelineDuration - grp.startTime, newDur));
+        const maxDur = Math.max(0.5, bound.end - grp.startTime);
+        newDur = Math.max(0.5, Math.min(maxDur, newDur));
         grp.duration = Math.round(newDur * 10) / 10;
     }
 

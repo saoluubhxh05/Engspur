@@ -120,6 +120,15 @@ function checkAndTriggerTimelineAudio(curTime) {
             if (grpPos === 'after' && pCurrentSentenceIndex < totalSentences - 1) return;
         }
 
+        // Khóa âm thanh chặt chẽ nếu chưa tới phân khu Timeline tương ứng
+        if (typeof getZoneBoundary === 'function') {
+            const zoneBound = getZoneBoundary(grpPos);
+            if (zoneBound) {
+                if (curTime < zoneBound.start) return;
+                if (zoneBound.maxDur > 0 && curTime > zoneBound.end) return;
+            }
+        }
+
         const start = grp.startTime || 0;
         const isOutsideLoop = !isInside;
 
@@ -407,15 +416,18 @@ function resumeUnifiedSentenceSequence() {
             }
 
             // DUY TRÌ VẼ CANVAS 30FPS LIÊN TỤC TRONG KHOẢNG NGHỈ GIỮA 2 CÂU (INTER-SENTENCE TRANSITION)
-            // Đảm bảo captureStream không bị khựng hoặc lệch timestamp so với luồng AudioTrack trong file Full.mp4
+            // Giữ cố định khung hình hoàn chỉnh ở cuối câu vừa phát (curSentenceTotalDur - 0.02s)
+            // để Preview và luồng MediaRecorder duy trì hình ảnh liên tục, không bị chớp tắt hay màn hình trống
             const transitionStartTs = performance.now();
             const pauseDurationMs = 500; // Khoảng dừng 0.5s tự nhiên giữa các câu
+            currentTimelinePlayTime = Math.max(0, curSentenceTotalDur - 0.02);
 
             const transitionStep = () => {
                 if (!isParagraphRunning || isParagraphPaused) {
                     stopStudioRenderClock();
                     return;
                 }
+                currentTimelinePlayTime = Math.max(0, curSentenceTotalDur - 0.02);
                 drawParagraphCanvasFrame();
 
                 if (performance.now() - transitionStartTs >= pauseDurationMs) {
@@ -435,9 +447,15 @@ function resumeUnifiedSentenceSequence() {
 }
 
 function finishParagraphExport() {
-    // Duy trì vẽ canvas 400ms cuối trước khi dừng MediaRecorder để không bị ngắt cụt đuôi video
+    // Duy trì vẽ canvas 500ms cuối trước khi dừng MediaRecorder để không bị ngắt cụt đuôi video
     const finishStartTs = performance.now();
+    const curSentenceTotalDur = (typeof getEffectiveSentenceDuration === 'function')
+        ? getEffectiveSentenceDuration(Math.max(0, pCurrentSentenceIndex - 1))
+        : masterTimelineDuration;
+    currentTimelinePlayTime = Math.max(0, curSentenceTotalDur - 0.02);
+
     const finishStep = () => {
+        currentTimelinePlayTime = Math.max(0, curSentenceTotalDur - 0.02);
         drawParagraphCanvasFrame();
         if (performance.now() - finishStartTs >= 500) {
             stopStudioRenderClock();

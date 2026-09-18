@@ -4,11 +4,72 @@
  */
 
 var APP_VERSION_INFO = {
-    version: "V13.7",
-    releaseDate: "17/09/2026",
+    version: "V14.2",
+    releaseDate: "18/09/2026",
     status: "Mới nhất & Ổn định",
-    summary: "Bản nâng cấp V13.7: Bổ sung cấu hình Lớp Trước Vòng Lặp (Intro) và Sau Vòng Lặp (Outro); Tính năng Gộp Nhiều Cột (Merge Columns / ColSpan) cho các lớp tiêu đề và banner trải dài; và Chế độ Trình Chiếu Mới: Hiện Tất Cả Dòng Cùng 1 Lúc ngay từ đầu.",
+    summary: "Bản nâng cấp V14.2: Bổ sung bộ công cụ cài đặt và chỉnh sửa khung viền (Border) bao quanh toàn bộ lớp chuyên nghiệp; tùy chỉnh độ dày, kiểu nét (Solid/Dashed/Dotted), bo góc, khoảng đệm padding, màu nền và hiệu ứng đổ bóng cho lớp.",
     categories: [
+        {
+            title: "Khung Viền & Hộp Lớp Bao Toàn Bộ (V14.2)",
+            icon: "square",
+            color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/30",
+            items: [
+                "Khung viền bao trọn toàn bộ lớp: Thêm viền bao quanh toàn bộ các phần tử thuộc lớp (câu hỏi, đáp án, dịch nghĩa, ảnh minh họa...) tạo thành khối thẻ bài học thống nhất.",
+                "Đầy đủ công cụ viền: Tùy chỉnh bật/tắt viền, bảng chọn màu viền & màu mẫu, độ dày nét (0 - 15px), kiểu nét (Nét liền Solid / Nét đứt Dashed / Chấm bi Dotted), bo góc (0 - 50px) và khoảng đệm lề (Padding 0 - 40px).",
+                "Màu nền hộp lớp & Đổ bóng (Glow): Tùy biến màu nền hộp lớp kèm độ mờ đục (Opacity), hỗ trợ hiệu ứng đổ bóng mờ / hào quang phát sáng nổi bật trên Canvas Preview và khi xuất video MP4.",
+                "Thao tác trực quan đa vị trí: Chỉnh sửa nhanh ngay trên từng thẻ lớp ở Cột phải hoặc mở Bảng định dạng Ribbon chuyên sâu ở Cột trái, hỗ trợ sao chép kiểu viền cho tất cả các lớp."
+            ]
+        },
+        {
+            title: "Khắc Phục Chuyển Dòng Mượt Mà & Duy Trì Preview (V14.1)",
+            icon: "check-circle",
+            color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+            items: [
+                "Khắc phục triệt để màn hình trống khi chuyển câu: Khóa giữ khung hình câu vừa hoàn thành liên tục trong suốt 0.5s chuyển dòng, loại bỏ hoàn toàn hiện tượng chớp tắt hoặc màn hình trắng.",
+                "Tối ưu ranh giới phân khu: Khu 2 (Drills) duy trì hiển thị ổn định xuyên suốt đến hết câu và khoảng nghỉ (chỉ ẩn khi có Khu 3 Outro thực sự có lớp kích hoạt ở câu cuối cùng).",
+                "Đồng bộ luồng quay video (MediaRecorder): Giữ luồng khung hình 30fps liền mạch không khựng timestamp, đảm bảo file video xuất ra mượt mà tuyệt đối."
+            ]
+        },
+        {
+            title: "Khóa Hiển Thị Phân Khu Chặt Chẽ Theo Timeline (V14.0)",
+            icon: "lock",
+            color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            items: [
+                "Khóa hiển thị theo thời gian phân khu: Kim Timeline chưa chạy tới mốc bắt đầu của khu nào (ví dụ chưa tới Khu 2: Drills) thì toàn bộ các lớp của khu đó bị ẩn hoàn toàn 100% trên Canvas Preview.",
+                "Sửa triệt để chế độ 'Hiện tất cả dòng': Áp dụng kiểm tra thời điểm bắt đầu (startTime) cho toàn bộ các dòng của lớp, không còn bị lộ các câu sau khi kim Timeline chưa chạm mốc bắt đầu.",
+                "Khóa âm thanh đồng bộ: Lớp âm thanh/giọng đọc thuộc từng khu chỉ được kích hoạt khi kim Timeline thực sự bước vào phân khu tương ứng."
+            ]
+        },
+        {
+            title: "Tùy Chỉnh Chế Độ Trình Chiếu Riêng Từng Lớp (V13.9)",
+            icon: "layers",
+            color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+            items: [
+                "Cấu hình độc lập từng lớp: Mỗi lớp có thể tự do chọn '1 Câu / Làm mới', 'Xếp tầng nối tiếp', 'Hiện tất cả dòng cùng lúc' hoặc 'Kế thừa mặc định chung'.",
+                "Hiển thị linh hoạt: Cho phép kết hợp trong cùng 1 bài học: tiêu đề/câu hỏi hiện liên tục tất cả dòng, trong khi đáp án hoặc gợi ý xuất hiện xếp tầng hoặc làm mới theo từng câu.",
+                "Chọn nhanh trên thẻ lớp & Ribbon: Tích hợp menu chọn chế độ trình chiếu trực tiếp trên từng thẻ lớp ở Cột phải và trên thanh định dạng Ribbon."
+            ]
+        },
+        {
+            title: "Giới Hạn Lớp Theo Ranh Giới Khu & Chỉnh Sửa Thời Gian Từng Khu (V13.9)",
+            icon: "clock",
+            color: "text-blue-400 bg-blue-500/10 border-blue-500/30",
+            items: [
+                "Khóa ranh giới nghiêm ngặt (Không tràn khu): Lớp thuộc Khu nào (Khu 1: Intro, Khu 2: Drills, Khu 3: Outro) thì thanh ray bị giới hạn chặt chẽ trong ranh giới thời gian của khu đó khi kéo di chuyển hoặc kéo giãn thời lượng.",
+                "Chỉnh sửa tổng thời gian từng khu: Bổ sung ô nhập và nút chỉnh số giây trực tiếp cho từng khu ngay trên thanh Timeline (Khu 1, Khu 2, Khu 3), thanh khoang tự động co giãn tỷ lệ % chuẩn xác.",
+                "Tự động căn chỉnh khi đổi khu: Khi chuyển đổi vị trí lớp giữa các khu, thời gian bắt đầu và thời lượng của lớp tự động co vừa vặn với ranh giới của khu mới."
+            ]
+        },
+        {
+            title: "Trực Quan Hóa Timeline 3 Phân Khu (V13.8)",
+            icon: "film",
+            color: "text-blue-400 bg-blue-500/10 border-blue-500/30",
+            items: [
+                "Thanh phân khu 3 khoang: Tích hợp dải định vị trực quan ngay trên thước đo Timeline mô phỏng các phần mềm dựng video cao cấp (Khu 1: Intro ➔ Khu 2: Drills ➔ Khu 3: Outro).",
+                "Huy hiệu phân khu trên Thẻ lớp: Mỗi thẻ lớp hiển thị biểu ngữ rõ ràng xác định lớp thuộc Mở đầu (Intro), Trong vòng lặp (Drills), Kết bài (Outro) hay Cố định toàn video.",
+                "Thẻ ray thời lượng (Tracks): Thanh thời lượng trên ray hiển thị nhãn viết tắt kèm icon chuẩn xác (Intro, Từng câu, Outro, Cố định) giúp nhận diện tức thì khi rê chuột hoặc kéo chỉnh."
+            ]
+        },
         {
             title: "Lớp Trước / Trong / Sau Vòng Lặp & Cố Định Toàn Video (V13.7)",
             icon: "repeat",
@@ -147,6 +208,31 @@ var APP_VERSION_INFO = {
     ],
     history: [
         {
+            version: "V14.2",
+            date: "18/09/2026",
+            highlight: "Cài đặt chỉnh sửa khung viền bao toàn bộ lớp: Bật/tắt viền, màu viền, độ dày (0-15px), kiểu nét liền/đứt/chấm bi, bo góc (0-50px), khoảng đệm padding, màu nền và đổ bóng."
+        },
+        {
+            version: "V14.1",
+            date: "17/09/2026",
+            highlight: "Khắc phục triệt để màn hình trống khi chuyển dòng trong chế độ 3.2, duy trì khung hình hoàn chỉnh liên tục suốt 0.5s chuyển câu."
+        },
+        {
+            version: "V14.0",
+            date: "17/09/2026",
+            highlight: "Khóa hiển thị các phân khu chặt chẽ theo Timeline (chưa tới khu nào thì ẩn 100% tất cả các lớp của khu đó) và đồng bộ thời điểm bắt đầu cho chế độ 'Hiện tất cả dòng'."
+        },
+        {
+            version: "V13.9",
+            date: "17/09/2026",
+            highlight: "Chế độ trình chiếu riêng từng lớp (1 Câu / Xếp tầng / Hiện tất cả dòng), giới hạn lớp theo ranh giới phân khu Timeline và chỉnh sửa thời gian từng khu trực tiếp."
+        },
+        {
+            version: "V13.8",
+            date: "17/09/2026",
+            highlight: "Trực quan hóa Timeline theo 3 Phân khu chuyên nghiệp (Khu 1: Intro ➔ Khu 2: Drills ➔ Khu 3: Outro), huy hiệu phân khu trên thẻ lớp và dải ray thời lượng."
+        },
+        {
             version: "V13.3",
             date: "16/09/2026",
             highlight: "Tích hợp Thẻ Tiến Độ (Progress Bar & Đếm câu linh hoạt) và Thẻ Âm Thanh (Hiệu ứng SFX có sẵn, tải file âm thanh, né tiếng Audio Ducking)."
@@ -284,6 +370,22 @@ var selectedFieldKeysList = ["Substitution words"];
 var paragraphSelectedGroupIdx = 0;
 var paragraphSelectedFieldKey = "Substitution words";
 var selectedCustomTextTarget = null; // { gIdx, fIdx }
+var selectedLayerBorderTarget = null; // { gIdx }
+
+function ensureGroupBorderDefaults(grp) {
+    if (!grp) return;
+    if (grp.borderEnabled === undefined) grp.borderEnabled = false;
+    if (grp.borderColor === undefined) grp.borderColor = grp.trackColor || "#3b82f6";
+    if (grp.borderWidth === undefined) grp.borderWidth = 2;
+    if (grp.borderStyle === undefined) grp.borderStyle = "solid"; // 'solid' | 'dashed' | 'dotted'
+    if (grp.borderRadius === undefined) grp.borderRadius = 12;
+    if (grp.borderPadding === undefined) grp.borderPadding = 10;
+    if (grp.backgroundColor === undefined) grp.backgroundColor = "transparent";
+    if (grp.backgroundOpacity === undefined) grp.backgroundOpacity = 100;
+    if (grp.boxShadowEnabled === undefined) grp.boxShadowEnabled = false;
+    if (grp.boxShadowColor === undefined) grp.boxShadowColor = "rgba(0, 0, 0, 0.35)";
+    if (grp.boxShadowBlur === undefined) grp.boxShadowBlur = 10;
+}
 
 function getCustomTextDefaults(item) {
     if (!item) item = {};
@@ -388,6 +490,7 @@ var DEFAULT_TEMPLATES_JSON = {
         presentationMode: "single",
         stackingFormula: "0",
         masterDuration: 8.0,
+        zoneDurations: { intro: 2.0, drills: 4.5, outro: 1.5 },
         gridMatrix: { 
             columnCount: 2, 
             columnWidths: [62, 34], 
@@ -477,6 +580,7 @@ var DEFAULT_TEMPLATES_JSON = {
         presentationMode: "stack",
         stackingFormula: "auto",
         masterDuration: 8.5,
+        zoneDurations: { intro: 2.0, drills: 5.0, outro: 1.5 },
         gridMatrix: { 
             columnCount: 3, 
             columnWidths: [36, 40, 20], 
@@ -601,3 +705,133 @@ var batchTimelineSentenceLogs = [];
 var batchCustomScriptNamingMap = {};
 var currentBatchChainIndex = 0;
 var currentBatchTopicIndex = 0;
+
+/**
+ * Lấy cấu hình thời lượng 3 phân khu (Khu 1: Intro, Khu 2: Drills, Khu 3: Outro)
+ */
+function getZoneDurations() {
+    if (!paragraphGridConfig.zoneDurations) {
+        var total = typeof masterTimelineDuration === 'number' && masterTimelineDuration > 0 ? masterTimelineDuration : 8.0;
+        var introD = 2.0;
+        var outroD = 1.5;
+        var drillsD = Math.max(1.0, total - introD - outroD);
+        paragraphGridConfig.zoneDurations = {
+            intro: introD,
+            drills: Math.round(drillsD * 10) / 10,
+            outro: outroD
+        };
+    }
+    if (isNaN(paragraphGridConfig.zoneDurations.intro) || paragraphGridConfig.zoneDurations.intro < 0) paragraphGridConfig.zoneDurations.intro = 0;
+    if (isNaN(paragraphGridConfig.zoneDurations.drills) || paragraphGridConfig.zoneDurations.drills < 0.5) paragraphGridConfig.zoneDurations.drills = 4.5;
+    if (isNaN(paragraphGridConfig.zoneDurations.outro) || paragraphGridConfig.zoneDurations.outro < 0) paragraphGridConfig.zoneDurations.outro = 0;
+    return paragraphGridConfig.zoneDurations;
+}
+
+/**
+ * Kiểm tra xem phân khu (Intro, Drills, Outro, Cố định) có chứa ít nhất 1 lớp hay không
+ * @param {string} zoneKey - 'intro' | 'before', 'drills' | 'inside', 'outro' | 'after', 'outside'
+ * @returns {boolean}
+ */
+function hasZoneLayers(zoneKey) {
+    if (!paragraphGridConfig || !Array.isArray(paragraphGridConfig.groups)) return false;
+    return paragraphGridConfig.groups.some(function(grp) {
+        var pos = typeof getGroupLoopPosition === 'function' 
+            ? getGroupLoopPosition(grp) 
+            : (grp.loopPosition || (grp.isInsideLoop === false ? 'outside' : 'inside'));
+        if (zoneKey === 'intro' || zoneKey === 'before') return pos === 'before';
+        if (zoneKey === 'drills' || zoneKey === 'inside') return pos === 'inside';
+        if (zoneKey === 'outro' || zoneKey === 'after') return pos === 'after';
+        if (zoneKey === 'outside') return pos === 'outside';
+        return false;
+    });
+}
+
+/**
+ * Lấy ranh giới thời gian (Start, End) chính xác của một phân khu
+ * Phân khu nào không có lớp thì thời lượng và ranh giới không tồn tại trên timeline
+ * @param {string} zoneType - 'before' (Intro), 'inside' (Drills), 'after' (Outro), hoặc 'outside' (Cố định toàn video)
+ */
+function getZoneBoundary(zoneType) {
+    var zones = getZoneDurations();
+    var hasIntro = typeof hasZoneLayers === 'function' ? hasZoneLayers('intro') : true;
+    var hasDrills = typeof hasZoneLayers === 'function' ? hasZoneLayers('drills') : true;
+    var hasOutro = typeof hasZoneLayers === 'function' ? hasZoneLayers('outro') : true;
+
+    var effIntroDur = hasIntro ? Math.max(0, zones.intro || 0) : 0;
+    var effOutroDur = hasOutro ? Math.max(0, zones.outro || 0) : 0;
+    var total = typeof masterTimelineDuration === 'number' && masterTimelineDuration > 0 ? masterTimelineDuration : 8.0;
+
+    var effDrillsDur;
+    if (hasDrills) {
+        if (!hasIntro && !hasOutro) {
+            effDrillsDur = total;
+        } else {
+            effDrillsDur = Math.max(0.5, total - effIntroDur - effOutroDur);
+        }
+    } else {
+        effDrillsDur = 0;
+    }
+
+    var introStart = 0;
+    var introEnd = Math.round(effIntroDur * 10) / 10;
+
+    var drillsStart = introEnd;
+    var drillsEnd = Math.round((drillsStart + effDrillsDur) * 10) / 10;
+
+    var outroStart = drillsEnd;
+    var outroEnd = Math.round((outroStart + effOutroDur) * 10) / 10;
+
+    var grandTotal = Math.max(0.5, Math.max(total, outroEnd));
+
+    if (zoneType === 'before') {
+        return { 
+            start: introStart, 
+            end: introEnd, 
+            maxDur: effIntroDur, 
+            hasLayers: hasIntro,
+            key: 'intro', 
+            name: "Khu 1: Mở đầu (Intro)" 
+        };
+    } else if (zoneType === 'inside') {
+        return { 
+            start: drillsStart, 
+            end: drillsEnd, 
+            maxDur: effDrillsDur, 
+            hasLayers: hasDrills,
+            key: 'drills', 
+            name: "Khu 2: Vòng lặp chính (Drills)" 
+        };
+    } else if (zoneType === 'after') {
+        return { 
+            start: outroStart, 
+            end: outroEnd, 
+            maxDur: effOutroDur, 
+            hasLayers: hasOutro,
+            key: 'outro', 
+            name: "Khu 3: Kết bài (Outro)" 
+        };
+    } else {
+        // 'outside' (Cố định toàn video)
+        return { 
+            start: 0, 
+            end: grandTotal, 
+            maxDur: grandTotal, 
+            hasLayers: true,
+            key: 'total', 
+            name: "Cố định toàn video (Xuyên suốt)" 
+        };
+    }
+}
+
+/**
+ * Lấy chế độ trình chiếu của một lớp cụ thể
+ * Trả về: 'single' | 'stack' | 'all'
+ */
+function getGroupPresentationMode(grp) {
+    if (!grp) return paragraphGridConfig.presentationMode || 'single';
+    if (grp.presentationMode && grp.presentationMode !== 'default') {
+        return grp.presentationMode;
+    }
+    return paragraphGridConfig.presentationMode || 'single';
+}
+

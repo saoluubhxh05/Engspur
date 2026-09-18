@@ -46,6 +46,77 @@ function ensureCanvasClickListener() {
     }
 }
 
+function estimateFieldItemHeight(ctx, fKey, dataMap, groupW, isInside, sentenceDataMaps, scaleFactor = 1.0) {
+    const st = paragraphFieldStyles[fKey];
+    if (!st) return 0;
+    if (st.type === 'image') {
+        const baseH = st.height !== undefined ? st.height : 360;
+        return Math.max(80, Math.round(baseH * scaleFactor));
+    }
+    const rawVal = (!isInside && sentenceDataMaps && sentenceDataMaps[0]) ? sentenceDataMaps[0][fKey] : (dataMap ? dataMap[fKey] : '');
+    const val = (rawVal !== undefined && rawVal !== null) ? String(rawVal).trim() : '';
+    if (!val) return 0;
+
+    let size = Math.max(12, Math.round((st.size || 28) * scaleFactor));
+    const pad = Math.max(4, Math.round((st.boxPadding !== undefined ? st.boxPadding : 12) * scaleFactor));
+    const indentL = Math.round((st.indentLeft || 0) * scaleFactor);
+    const indentR = Math.round((st.indentRight || 0) * scaleFactor);
+    const spaceB = Math.round((st.spaceBefore || 0) * scaleFactor);
+    const spaceA = Math.round((st.spaceAfter || 0) * scaleFactor);
+    const effectiveW = Math.max(40, groupW - pad * 2 - indentL - indentR);
+
+    ctx.save();
+    ctx.font = `${st.style === 'bold' || st.style === 'extrabold' ? 'bold' : (st.style === 'italic' ? 'italic' : 'normal')} ${size}px "${st.font || 'Quicksand'}", sans-serif`;
+    let lines = calculateTextLines(ctx, val, effectiveW, size, st.font);
+    if (st.shrinkToFit !== false && lines.length > 3) {
+        size = Math.max(12, Math.round(size * 0.85));
+        ctx.font = `${st.style === 'bold' || st.style === 'extrabold' ? 'bold' : (st.style === 'italic' ? 'italic' : 'normal')} ${size}px "${st.font || 'Quicksand'}", sans-serif`;
+        lines = calculateTextLines(ctx, val, effectiveW, size, st.font);
+    }
+    ctx.restore();
+    return lines.length * (size * (st.lineSpacing || 1.25)) + pad * 2 + spaceB + spaceA;
+}
+
+function estimateGroupContentHeight(ctx, grp, dataMap, groupW, isInside, sentenceDataMaps, scaleFactor = 1.0) {
+    if (!grp || !grp.fields) return 0;
+    let totalH = 0;
+    const customSpacing = Math.max(3, Math.round((grp.fieldSpacing !== undefined ? grp.fieldSpacing : 12) * scaleFactor));
+    let renderedCount = 0;
+
+    grp.fields.forEach(item => {
+        const itemType = item.type || 'field';
+        if (itemType === 'field') {
+            const fKey = typeof item === 'string' ? item : item.key;
+            const h = estimateFieldItemHeight(ctx, fKey, dataMap, groupW, isInside, sentenceDataMaps, scaleFactor);
+            if (h > 0) {
+                totalH += h;
+                renderedCount++;
+            }
+        } else if (itemType === 'custom_text') {
+            if (!item.useCustomCoords) {
+                let size = Math.max(12, Math.round((item.size || 28) * scaleFactor));
+                const pad = Math.max(4, Math.round((item.boxPadding !== undefined ? item.boxPadding : 12) * scaleFactor));
+                const effectiveW = Math.max(40, groupW - pad * 2);
+                ctx.save();
+                const fontFam = item.font || 'Quicksand';
+                const fontStyle = (item.style === 'bold' || item.style === 'extrabold') ? 'bold' : 'normal';
+                ctx.font = `${fontStyle} ${size}px "${fontFam}", sans-serif`;
+                let fullText = (item.prefix ? item.prefix + ' ' : '') + (item.text || 'Chữ tự do') + (item.suffix ? ' ' + item.suffix : '');
+                let lines = calculateTextLines(ctx, fullText, effectiveW, size, fontFam);
+                ctx.restore();
+                const h = lines.length * (size * (item.lineSpacing || 1.25)) + pad * 2;
+                totalH += h;
+                renderedCount++;
+            }
+        }
+    });
+
+    if (renderedCount > 1) {
+        totalH += (renderedCount - 1) * customSpacing;
+    }
+    return totalH;
+}
+
 function drawParagraphCanvasFrame() {
     if (!pCanvas || !pCtx) return;
     ensureCanvasClickListener();
@@ -171,19 +242,18 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
     const currentActiveImage = currentSentenceData["ten_file_dinh_kem"] || "";
     const currentActiveFallbackWord = currentSentenceData["Substitution words"] || "";
 
-    const isSingleMode = (paragraphGridConfig.presentationMode === 'single');
-    const isAllMode = (paragraphGridConfig.presentationMode === 'all');
-    const startSentenceIdx = (isSingleMode && isParagraphRunning) ? pCurrentSentenceIndex : 0;
+    const hasAnyAllLayer = paragraphGridConfig.groups.some(g => (typeof getGroupPresentationMode === 'function' ? getGroupPresentationMode(g) : (g.presentationMode || paragraphGridConfig.presentationMode)) === 'all') || (paragraphGridConfig.presentationMode === 'all');
+    const hasAnyStackLayer = paragraphGridConfig.groups.some(g => (typeof getGroupPresentationMode === 'function' ? getGroupPresentationMode(g) : (g.presentationMode || paragraphGridConfig.presentationMode)) === 'stack') || (paragraphGridConfig.presentationMode === 'stack');
+
     let maxSentencesToDraw = totalSentences;
-    if (isSingleMode) {
-        maxSentencesToDraw = isParagraphRunning ? (pCurrentSentenceIndex + 1) : 1;
-    } else if (!isAllMode) {
-        // Chế độ xếp tầng (stack)
+    if (hasAnyAllLayer) {
+        maxSentencesToDraw = totalSentences;
+    } else if (hasAnyStackLayer) {
         maxSentencesToDraw = isParagraphRunning ? Math.min(pCurrentSentenceIndex + 1, totalSentences) : totalSentences;
     } else {
-        // Chế độ hiện tất cả dòng cùng 1 lúc (all)
-        maxSentencesToDraw = totalSentences;
+        maxSentencesToDraw = isParagraphRunning ? (pCurrentSentenceIndex + 1) : 1;
     }
+    const startSentenceIdx = 0;
 
     let colVerticalPositions = new Array(colCount + 1).fill(paddingTop);
     let totalLockedBlockTop = paddingTop;
@@ -207,6 +277,23 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
             if (isParagraphRunning) {
                 if (grpPos === 'before' && pCurrentSentenceIndex > 0) return;
                 if (grpPos === 'after' && pCurrentSentenceIndex < totalSentences - 1) return;
+            }
+
+            // Khóa chặt chẽ theo ranh giới phân khu Timeline (Khu 1: Intro, Khu 2: Drills, Khu 3: Outro)
+            if (typeof getZoneBoundary === 'function') {
+                const zoneBound = getZoneBoundary(grpPos);
+                if (zoneBound) {
+                    if (currentTimelinePlayTime < zoneBound.start) return;
+                    if (zoneBound.maxDur > 0 && currentTimelinePlayTime > zoneBound.end) {
+                        if (grpPos === 'inside') {
+                            const outroBound = getZoneBoundary('after');
+                            const hasActiveOutro = outroBound && outroBound.hasLayers && (!isParagraphRunning || pCurrentSentenceIndex === totalSentences - 1);
+                            if (hasActiveOutro) return;
+                        } else {
+                            return;
+                        }
+                    }
+                }
             }
 
             const targetColIdx = Math.max(1, Math.min(grp.targetColumn || 1, colCount));
@@ -277,26 +364,56 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
                 if (grpPos === 'after' && pCurrentSentenceIndex < totalSentences - 1) return;
             }
 
-            if (isCurrentSentence) {
-                const start = grp.startTime || 0;
-                let end = start + (grp.duration || masterTimelineDuration);
-                if (grp.snapEndToTotalDuration) {
-                    const curTotal = (typeof getEffectiveSentenceDuration === 'function')
-                        ? getEffectiveSentenceDuration(isParagraphRunning ? pCurrentSentenceIndex : 0)
-                        : masterTimelineDuration;
-                    end = curTotal;
+            // Khóa chặt chẽ theo ranh giới phân khu Timeline (Khu 1: Intro, Khu 2: Drills, Khu 3: Outro)
+            // Chưa đến mốc bắt đầu của khu nào thì ẩn 100% tất cả các lớp của khu đó
+            if (typeof getZoneBoundary === 'function') {
+                const zoneBound = getZoneBoundary(grpPos);
+                if (zoneBound) {
+                    if (currentTimelinePlayTime < zoneBound.start) return;
+                    if (zoneBound.maxDur > 0 && currentTimelinePlayTime > zoneBound.end) {
+                        if (grpPos === 'inside') {
+                            const outroBound = getZoneBoundary('after');
+                            const hasActiveOutro = outroBound && outroBound.hasLayers && (!isParagraphRunning || pCurrentSentenceIndex === totalSentences - 1);
+                            if (hasActiveOutro) return;
+                        } else {
+                            return;
+                        }
+                    }
                 }
-                // Nếu chưa đến thời điểm bắt đầu của lớp thì chưa vẽ
-                if (currentTimelinePlayTime < start) return;
-
-                // Chỉ ẩn khi hết thời lượng nếu lớp đó thuần túy là bộ đếm ngược countdown (không chứa text/image)
-                const isOnlyCountdown = grp.fields && grp.fields.length > 0 && grp.fields.every(f => (typeof f === 'object' ? f.type : f) === 'countdown');
-                if (isOnlyCountdown && currentTimelinePlayTime > end) return;
-
-                // Các lớp nội dung (văn bản, dịch nghĩa, ảnh minh họa) một khi đã xuất hiện tại start
-                // sẽ duy trì hiển thị liên tục đến hết câu và trong suốt khoảng nghỉ chuyển tiếp (transition),
-                // loại bỏ triệt để hiện tượng mất nội dung hoặc chớp tắt giữa các câu.
             }
+
+            const grpMode = typeof getGroupPresentationMode === 'function' ? getGroupPresentationMode(grp) : (grp.presentationMode || paragraphGridConfig.presentationMode || 'single');
+
+            // Xử lý chế độ trình chiếu riêng của từng lớp
+            if (grpMode === 'single') {
+                if (sIdx !== activeSentenceIdx) return;
+            } else if (grpMode === 'stack') {
+                if (isParagraphRunning && sIdx > activeSentenceIdx) return;
+            }
+            // grpMode === 'all': Vẽ toàn bộ các câu từ đầu đến cuối
+
+            const start = grp.startTime || 0;
+            let end = start + (grp.duration || masterTimelineDuration);
+            if (grp.snapEndToTotalDuration) {
+                const curTotal = (typeof getEffectiveSentenceDuration === 'function')
+                    ? getEffectiveSentenceDuration(isParagraphRunning ? pCurrentSentenceIndex : 0)
+                    : masterTimelineDuration;
+                end = curTotal;
+            }
+
+            // Khóa hiển thị theo thời gian của từng lớp:
+            // Áp dụng cho: toàn bộ các dòng trong chế độ 'all', chế độ 'single', hoặc dòng hiện tại của 'stack'
+            if (grpMode === 'all' || grpMode === 'single' || isCurrentSentence) {
+                if (currentTimelinePlayTime < start) return;
+            }
+
+            // Chỉ ẩn khi hết thời lượng nếu lớp đó thuần túy là bộ đếm ngược countdown (không chứa text/image)
+            const isOnlyCountdown = grp.fields && grp.fields.length > 0 && grp.fields.every(f => (typeof f === 'object' ? f.type : f) === 'countdown');
+            if (isOnlyCountdown && currentTimelinePlayTime > end) return;
+
+            // Các lớp nội dung (văn bản, dịch nghĩa, ảnh minh họa) một khi đã xuất hiện tại start
+            // sẽ duy trì hiển thị liên tục đến hết câu và trong suốt khoảng nghỉ chuyển tiếp (transition),
+            // loại bỏ triệt để hiện tượng mất nội dung hoặc chớp tắt giữa các câu.
 
             const activeDataMap = (!isInside && sentenceDataMaps[0]) ? sentenceDataMaps[0] : dataMap;
 
@@ -330,12 +447,113 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
 
             const rowOffsetPx = (grp.startRowOffset || 0) * 45;
 
-            let currentFieldY = (isSingleMode ? paddingTop : colVerticalPositions[targetColIdx]) + rowOffsetPx + offY;
+            let currentFieldY = (grpMode === 'single' ? paddingTop : colVerticalPositions[targetColIdx]) + rowOffsetPx + offY;
+
+            // PHƯƠNG ÁN 1: TỰ ĐỘNG CO GIÃN THÔNG MINH KHI TRÀN MÉP DƯỚI (AUTO-FIT & SCALE DOWN)
+            let layerScaleFactor = 1.0;
+            const allowAutoFit = (grp.autoFitOverflow !== false);
+            const maxSafeBottomY = height - Math.max(24, paddingBottom);
+            const availableSpaceH = maxSafeBottomY - currentFieldY;
+
+            if (allowAutoFit && availableSpaceH > 60) {
+                const rawEstH = estimateGroupContentHeight(ctx, grp, activeDataMap, groupW, isInside, sentenceDataMaps, 1.0);
+                if (rawEstH > availableSpaceH) {
+                    let targetScale = availableSpaceH / rawEstH;
+                    targetScale = Math.max(0.48, Math.min(1.0, targetScale));
+                    const retestH = estimateGroupContentHeight(ctx, grp, activeDataMap, groupW, isInside, sentenceDataMaps, targetScale);
+                    if (retestH > availableSpaceH && targetScale > 0.48) {
+                        targetScale = Math.max(0.45, targetScale * (availableSpaceH / retestH));
+                    }
+                    layerScaleFactor = targetScale;
+                }
+            }
 
             ctx.save();
             const frameOpacity = grp.opacity !== undefined ? grp.opacity : 100;
             ctx.globalAlpha = Math.max(0, Math.min(100, frameOpacity)) / 100;
-            const customSpacing = (grp.fieldSpacing !== undefined ? grp.fieldSpacing : 12);
+            const customSpacing = Math.max(2, Math.round((grp.fieldSpacing !== undefined ? grp.fieldSpacing : 12) * layerScaleFactor));
+
+            // KHUNG VIỀN & MÀU NỀN BAO TOÀN BỘ LỚP (LAYER BORDER & BOX CONTAINER)
+            const hasLayerBorder = !!grp.borderEnabled && (grp.borderWidth > 0);
+            const hasLayerBg = !!grp.backgroundColor && grp.backgroundColor !== 'transparent' && grp.backgroundColor !== '';
+            const layerPad = (hasLayerBorder || hasLayerBg) ? Math.max(0, Math.round((grp.borderPadding !== undefined ? grp.borderPadding : 10) * layerScaleFactor)) : 0;
+            const effectiveContentW = Math.max(40, groupW - layerPad * 2);
+
+            if (hasLayerBorder || hasLayerBg) {
+                let estimatedContentH = 0;
+                if (grp.customHeightPx && grp.customHeightPx > 0) {
+                    estimatedContentH = Math.round(grp.customHeightPx * layerScaleFactor);
+                } else {
+                    estimatedContentH = estimateGroupContentHeight(ctx, grp, activeDataMap, effectiveContentW, isInside, sentenceDataMaps, layerScaleFactor);
+                }
+
+                if (estimatedContentH > 0 || (grp.fields && grp.fields.length > 0)) {
+                    const boxX = originX;
+                    const boxY = currentFieldY;
+                    const boxW = groupW;
+                    const boxH = estimatedContentH + layerPad * 2;
+                    const bRadius = Math.max(0, Math.round((grp.borderRadius !== undefined ? grp.borderRadius : 12) * layerScaleFactor));
+
+                    ctx.save();
+
+                    // Hiệu ứng đổ bóng mờ hoặc hào quang phát sáng (Box Shadow & Glow)
+                    if (grp.boxShadowEnabled) {
+                        ctx.shadowColor = grp.boxShadowColor || 'rgba(0, 0, 0, 0.35)';
+                        ctx.shadowBlur = Math.round((grp.boxShadowBlur !== undefined ? grp.boxShadowBlur : 10) * layerScaleFactor);
+                        ctx.shadowOffsetX = 0;
+                        ctx.shadowOffsetY = 4;
+                    }
+
+                    // 1. Vẽ Màu nền hộp lớp
+                    if (hasLayerBg) {
+                        ctx.save();
+                        const bgOp = (grp.backgroundOpacity !== undefined ? grp.backgroundOpacity : 100) / 100;
+                        ctx.globalAlpha = ctx.globalAlpha * bgOp;
+                        ctx.fillStyle = grp.backgroundColor;
+                        ctx.beginPath();
+                        if (ctx.roundRect) {
+                            ctx.roundRect(boxX, boxY, boxW, boxH, bRadius);
+                        } else {
+                            ctx.rect(boxX, boxY, boxW, boxH);
+                        }
+                        ctx.fill();
+                        ctx.restore();
+                    }
+
+                    // 2. Vẽ Viền bao quanh lớp
+                    if (hasLayerBorder) {
+                        ctx.save();
+                        const bWidth = Math.max(0.5, (grp.borderWidth !== undefined ? grp.borderWidth : 2) * layerScaleFactor);
+                        ctx.lineWidth = bWidth;
+                        ctx.strokeStyle = grp.borderColor || (grp.trackColor || '#3b82f6');
+
+                        const bStyle = grp.borderStyle || 'solid';
+                        if (bStyle === 'dashed') {
+                            ctx.setLineDash([Math.round(8 * layerScaleFactor), Math.round(5 * layerScaleFactor)]);
+                        } else if (bStyle === 'dotted') {
+                            ctx.setLineDash([Math.round(3 * layerScaleFactor), Math.round(3 * layerScaleFactor)]);
+                        } else {
+                            ctx.setLineDash([]);
+                        }
+
+                        ctx.beginPath();
+                        if (ctx.roundRect) {
+                            ctx.roundRect(boxX, boxY, boxW, boxH, bRadius);
+                        } else {
+                            ctx.rect(boxX, boxY, boxW, boxH);
+                        }
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+
+                    ctx.restore();
+
+                    // Đệm lề (Padding) để các trường con nằm lọt gọn bên trong khung viền
+                    originX = originX + layerPad;
+                    groupW = effectiveContentW;
+                    currentFieldY = currentFieldY + layerPad;
+                }
+            }
 
             grp.fields.forEach((item, fIdx) => {
                 const itemType = item.type || 'field';
@@ -349,7 +567,8 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
                         let imgX = st.posX !== undefined ? st.posX : originX;
                         let imgY = st.posY !== undefined ? st.posY : currentFieldY;
                         let imgW = st.width !== undefined ? st.width : groupW;
-                        let imgH = st.height !== undefined ? st.height : Math.max(260, effectiveHeight - 60);
+                        let baseImgH = st.height !== undefined ? st.height : Math.max(260, effectiveHeight - 60);
+                        let imgH = Math.max(80, Math.round(baseImgH * layerScaleFactor));
 
                         if (!isColLocked) {
                             if (freeMode === 'center') {
@@ -358,11 +577,11 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
                             } else if (freeMode === 'span') {
                                 imgX = originX;
                                 imgY = totalLockedBlockTop;
-                                imgH = Math.max(200, totalLockedBlockBottom - totalLockedBlockTop);
+                                imgH = Math.max(120, totalLockedBlockBottom - totalLockedBlockTop);
                             }
                         }
 
-                        const customR = st.boxRadius !== undefined ? st.boxRadius : 20;
+                        const customR = Math.round(Math.max(4, (st.boxRadius !== undefined ? st.boxRadius : 20) * layerScaleFactor));
                         const customOp = st.opacity !== undefined ? st.opacity : 100;
                         drawRect916PhotoFrame(ctx, imgX, imgY, imgW, imgH, currentActiveImage, currentActiveFallbackWord, true, customR, customOp);
                         if (!isCleanMode) {
@@ -380,7 +599,7 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
                         const rawVal = activeDataMap[fKey];
                         const val = (rawVal !== undefined && rawVal !== null) ? String(rawVal).trim() : '';
                         if (val !== '') {
-                            const renderedHeight = drawAutoFlowCardBox(ctx, originX, currentFieldY, groupW, val, st);
+                            const renderedHeight = drawAutoFlowCardBox(ctx, originX, currentFieldY, groupW, val, st, layerScaleFactor);
                             if (!isCleanMode) {
                                 canvasFieldHitBoxes.push({
                                     x: originX,
@@ -395,7 +614,7 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
                         }
                     }
                 } else if (itemType === 'custom_text') {
-                    const renderedHeight = drawCustomTextCardBox(ctx, originX, currentFieldY, groupW, item, paragraphGridConfig.groups.indexOf(grp), fIdx);
+                    const renderedHeight = drawCustomTextCardBox(ctx, originX, currentFieldY, groupW, item, paragraphGridConfig.groups.indexOf(grp), fIdx, layerScaleFactor);
                     if (!item.useCustomCoords) {
                         currentFieldY += renderedHeight + customSpacing;
                     }
@@ -409,14 +628,39 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
                 }
             });
 
+            // Hiển thị chỉ báo Auto-Fit thu nhỏ trong Studio khi preview (bản quay MP4 Clean không hiện)
+            if (layerScaleFactor < 0.98 && !isCleanMode) {
+                ctx.save();
+                const pct = Math.round(layerScaleFactor * 100);
+                const tagText = `Auto-Fit: ${pct}%`;
+                ctx.font = 'bold 11px sans-serif';
+                const tagW = ctx.measureText(tagText).width + 12;
+                const tagX = originX + groupW - tagW - 4;
+                const tagY = (grpMode === 'single' ? paddingTop : colVerticalPositions[targetColIdx]) + rowOffsetPx + offY + 4;
+                
+                ctx.fillStyle = 'rgba(13, 148, 136, 0.85)';
+                if (ctx.roundRect) ctx.roundRect(tagX, tagY, tagW, 18, 4);
+                else ctx.rect(tagX, tagY, tagW, 18);
+                ctx.fill();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'center';
+                ctx.fillText(tagText, tagX + tagW / 2, tagY + 13);
+                ctx.restore();
+            }
+
+            if (hasLayerBorder || hasLayerBg) {
+                currentFieldY += layerPad;
+            }
+
             ctx.restore();
 
-            if (!isColLocked && !isSingleMode) {
+            if (!isColLocked && grpMode !== 'single') {
                 colVerticalPositions[targetColIdx] = currentFieldY;
             }
         });
 
-        if (!isSingleMode) {
+        if (hasAnyStackLayer || hasAnyAllLayer) {
             const nextRowStartY = (lockedColumnsInRow.length > 0 ? colVerticalPositions[lockedColumnsInRow[0]] : paddingTop) + maxLockedRowHeight + blockGap;
             for (let c = 1; c <= colCount; c++) {
                 const isLocked = matrix.colSyncSettings && matrix.colSyncSettings[c] ? matrix.colSyncSettings[c].locked : true;
@@ -449,17 +693,17 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
     }
 }
 
-function drawAutoFlowCardBox(ctx, startX, startY, maxGroupW, textVal, st) {
+function drawAutoFlowCardBox(ctx, startX, startY, maxGroupW, textVal, st, scaleFactor = 1.0) {
     if (!textVal || String(textVal).trim() === "") {
         return 0;
     }
     ctx.save();
-    let size = st.size || 28;
-    const pad = st.boxPadding !== undefined ? st.boxPadding : 12;
-    const indentL = st.indentLeft || 0;
-    const indentR = st.indentRight || 0;
-    const spaceB = st.spaceBefore || 0;
-    const spaceA = st.spaceAfter || 0;
+    let size = Math.max(12, Math.round((st.size || 28) * scaleFactor));
+    const pad = Math.max(4, Math.round((st.boxPadding !== undefined ? st.boxPadding : 12) * scaleFactor));
+    const indentL = Math.round((st.indentLeft || 0) * scaleFactor);
+    const indentR = Math.round((st.indentRight || 0) * scaleFactor);
+    const spaceB = Math.round((st.spaceBefore || 0) * scaleFactor);
+    const spaceA = Math.round((st.spaceAfter || 0) * scaleFactor);
 
     const effectiveW = Math.max(40, maxGroupW - pad * 2 - indentL - indentR);
     
@@ -467,7 +711,7 @@ function drawAutoFlowCardBox(ctx, startX, startY, maxGroupW, textVal, st) {
     let lines = calculateTextLines(ctx, textVal, effectiveW, size, st.font);
     
     if (st.shrinkToFit !== false && lines.length > 3) {
-        size = Math.max(16, Math.round(size * 0.85));
+        size = Math.max(11, Math.round(size * 0.85));
         ctx.font = `${st.style === 'bold' || st.style === 'extrabold' ? 'bold' : (st.style === 'italic' ? 'italic' : 'normal')} ${size}px "${st.font || 'Quicksand'}", sans-serif`;
         lines = calculateTextLines(ctx, textVal, effectiveW, size, st.font);
     }
@@ -482,7 +726,7 @@ function drawAutoFlowCardBox(ctx, startX, startY, maxGroupW, textVal, st) {
             const lw = ctx.measureText(l).width;
             if (lw > maxLineW) maxLineW = lw;
         });
-        actualBoxW = Math.min(maxGroupW, maxLineW + pad * 2 + indentL + indentR + 16);
+        actualBoxW = Math.min(maxGroupW, maxLineW + pad * 2 + indentL + indentR + 16 * scaleFactor);
         if (st.hAlign === 'center') actualBoxX = startX + (maxGroupW - actualBoxW) / 2;
         else if (st.hAlign === 'right') actualBoxX = startX + maxGroupW - actualBoxW;
     }
@@ -490,20 +734,20 @@ function drawAutoFlowCardBox(ctx, startX, startY, maxGroupW, textVal, st) {
     if (st.boxBgColor && st.boxBgColor !== 'transparent') {
         ctx.fillStyle = st.boxBgColor;
         ctx.beginPath();
-        const radius = Math.round(st.boxRadius !== undefined ? st.boxRadius : 18);
+        const radius = Math.round(Math.max(4, (st.boxRadius !== undefined ? st.boxRadius : 18) * scaleFactor));
         if (ctx.roundRect) ctx.roundRect(actualBoxX, startY + spaceB, actualBoxW, actualBoxH - spaceB - spaceA, radius);
         else ctx.rect(actualBoxX, startY + spaceB, actualBoxW, actualBoxH - spaceB - spaceA);
         ctx.fill();
 
         ctx.strokeStyle = 'rgba(15, 23, 42, 0.08)';
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = Math.max(1, 1.5 * scaleFactor);
         ctx.stroke();
     }
 
     let textY = startY + spaceB + pad + size * 0.85;
 
-    const hlPadX = st.highlightPaddingX !== undefined ? st.highlightPaddingX : 8;
-    const hlPadY = st.highlightPaddingY !== undefined ? st.highlightPaddingY : 4;
+    const hlPadX = Math.round((st.highlightPaddingX !== undefined ? st.highlightPaddingX : 8) * scaleFactor);
+    const hlPadY = Math.round((st.highlightPaddingY !== undefined ? st.highlightPaddingY : 4) * scaleFactor);
 
     lines.forEach(lineText => {
         const lineW = ctx.measureText(lineText).width;
@@ -535,13 +779,13 @@ function drawAutoFlowCardBox(ctx, startX, startY, maxGroupW, textVal, st) {
         if (st.underline) {
             ctx.save();
             ctx.strokeStyle = st.color || '#000000';
-            ctx.lineWidth = Math.max(1, size / 15);
+            ctx.lineWidth = Math.max(1, (size / 15));
             let startUlX = textX;
             if (st.hAlign === 'center') startUlX = textX - lineW / 2;
             else if (st.hAlign === 'right') startUlX = textX - lineW;
             ctx.beginPath();
-            ctx.moveTo(startUlX, textY + 4);
-            ctx.lineTo(startUlX + lineW, textY + 4);
+            ctx.moveTo(startUlX, textY + 4 * scaleFactor);
+            ctx.lineTo(startUlX + lineW, textY + 4 * scaleFactor);
             ctx.stroke();
             ctx.restore();
         }
@@ -553,7 +797,7 @@ function drawAutoFlowCardBox(ctx, startX, startY, maxGroupW, textVal, st) {
     return actualBoxH;
 }
 
-function drawCustomTextCardBox(ctx, startX, startY, maxGroupW, rawItem, gIdx, fIdx) {
+function drawCustomTextCardBox(ctx, startX, startY, maxGroupW, rawItem, gIdx, fIdx, scaleFactor = 1.0) {
     if (typeof getCustomTextDefaults === 'function') {
         rawItem = getCustomTextDefaults(rawItem);
     }
@@ -574,10 +818,10 @@ function drawCustomTextCardBox(ctx, startX, startY, maxGroupW, rawItem, gIdx, fI
     const originX = isCustomCoords ? (item.posX !== undefined ? item.posX : startX) : startX;
     const originY = isCustomCoords ? (item.posY !== undefined ? item.posY : startY) : startY;
     const targetW = isCustomCoords ? (item.width !== undefined ? item.width : maxGroupW) : maxGroupW;
-    const targetH = isCustomCoords ? (item.height !== undefined ? item.height : 100) : null;
+    const targetH = isCustomCoords ? (item.height !== undefined ? Math.round(item.height * scaleFactor) : 100) : null;
 
-    let size = item.size || 28;
-    const pad = item.boxPadding !== undefined ? item.boxPadding : 12;
+    let size = Math.max(12, Math.round((item.size || 28) * scaleFactor));
+    const pad = Math.max(4, Math.round((item.boxPadding !== undefined ? item.boxPadding : 12) * scaleFactor));
     const effectiveW = Math.max(40, targetW - pad * 2);
 
     const fontFam = item.font || 'Quicksand';
@@ -609,7 +853,7 @@ function drawCustomTextCardBox(ctx, startX, startY, maxGroupW, rawItem, gIdx, fI
     let lines = calculateTextLines(ctx, fullText, effectiveW, size, fontFam);
 
     if (item.shrinkToFit !== false && lines.length > 3 && !isCustomCoords) {
-        size = Math.max(16, Math.round(size * 0.85));
+        size = Math.max(11, Math.round(size * 0.85));
         ctx.font = `${fontStyle} ${size}px "${fontFam}", sans-serif`;
         lines = calculateTextLines(ctx, fullText, effectiveW, size, fontFam);
     }
@@ -625,7 +869,7 @@ function drawCustomTextCardBox(ctx, startX, startY, maxGroupW, rawItem, gIdx, fI
             const lw = ctx.measureText(l).width;
             if (lw > maxLineW) maxLineW = lw;
         });
-        actualBoxW = Math.min(maxGroupW, maxLineW + pad * 2 + 16);
+        actualBoxW = Math.min(maxGroupW, maxLineW + pad * 2 + 16 * scaleFactor);
         if (item.hAlign === 'center') actualBoxX = originX + (maxGroupW - actualBoxW) / 2;
         else if (item.hAlign === 'right') actualBoxX = originX + maxGroupW - actualBoxW;
     }
@@ -642,14 +886,14 @@ function drawCustomTextCardBox(ctx, startX, startY, maxGroupW, rawItem, gIdx, fI
     if (item.boxBgColor && item.boxBgColor !== 'transparent') {
         ctx.save();
         ctx.fillStyle = item.boxBgColor;
-        const radius = Math.round(item.boxRadius !== undefined ? item.boxRadius : 16);
+        const radius = Math.round(Math.max(4, (item.boxRadius !== undefined ? item.boxRadius : 16) * scaleFactor));
         ctx.beginPath();
         if (ctx.roundRect) ctx.roundRect(actualBoxX, actualBoxY, actualBoxW, actualBoxH, radius);
         else ctx.rect(actualBoxX, actualBoxY, actualBoxW, actualBoxH);
         ctx.fill();
 
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = Math.max(1, 1.5 * scaleFactor);
         ctx.stroke();
         ctx.restore();
     }
@@ -661,7 +905,7 @@ function drawCustomTextCardBox(ctx, startX, startY, maxGroupW, rawItem, gIdx, fI
         ctx.lineWidth = 2.5;
         ctx.setLineDash([6, 4]);
         ctx.beginPath();
-        const r = Math.round(item.boxRadius !== undefined ? item.boxRadius : 16);
+        const r = Math.round(Math.max(4, (item.boxRadius !== undefined ? item.boxRadius : 16) * scaleFactor));
         if (ctx.roundRect) ctx.roundRect(actualBoxX - 3, actualBoxY - 3, actualBoxW + 6, actualBoxH + 6, r + 2);
         else ctx.rect(actualBoxX - 3, actualBoxY - 3, actualBoxW + 6, actualBoxH + 6);
         ctx.stroke();
@@ -674,8 +918,8 @@ function drawCustomTextCardBox(ctx, startX, startY, maxGroupW, rawItem, gIdx, fI
         textY = actualBoxY + (actualBoxH - totalLinesH) / 2 + size * 0.85;
     }
 
-    const hlPadX = item.highlightPaddingX !== undefined ? item.highlightPaddingX : 8;
-    const hlPadY = item.highlightPaddingY !== undefined ? item.highlightPaddingY : 4;
+    const hlPadX = Math.round((item.highlightPaddingX !== undefined ? item.highlightPaddingX : 8) * scaleFactor);
+    const hlPadY = Math.round((item.highlightPaddingY !== undefined ? item.highlightPaddingY : 4) * scaleFactor);
 
     lines.forEach(lineText => {
         const lineW = ctx.measureText(lineText).width;

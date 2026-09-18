@@ -70,6 +70,19 @@ function cycleGroupLoopMode(gIdx) {
     }
     grp.loopPosition = next;
     grp.isInsideLoop = (next === 'inside');
+
+    if (typeof getZoneBoundary === 'function') {
+        const bound = getZoneBoundary(next);
+        if (bound) {
+            if ((grp.startTime || 0) < bound.start || (grp.startTime || 0) >= bound.end) {
+                grp.startTime = bound.start;
+            }
+            if ((grp.startTime + (grp.duration || 1)) > bound.end) {
+                grp.duration = Math.round(Math.max(0.5, bound.end - grp.startTime) * 10) / 10;
+            }
+        }
+    }
+
     renderTimelineLayersListUI();
     renderTimelineTracksUI();
     drawParagraphCanvasFrame();
@@ -113,7 +126,7 @@ function addNewGridGroupRow(loopType = 'inside') {
         toastName = 'Lớp Cố Định Toàn Video';
     }
 
-    paragraphGridConfig.groups.push({
+    const newGrp = {
         id: nextId,
         name: defaultName,
         trackColor: assignedColor,
@@ -132,7 +145,16 @@ function addNewGridGroupRow(loopType = 'inside') {
         frameAlignment: "left",
         fieldSpacing: 12,
         fields: []
-    });
+    };
+    paragraphGridConfig.groups.push(newGrp);
+
+    if (typeof getZoneBoundary === 'function') {
+        const bound = getZoneBoundary(resolvedType);
+        if (bound) {
+            newGrp.startTime = bound.start;
+            newGrp.duration = Math.round(Math.max(0.5, Math.min(masterTimelineDuration, bound.end - bound.start)) * 10) / 10;
+        }
+    }
     
     paragraphSelectedGroupIdx = paragraphGridConfig.groups.length - 1;
     renderTimelineLayersListUI();
@@ -155,6 +177,20 @@ function renderTimelineLayersListUI() {
     paragraphGridConfig.groups.forEach((grp, gIdx) => {
         const isSel = (gIdx === paragraphSelectedGroupIdx);
         const isAudio = typeof isAudioLayer === 'function' ? isAudioLayer(grp) : false;
+        const curPos = getGroupLoopPosition(grp);
+
+        // Header phân khu trực quan cho thẻ lớp (Phương án B)
+        let zoneBannerHtml = '';
+        if (curPos === 'before') {
+            zoneBannerHtml = `<div class="flex items-center justify-between text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-blue-950/80 text-blue-300 border border-blue-700/50 mb-1"><span class="flex items-center space-x-1"><i data-lucide="arrow-left-to-line" class="w-2.5 h-2.5 text-blue-400"></i><span>PHÂN KHU 1: TRƯỚC VÒNG LẶP (INTRO)</span></span><span class="text-blue-400/80">Mở đầu</span></div>`;
+        } else if (curPos === 'after') {
+            zoneBannerHtml = `<div class="flex items-center justify-between text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-purple-950/80 text-purple-300 border border-purple-700/50 mb-1"><span class="flex items-center space-x-1"><i data-lucide="arrow-right-to-line" class="w-2.5 h-2.5 text-purple-400"></i><span>PHÂN KHU 3: SAU VÒNG LẶP (OUTRO)</span></span><span class="text-purple-400/80">Kết bài</span></div>`;
+        } else if (curPos === 'outside') {
+            zoneBannerHtml = `<div class="flex items-center justify-between text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-700/50 mb-1"><span class="flex items-center space-x-1"><i data-lucide="pin" class="w-2.5 h-2.5 text-amber-400"></i><span>CỐ ĐỊNH TOÀN BỘ VIDEO (XUYÊN SUỐT)</span></span><span class="text-amber-400/80">Global</span></div>`;
+        } else {
+            zoneBannerHtml = `<div class="flex items-center justify-between text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-teal-950/80 text-teal-300 border border-teal-700/50 mb-1"><span class="flex items-center space-x-1"><i data-lucide="repeat" class="w-2.5 h-2.5 text-teal-400"></i><span>PHÂN KHU 2: TRONG VÒNG LẶP CHÍNH (DRILLS)</span></span><span class="text-teal-400/80">Theo từng câu</span></div>`;
+        }
+
         const blockDiv = document.createElement('div');
         blockDiv.className = `p-2 rounded-xl border transition cursor-pointer space-y-1.5 ${isSel ? 'bg-slate-900 border-indigo-500 shadow-md ring-1 ring-indigo-500/30' : 'bg-slate-950/80 border-slate-800 hover:border-slate-700'}`;
         blockDiv.onclick = () => selectGridGroup(gIdx);
@@ -269,7 +305,6 @@ function renderTimelineLayersListUI() {
         const curOffset = grp.startRowOffset !== undefined ? grp.startRowOffset : 0;
         const audioBadge = isAudio ? `<span class="bg-purple-950 text-purple-300 border border-purple-800 text-[8px] font-bold px-1 rounded flex items-center space-x-0.5"><i data-lucide="lock" class="w-2 h-2"></i><span>AI Khóa</span></span>` : `<span class="bg-slate-800 text-slate-400 text-[8px] px-1 rounded">Tĩnh</span>`;
 
-        const curPos = getGroupLoopPosition(grp);
         let loopBadge = '';
         if (curPos === 'before') {
             loopBadge = `<button onclick="event.stopPropagation(); cycleGroupLoopMode(${gIdx})" title="Vị trí: Trước vòng lặp (Intro). Bấm để chuyển tiếp." class="bg-blue-950/90 hover:bg-blue-900 text-blue-300 border border-blue-700/80 text-[8px] font-bold px-1.5 py-0.5 rounded flex items-center space-x-0.5 transition cursor-pointer shrink-0"><i data-lucide="arrow-left-to-line" class="w-2.5 h-2.5"></i><span>Trước lặp</span></button>`;
@@ -282,12 +317,17 @@ function renderTimelineLayersListUI() {
         }
 
         blockDiv.innerHTML = `
+            ${zoneBannerHtml}
             <div class="flex items-center justify-between gap-1 border-b border-slate-800/80 pb-1">
                 <div class="flex items-center space-x-1.5 truncate">
                     <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${grp.trackColor || '#3b82f6'};"></span>
                     <input type="text" value="${grp.name || `Lớp ${gIdx + 1}`}" onchange="event.stopPropagation(); updateGroupName(${gIdx}, this.value)" class="bg-transparent border-0 font-bold text-slate-200 text-xs focus:ring-0 truncate w-20">
                     ${audioBadge}
                     ${loopBadge}
+                    <button onclick="event.stopPropagation(); selectLayerBorderTarget(${gIdx})" title="Cài đặt viền & hộp cho toàn bộ lớp" class="px-1.5 py-0.5 rounded text-[8px] font-bold flex items-center space-x-1 transition cursor-pointer shrink-0 ${grp.borderEnabled ? 'bg-indigo-600 text-white border border-indigo-400 shadow-sm' : 'bg-slate-800 text-slate-300 hover:text-white border border-slate-700'}">
+                        <i data-lucide="square" class="w-2.5 h-2.5 text-indigo-300"></i>
+                        <span>${grp.borderEnabled ? 'Viền: Bật' : 'Viền Lớp'}</span>
+                    </button>
                 </div>
                 
                 <div class="flex items-center space-x-0.5 shrink-0" onclick="event.stopPropagation()">
@@ -321,11 +361,66 @@ function renderTimelineLayersListUI() {
                 </div>
             </div>
 
-            <div class="flex items-center justify-between text-[9px] bg-slate-950 px-2 py-1 rounded border border-slate-800/80">
+            <div class="grid grid-cols-2 gap-1 text-[9px] bg-slate-950 p-1.5 rounded-lg border border-slate-800/80">
+                <div>
+                    <label class="text-amber-400 block font-bold flex items-center space-x-1" title="Chế độ hiển thị trình chiếu riêng cho lớp này">
+                        <i data-lucide="play-square" class="w-2.5 h-2.5"></i>
+                        <span>Trình chiếu lớp:</span>
+                    </label>
+                    <select onchange="event.stopPropagation(); updateGroupPresentationMode(${gIdx}, this.value)" class="w-full bg-slate-900 border border-slate-700 rounded p-0.5 font-bold text-amber-200 text-[9px]">
+                        <option value="default" ${(grp.presentationMode === 'default' || !grp.presentationMode) ? 'selected' : ''}>Theo chung (${(paragraphGridConfig.presentationMode || 'stack') === 'single' ? '1 Câu' : ((paragraphGridConfig.presentationMode || 'stack') === 'all' ? 'Hiện hết' : 'Xếp tầng')})</option>
+                        <option value="single" ${grp.presentationMode === 'single' ? 'selected' : ''}>1 Câu / Làm mới</option>
+                        <option value="stack" ${grp.presentationMode === 'stack' ? 'selected' : ''}>Xếp tầng nối tiếp</option>
+                        <option value="all" ${grp.presentationMode === 'all' ? 'selected' : ''}>Hiện tất cả dòng</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-slate-400 block font-bold" title="Vị trí xuất hiện theo phân khu">Phân khu:</label>
+                    <div class="pt-0.5">${loopBadge}</div>
+                </div>
+            </div>
+
+            <div class="space-y-1 bg-slate-950 px-2 py-1.5 rounded border border-slate-800/80 text-[9px]">
+                <label class="flex items-center space-x-1.5 cursor-pointer select-none text-slate-300 hover:text-white" onclick="event.stopPropagation()">
+                    <input type="checkbox" ${grp.autoFitOverflow !== false ? 'checked' : ''} onchange="toggleGroupAutoFitOverflow(${gIdx}, this.checked)" class="w-3.5 h-3.5 rounded border-slate-700 text-teal-500 focus:ring-0 focus:ring-offset-0 bg-slate-900 cursor-pointer">
+                    <span class="font-bold text-[9.5px] leading-tight ${grp.autoFitOverflow !== false ? 'text-teal-300' : 'text-slate-400'}">Tự co giãn vừa vặn khi chữ quá dài tràn mép dưới (Auto-Fit)</span>
+                </label>
                 <label class="flex items-center space-x-1.5 cursor-pointer select-none text-slate-300 hover:text-white" onclick="event.stopPropagation()">
                     <input type="checkbox" ${grp.snapEndToTotalDuration ? 'checked' : ''} onchange="toggleGroupSnapEndToTotalDuration(${gIdx}, this.checked)" class="w-3.5 h-3.5 rounded border-slate-700 text-indigo-500 focus:ring-0 focus:ring-offset-0 bg-slate-900 cursor-pointer">
-                    <span class="font-bold text-[9.5px] leading-tight ${grp.snapEndToTotalDuration ? 'text-amber-300' : 'text-slate-300'}">Thời điểm cuối của khối trùng với thời điểm cuối của tổng thời lượng</span>
+                    <span class="font-bold text-[9.5px] leading-tight ${grp.snapEndToTotalDuration ? 'text-amber-300' : 'text-slate-400'}">Thời điểm cuối của khối trùng với thời điểm cuối của tổng thời lượng</span>
                 </label>
+            </div>
+
+            <!-- Khung Viền & Hộp Bao Lớp (Border Settings) -->
+            <div class="bg-slate-950 p-1.5 rounded-lg border border-slate-800/80 space-y-1.5 text-[9px]">
+                <div class="flex items-center justify-between">
+                    <label class="flex items-center space-x-1.5 cursor-pointer select-none" onclick="event.stopPropagation()">
+                        <input type="checkbox" ${grp.borderEnabled ? 'checked' : ''} onchange="updateGroupBorderProp(${gIdx}, 'borderEnabled', this.checked)" class="w-3.5 h-3.5 rounded border-slate-700 text-indigo-500 focus:ring-0 bg-slate-900 cursor-pointer">
+                        <span class="font-bold text-[9.5px] ${grp.borderEnabled ? 'text-indigo-300' : 'text-slate-300'}">Khung Viền Bao Lớp</span>
+                    </label>
+                    <button onclick="event.stopPropagation(); selectLayerBorderTarget(${gIdx})" class="text-[8px] font-bold text-indigo-400 hover:text-indigo-300 hover:underline flex items-center space-x-0.5 cursor-pointer">
+                        <span>Chỉnh chi tiết Ribbon</span>
+                        <i data-lucide="external-link" class="w-2.5 h-2.5 ml-0.5"></i>
+                    </button>
+                </div>
+                ${grp.borderEnabled ? `
+                <div class="flex items-center justify-between gap-1 pt-1 border-t border-slate-900" onclick="event.stopPropagation()">
+                    <div class="flex items-center space-x-1">
+                        <span class="text-slate-400 text-[8.5px]">Màu:</span>
+                        <input type="color" value="${(grp.borderColor && grp.borderColor.startsWith('#') && grp.borderColor.length === 7) ? grp.borderColor : '#3b82f6'}" oninput="updateGroupBorderProp(${gIdx}, 'borderColor', this.value, true)" onchange="updateGroupBorderProp(${gIdx}, 'borderColor', this.value, false)" class="w-4 h-4 rounded border-0 bg-transparent cursor-pointer">
+                    </div>
+                    <div class="flex items-center space-x-1">
+                        <span class="text-slate-400 text-[8.5px]">Dày:</span>
+                        <span class="font-mono text-indigo-300 font-bold text-[8.5px]">${grp.borderWidth !== undefined ? grp.borderWidth : 2}px</span>
+                        <input type="range" min="0.5" max="10" step="0.5" value="${grp.borderWidth !== undefined ? grp.borderWidth : 2}" oninput="updateGroupBorderProp(${gIdx}, 'borderWidth', parseFloat(this.value), true)" onchange="updateGroupBorderProp(${gIdx}, 'borderWidth', parseFloat(this.value), false)" class="w-10 accent-indigo-500">
+                    </div>
+                    <div class="flex items-center space-x-1">
+                        <span class="text-slate-400 text-[8.5px]">Bo:</span>
+                        <span class="font-mono text-indigo-300 font-bold text-[8.5px]">${grp.borderRadius !== undefined ? grp.borderRadius : 12}px</span>
+                        <input type="range" min="0" max="40" step="2" value="${grp.borderRadius !== undefined ? grp.borderRadius : 12}" oninput="updateGroupBorderProp(${gIdx}, 'borderRadius', parseInt(this.value, 10), true)" onchange="updateGroupBorderProp(${gIdx}, 'borderRadius', parseInt(this.value, 10), false)" class="w-10 accent-indigo-500">
+                    </div>
+                </div>
+                ` : ''}
             </div>
 
             <div class="flex flex-wrap gap-1 pt-0.5">${fieldsChipsHtml}</div>
@@ -335,6 +430,16 @@ function renderTimelineLayersListUI() {
     });
 
     if (window.lucide && lucide.createIcons) lucide.createIcons();
+}
+
+function toggleGroupAutoFitOverflow(gIdx, isChecked) {
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (!grp) return;
+    grp.autoFitOverflow = !!isChecked;
+    renderTimelineLayersListUI();
+    drawParagraphCanvasFrame();
+    showToast(`Lớp "${grp.name}": ${grp.autoFitOverflow !== false ? 'Đã bật' : 'Đã tắt'} tự động co vừa khung khi tràn mép dưới!`);
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
 }
 
 function toggleGroupSnapEndToTotalDuration(gIdx, isChecked) {
@@ -754,6 +859,19 @@ function updateGridGlobalPadding() {
     drawParagraphCanvasFrame();
     if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
 }
+
+function updateGroupPresentationMode(gIdx, mode) {
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (!grp) return;
+    grp.presentationMode = mode;
+    drawParagraphCanvasFrame();
+    renderTimelineTracksUI();
+    renderTimelineLayersListUI();
+    const modeName = mode === 'single' ? '1 Câu / Làm mới' : (mode === 'all' ? 'Hiện tất cả dòng' : (mode === 'stack' ? 'Xếp tầng nối tiếp' : 'Theo kịch bản chung'));
+    showToast(`Lớp "${grp.name}": Trình chiếu "${modeName}"!`);
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
+}
+
 
 function toggleGridOverlayLines(isChecked) {
     paragraphGridConfig.gridMatrix.showGridOverlay = isChecked;
