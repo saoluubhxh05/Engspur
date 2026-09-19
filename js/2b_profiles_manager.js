@@ -240,6 +240,7 @@ function setLoopPresentationMode(mode) {
     paragraphGridConfig.presentationMode = mode;
     updateLoopPresentationModeUI();
     drawParagraphCanvasFrame();
+    if (typeof updatePreviewButtonLabel === 'function') updatePreviewButtonLabel();
     let label = "Đã chuyển sang chế độ Xếp tầng";
     if (mode === 'single') label = "Đã chuyển sang chế độ 1 Câu / Làm mới";
     else if (mode === 'all') label = "Đã chuyển sang chế độ Hiện tất cả dòng cùng 1 lúc";

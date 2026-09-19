@@ -324,10 +324,6 @@ function renderTimelineLayersListUI() {
                     <input type="text" value="${grp.name || `Lớp ${gIdx + 1}`}" onchange="event.stopPropagation(); updateGroupName(${gIdx}, this.value)" class="bg-transparent border-0 font-bold text-slate-200 text-xs focus:ring-0 truncate w-20">
                     ${audioBadge}
                     ${loopBadge}
-                    <button onclick="event.stopPropagation(); selectLayerBorderTarget(${gIdx})" title="Cài đặt viền & hộp cho toàn bộ lớp" class="px-1.5 py-0.5 rounded text-[8px] font-bold flex items-center space-x-1 transition cursor-pointer shrink-0 ${grp.borderEnabled ? 'bg-indigo-600 text-white border border-indigo-400 shadow-sm' : 'bg-slate-800 text-slate-300 hover:text-white border border-slate-700'}">
-                        <i data-lucide="square" class="w-2.5 h-2.5 text-indigo-300"></i>
-                        <span>${grp.borderEnabled ? 'Viền: Bật' : 'Viền Lớp'}</span>
-                    </button>
                 </div>
                 
                 <div class="flex items-center space-x-0.5 shrink-0" onclick="event.stopPropagation()">
@@ -389,38 +385,6 @@ function renderTimelineLayersListUI() {
                     <input type="checkbox" ${grp.snapEndToTotalDuration ? 'checked' : ''} onchange="toggleGroupSnapEndToTotalDuration(${gIdx}, this.checked)" class="w-3.5 h-3.5 rounded border-slate-700 text-indigo-500 focus:ring-0 focus:ring-offset-0 bg-slate-900 cursor-pointer">
                     <span class="font-bold text-[9.5px] leading-tight ${grp.snapEndToTotalDuration ? 'text-amber-300' : 'text-slate-400'}">Thời điểm cuối của khối trùng với thời điểm cuối của tổng thời lượng</span>
                 </label>
-            </div>
-
-            <!-- Khung Viền & Hộp Bao Lớp (Border Settings) -->
-            <div class="bg-slate-950 p-1.5 rounded-lg border border-slate-800/80 space-y-1.5 text-[9px]">
-                <div class="flex items-center justify-between">
-                    <label class="flex items-center space-x-1.5 cursor-pointer select-none" onclick="event.stopPropagation()">
-                        <input type="checkbox" ${grp.borderEnabled ? 'checked' : ''} onchange="updateGroupBorderProp(${gIdx}, 'borderEnabled', this.checked)" class="w-3.5 h-3.5 rounded border-slate-700 text-indigo-500 focus:ring-0 bg-slate-900 cursor-pointer">
-                        <span class="font-bold text-[9.5px] ${grp.borderEnabled ? 'text-indigo-300' : 'text-slate-300'}">Khung Viền Bao Lớp</span>
-                    </label>
-                    <button onclick="event.stopPropagation(); selectLayerBorderTarget(${gIdx})" class="text-[8px] font-bold text-indigo-400 hover:text-indigo-300 hover:underline flex items-center space-x-0.5 cursor-pointer">
-                        <span>Chỉnh chi tiết Ribbon</span>
-                        <i data-lucide="external-link" class="w-2.5 h-2.5 ml-0.5"></i>
-                    </button>
-                </div>
-                ${grp.borderEnabled ? `
-                <div class="flex items-center justify-between gap-1 pt-1 border-t border-slate-900" onclick="event.stopPropagation()">
-                    <div class="flex items-center space-x-1">
-                        <span class="text-slate-400 text-[8.5px]">Màu:</span>
-                        <input type="color" value="${(grp.borderColor && grp.borderColor.startsWith('#') && grp.borderColor.length === 7) ? grp.borderColor : '#3b82f6'}" oninput="updateGroupBorderProp(${gIdx}, 'borderColor', this.value, true)" onchange="updateGroupBorderProp(${gIdx}, 'borderColor', this.value, false)" class="w-4 h-4 rounded border-0 bg-transparent cursor-pointer">
-                    </div>
-                    <div class="flex items-center space-x-1">
-                        <span class="text-slate-400 text-[8.5px]">Dày:</span>
-                        <span class="font-mono text-indigo-300 font-bold text-[8.5px]">${grp.borderWidth !== undefined ? grp.borderWidth : 2}px</span>
-                        <input type="range" min="0.5" max="10" step="0.5" value="${grp.borderWidth !== undefined ? grp.borderWidth : 2}" oninput="updateGroupBorderProp(${gIdx}, 'borderWidth', parseFloat(this.value), true)" onchange="updateGroupBorderProp(${gIdx}, 'borderWidth', parseFloat(this.value), false)" class="w-10 accent-indigo-500">
-                    </div>
-                    <div class="flex items-center space-x-1">
-                        <span class="text-slate-400 text-[8.5px]">Bo:</span>
-                        <span class="font-mono text-indigo-300 font-bold text-[8.5px]">${grp.borderRadius !== undefined ? grp.borderRadius : 12}px</span>
-                        <input type="range" min="0" max="40" step="2" value="${grp.borderRadius !== undefined ? grp.borderRadius : 12}" oninput="updateGroupBorderProp(${gIdx}, 'borderRadius', parseInt(this.value, 10), true)" onchange="updateGroupBorderProp(${gIdx}, 'borderRadius', parseInt(this.value, 10), false)" class="w-10 accent-indigo-500">
-                    </div>
-                </div>
-                ` : ''}
             </div>
 
             <div class="flex flex-wrap gap-1 pt-0.5">${fieldsChipsHtml}</div>

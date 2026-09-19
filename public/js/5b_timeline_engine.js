@@ -169,6 +169,34 @@ function checkAndTriggerTimelineAudio(curTime) {
                 let textToRead = "";
                 if (ttsItem.sourceMode === 'custom') {
                     textToRead = (ttsItem.customText || "").trim();
+                } else if (isStaticBoardAllLinesMode()) {
+                    // Chế độ Hiện tất cả dòng: Đọc toàn bộ các câu bài tập hiện trên bảng tĩnh
+                    const fields = ttsItem.ttsSpeakFields || ["Substitution Drills"];
+                    activeTopicList.forEach((ds) => {
+                        const d = (ds && ds.drills && ds.drills[0]) ? ds.drills[0] : {};
+                        const rowMap = {
+                            "STT": d.stt || 1,
+                            "STT Mẫu": ds.sttMau || 1,
+                            "Chủ đề": ds.topic || "",
+                            "Mẫu câu": ds.pattern || "",
+                            "Câu hỏi cho mẫu câu": ds.question || "",
+                            "Từ nối": d.tuNoi !== undefined ? d.tuNoi : "",
+                            "Substitution words": d.cueWord || "",
+                            "Dịch Substitution words": d.dichCueWord || "",
+                            "Substitution Drills": d.drillText || "",
+                            "Phiên âm IPA": d.ipa || "",
+                            "Dịch Substitution Drills": d.dichDrillText || ""
+                        };
+                        if (d.rawRow) {
+                            Object.keys(d.rawRow).forEach(k => {
+                                if (rowMap[k] === undefined) rowMap[k] = String(d.rawRow[k] || "").trim();
+                            });
+                        }
+                        fields.forEach(fk => {
+                            if (rowMap[fk]) textToRead += rowMap[fk] + ". ";
+                        });
+                    });
+                    textToRead = textToRead.trim();
                 } else {
                     const fields = ttsItem.ttsSpeakFields || ["Substitution Drills"];
                     fields.forEach(fk => {
@@ -197,6 +225,34 @@ function checkAndTriggerTimelineAudio(curTime) {
     });
 }
 
+function isStaticBoardAllLinesMode() {
+    if (typeof paragraphGridConfig === 'undefined' || !paragraphGridConfig) return false;
+    if (paragraphGridConfig.presentationMode === 'all') return true;
+    if (paragraphGridConfig.groups && paragraphGridConfig.groups.length > 0) {
+        return paragraphGridConfig.groups.some(g => {
+            const mode = (typeof getGroupPresentationMode === 'function')
+                ? getGroupPresentationMode(g)
+                : (g.presentationMode || paragraphGridConfig.presentationMode);
+            return mode === 'all';
+        });
+    }
+    return false;
+}
+
+function updatePreviewButtonLabel() {
+    const btnText = document.getElementById('p-preview-btn-text');
+    const pBtn = document.getElementById('p-btn-preview');
+    if (!btnText || isParagraphRunning) return;
+    const isAll = isStaticBoardAllLinesMode();
+    if (isAll) {
+        btnText.innerText = "Chạy Thử Trang Tĩnh (1 Chu Kỳ)";
+        if (pBtn) pBtn.title = "Chế độ Hiện tất cả dòng: Chạy thử đúng 1 chu kỳ thời lượng Timeline (8s-10s) cho toàn bộ trang bài học";
+    } else {
+        btnText.innerText = "Chạy Thử Toàn Bộ (Preview)";
+        if (pBtn) pBtn.title = "Chạy thử tuần tự tất cả các câu trong bài học theo kịch bản";
+    }
+}
+
 function togglePreviewAllPlayback() {
     const btnIcon = document.getElementById('p-preview-btn-icon');
     const btnText = document.getElementById('p-preview-btn-text');
@@ -209,6 +265,8 @@ function togglePreviewAllPlayback() {
         preloadAllCustomAudioBuffers();
     }
 
+    const isStaticAll = isStaticBoardAllLinesMode();
+
     if (!isParagraphRunning) {
         isParagraphRunning = true;
         isParagraphPaused = false;
@@ -220,7 +278,11 @@ function togglePreviewAllPlayback() {
         if (btnIcon) btnIcon.setAttribute('data-lucide', 'pause-circle');
         if (btnText) btnText.innerText = "Tạm Dừng Chạy Thử";
         const statusBadge = document.getElementById('p-status-badge-text');
-        if (statusBadge) statusBadge.innerText = "Trạng thái: Đang Chạy Thử Toàn Bộ...";
+        if (statusBadge) {
+            statusBadge.innerText = isStaticAll
+                ? "Trạng thái: Đang Chạy Thử Trang Tĩnh (Hiện tất cả dòng - 1 chu kỳ)..."
+                : "Trạng thái: Đang Chạy Thử Toàn Bộ...";
+        }
         if (window.lucide && lucide.createIcons) lucide.createIcons();
         runUnifiedSentenceSequence();
     } else if (isParagraphRunning && !isParagraphPaused) {
@@ -232,9 +294,9 @@ function togglePreviewAllPlayback() {
         stopStudioRenderClock();
         if (pRenderTimer) cancelAnimationFrame(pRenderTimer);
         if (btnIcon) btnIcon.setAttribute('data-lucide', 'play-circle');
-        if (btnText) btnText.innerText = "Tiếp Tục Chạy Thử";
+        if (btnText) btnText.innerText = isStaticAll ? "Tiếp Tục Trang Tĩnh" : "Tiếp Tục Chạy Thử";
         const statusBadge = document.getElementById('p-status-badge-text');
-        if (statusBadge) statusBadge.innerText = `Trạng thái: Tạm dừng tại câu ${pCurrentSentenceIndex + 1} (${currentTimelinePlayTime.toFixed(1)}s)`;
+        if (statusBadge) statusBadge.innerText = isStaticAll ? `Trạng thái: Tạm dừng trang tĩnh (${currentTimelinePlayTime.toFixed(1)}s)` : `Trạng thái: Tạm dừng tại câu ${pCurrentSentenceIndex + 1} (${currentTimelinePlayTime.toFixed(1)}s)`;
         if (window.lucide && lucide.createIcons) lucide.createIcons();
         showToast("Đã tạm dừng bài học! Bấm Tiếp Tục để chạy tiếp.");
     } else if (isParagraphRunning && isParagraphPaused) {
@@ -246,7 +308,7 @@ function togglePreviewAllPlayback() {
         if (btnIcon) btnIcon.setAttribute('data-lucide', 'pause-circle');
         if (btnText) btnText.innerText = "Tạm Dừng Chạy Thử";
         const statusBadge = document.getElementById('p-status-badge-text');
-        if (statusBadge) statusBadge.innerText = "Trạng thái: Tiếp tục Chạy Thử...";
+        if (statusBadge) statusBadge.innerText = isStaticAll ? "Trạng thái: Tiếp tục phát trang tĩnh..." : "Trạng thái: Tiếp tục Chạy Thử...";
         if (window.lucide && lucide.createIcons) lucide.createIcons();
         resumeUnifiedSentenceSequence();
         showToast("Tiếp tục phát bài học!");
@@ -262,7 +324,11 @@ function runUnifiedSentenceSequence() {
 
     const isOutsideOnly = (typeof isBatchRunning !== 'undefined' && isBatchRunning && typeof batchRenderQueue !== 'undefined' && batchRenderQueue[currentBatchQueueIndex] && batchRenderQueue[currentBatchQueueIndex].isOutsideLoopOnly) || (typeof isStaticOutsideLoopRunning !== 'undefined' && isStaticOutsideLoopRunning);
 
-    const totalSentences = isOutsideOnly ? 1 : Math.max(1, activeTopicList.length);
+    // Khi chọn "Hiện tất cả các dòng", toàn bộ các câu bài học đã xuất hiện trọn vẹn trên màn hình.
+    // Chạy thử (Preview) hoặc Render vận hành theo Phương án 2 (1 trang tĩnh: phát đúng 1 chu kỳ thời lượng Timeline).
+    const isSingleStaticBoardMode = isStaticBoardAllLinesMode();
+
+    const totalSentences = (isOutsideOnly || isSingleStaticBoardMode) ? 1 : Math.max(1, activeTopicList.length);
 
     if (pCurrentSentenceIndex >= totalSentences) {
         finishParagraphExport();
@@ -298,8 +364,8 @@ function runUnifiedSentenceSequence() {
             scriptName: currentItem ? currentItem.scriptTag : "",
             topic: currentItem ? currentItem.topic : "",
             sentenceIdx: pCurrentSentenceIndex + 1,
-            cueWord: isOutsideOnly ? "Ngoài vòng lặp" : (drill.cueWord || ""),
-            drillText: isOutsideOnly ? "Kịch bản tĩnh ngoài vòng lặp" : (drill.drillText || ""),
+            cueWord: isOutsideOnly ? "Ngoài vòng lặp" : (isSingleStaticBoardMode ? "Trang tĩnh (Tất cả dòng)" : (drill.cueWord || "")),
+            drillText: isOutsideOnly ? "Kịch bản tĩnh ngoài vòng lặp" : (isSingleStaticBoardMode ? `Toàn bộ ${activeTopicList.length} câu trên 1 trang` : (drill.drillText || "")),
             startMs: startMs,
             endMs: startMs + Math.round(curSentenceTotalDur * 1000),
             durationMs: Math.round(curSentenceTotalDur * 1000)
@@ -473,19 +539,21 @@ function finishParagraphExport() {
                 outsideLoopTriggeredAudioGroups.clear();
             }
             const btnIcon = document.getElementById('p-preview-btn-icon');
-            const btnText = document.getElementById('p-preview-btn-text');
             if (btnIcon) btnIcon.setAttribute('data-lucide', 'play-circle');
-            if (btnText) btnText.innerText = "Chạy Thử Toàn Bộ (Preview)";
+            updatePreviewButtonLabel();
             if (window.lucide && lucide.createIcons) lucide.createIcons();
 
+            const isStaticAll = isStaticBoardAllLinesMode();
             const statusBadge = document.getElementById('p-status-badge-text');
-            if (statusBadge) statusBadge.innerText = "Trạng thái: Hoàn Tất!";
+            if (statusBadge) statusBadge.innerText = isStaticAll ? "Trạng thái: Hoàn Tất Trang Tĩnh (1 chu kỳ)!" : "Trạng thái: Hoàn Tất!";
             const pBar = document.getElementById('p-render-progress-bar');
             if (pBar) pBar.style.width = '100%';
             const pPct = document.getElementById('p-render-percentage-text');
             if (pPct) pPct.innerText = '100%';
             seekTimeline(0);
-            if (!isBatchRunning) showToast("Đã xem thử hoàn tất toàn bộ video!");
+            if (!isBatchRunning) {
+                showToast(isStaticAll ? "Đã chạy thử hoàn tất trang tĩnh bài học (1 chu kỳ)!" : "Đã xem thử hoàn tất toàn bộ video!");
+            }
         }
     };
     startStudioRenderClock(finishStep);
@@ -512,9 +580,8 @@ function resetParagraphEngine() {
     if (icon) icon.setAttribute('data-lucide', 'play');
 
     const btnIcon = document.getElementById('p-preview-btn-icon');
-    const btnText = document.getElementById('p-preview-btn-text');
     if (btnIcon) btnIcon.setAttribute('data-lucide', 'play-circle');
-    if (btnText) btnText.innerText = "Chạy Thử Toàn Bộ (Preview)";
+    updatePreviewButtonLabel();
 
     const statusBadge = document.getElementById('p-status-badge-text');
     if (statusBadge) statusBadge.innerText = "Trạng thái: Sẵn sàng";
@@ -529,13 +596,14 @@ function resetParagraphEngine() {
 
 function updateParagraphProgressBar() {
     const isOutsideOnly = (typeof isBatchRunning !== 'undefined' && isBatchRunning && typeof batchRenderQueue !== 'undefined' && batchRenderQueue[currentBatchQueueIndex] && batchRenderQueue[currentBatchQueueIndex].isOutsideLoopOnly) || (typeof isStaticOutsideLoopRunning !== 'undefined' && isStaticOutsideLoopRunning);
-    if (isOutsideOnly) {
+    const isStaticAll = isStaticBoardAllLinesMode();
+    if (isOutsideOnly || isStaticAll) {
         const pBar = document.getElementById('p-render-progress-bar');
         if (pBar) pBar.style.width = '100%';
         const pPct = document.getElementById('p-render-percentage-text');
         if (pPct) pPct.innerText = '100%';
         const pInfo = document.getElementById('p-info-step-text');
-        if (pInfo) pInfo.innerText = `Tiến độ: Kịch bản Ngoài Vòng Lặp (1/1)`;
+        if (pInfo) pInfo.innerText = isStaticAll ? "Trang bài học tĩnh (Hiện tất cả dòng)" : "Tiến độ: Kịch bản Ngoài Vòng Lặp (1/1)";
         return;
     }
     const activeTopicList = getParagraphFilteredDatasets();

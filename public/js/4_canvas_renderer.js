@@ -473,88 +473,6 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
             ctx.globalAlpha = Math.max(0, Math.min(100, frameOpacity)) / 100;
             const customSpacing = Math.max(2, Math.round((grp.fieldSpacing !== undefined ? grp.fieldSpacing : 12) * layerScaleFactor));
 
-            // KHUNG VIỀN & MÀU NỀN BAO TOÀN BỘ LỚP (LAYER BORDER & BOX CONTAINER)
-            const hasLayerBorder = !!grp.borderEnabled && (grp.borderWidth > 0);
-            const hasLayerBg = !!grp.backgroundColor && grp.backgroundColor !== 'transparent' && grp.backgroundColor !== '';
-            const layerPad = (hasLayerBorder || hasLayerBg) ? Math.max(0, Math.round((grp.borderPadding !== undefined ? grp.borderPadding : 10) * layerScaleFactor)) : 0;
-            const effectiveContentW = Math.max(40, groupW - layerPad * 2);
-
-            if (hasLayerBorder || hasLayerBg) {
-                let estimatedContentH = 0;
-                if (grp.customHeightPx && grp.customHeightPx > 0) {
-                    estimatedContentH = Math.round(grp.customHeightPx * layerScaleFactor);
-                } else {
-                    estimatedContentH = estimateGroupContentHeight(ctx, grp, activeDataMap, effectiveContentW, isInside, sentenceDataMaps, layerScaleFactor);
-                }
-
-                if (estimatedContentH > 0 || (grp.fields && grp.fields.length > 0)) {
-                    const boxX = originX;
-                    const boxY = currentFieldY;
-                    const boxW = groupW;
-                    const boxH = estimatedContentH + layerPad * 2;
-                    const bRadius = Math.max(0, Math.round((grp.borderRadius !== undefined ? grp.borderRadius : 12) * layerScaleFactor));
-
-                    ctx.save();
-
-                    // Hiệu ứng đổ bóng mờ hoặc hào quang phát sáng (Box Shadow & Glow)
-                    if (grp.boxShadowEnabled) {
-                        ctx.shadowColor = grp.boxShadowColor || 'rgba(0, 0, 0, 0.35)';
-                        ctx.shadowBlur = Math.round((grp.boxShadowBlur !== undefined ? grp.boxShadowBlur : 10) * layerScaleFactor);
-                        ctx.shadowOffsetX = 0;
-                        ctx.shadowOffsetY = 4;
-                    }
-
-                    // 1. Vẽ Màu nền hộp lớp
-                    if (hasLayerBg) {
-                        ctx.save();
-                        const bgOp = (grp.backgroundOpacity !== undefined ? grp.backgroundOpacity : 100) / 100;
-                        ctx.globalAlpha = ctx.globalAlpha * bgOp;
-                        ctx.fillStyle = grp.backgroundColor;
-                        ctx.beginPath();
-                        if (ctx.roundRect) {
-                            ctx.roundRect(boxX, boxY, boxW, boxH, bRadius);
-                        } else {
-                            ctx.rect(boxX, boxY, boxW, boxH);
-                        }
-                        ctx.fill();
-                        ctx.restore();
-                    }
-
-                    // 2. Vẽ Viền bao quanh lớp
-                    if (hasLayerBorder) {
-                        ctx.save();
-                        const bWidth = Math.max(0.5, (grp.borderWidth !== undefined ? grp.borderWidth : 2) * layerScaleFactor);
-                        ctx.lineWidth = bWidth;
-                        ctx.strokeStyle = grp.borderColor || (grp.trackColor || '#3b82f6');
-
-                        const bStyle = grp.borderStyle || 'solid';
-                        if (bStyle === 'dashed') {
-                            ctx.setLineDash([Math.round(8 * layerScaleFactor), Math.round(5 * layerScaleFactor)]);
-                        } else if (bStyle === 'dotted') {
-                            ctx.setLineDash([Math.round(3 * layerScaleFactor), Math.round(3 * layerScaleFactor)]);
-                        } else {
-                            ctx.setLineDash([]);
-                        }
-
-                        ctx.beginPath();
-                        if (ctx.roundRect) {
-                            ctx.roundRect(boxX, boxY, boxW, boxH, bRadius);
-                        } else {
-                            ctx.rect(boxX, boxY, boxW, boxH);
-                        }
-                        ctx.stroke();
-                        ctx.restore();
-                    }
-
-                    ctx.restore();
-
-                    // Đệm lề (Padding) để các trường con nằm lọt gọn bên trong khung viền
-                    originX = originX + layerPad;
-                    groupW = effectiveContentW;
-                    currentFieldY = currentFieldY + layerPad;
-                }
-            }
-
             grp.fields.forEach((item, fIdx) => {
                 const itemType = item.type || 'field';
 
@@ -647,10 +565,6 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
                 ctx.textAlign = 'center';
                 ctx.fillText(tagText, tagX + tagW / 2, tagY + 13);
                 ctx.restore();
-            }
-
-            if (hasLayerBorder || hasLayerBg) {
-                currentFieldY += layerPad;
             }
 
             ctx.restore();

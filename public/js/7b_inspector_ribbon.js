@@ -8,7 +8,6 @@ var selectedTtsTarget = null;
 var selectedCountdownTarget = null;
 var selectedProgressTrackerTarget = null;
 var selectedAudioSfxTarget = null;
-var selectedLayerBorderTarget = null;
 
 function toggleSelectFieldMulti(fKey, e) {
     selectedCustomTextTarget = null;
@@ -16,7 +15,6 @@ function toggleSelectFieldMulti(fKey, e) {
     selectedCountdownTarget = null;
     selectedProgressTrackerTarget = null;
     selectedAudioSfxTarget = null;
-    selectedLayerBorderTarget = null;
     if (e && (e.ctrlKey || e.metaKey)) {
         if (selectedFieldKeysList.includes(fKey)) {
             if (selectedFieldKeysList.length > 1) selectedFieldKeysList = selectedFieldKeysList.filter(k => k !== fKey);
@@ -40,7 +38,6 @@ function selectLayerFieldItem(gIdx, fKey, e) {
     selectedCountdownTarget = null;
     selectedProgressTrackerTarget = null;
     selectedAudioSfxTarget = null;
-    selectedLayerBorderTarget = null;
     toggleSelectFieldMulti(fKey, e);
     showToast(`Đang định dạng {{${fKey}}} (Lớp ${gIdx + 1})!`);
 }
@@ -54,7 +51,6 @@ function selectCustomTextItem(gIdx, fIdx) {
     selectedCountdownTarget = null;
     selectedProgressTrackerTarget = null;
     selectedAudioSfxTarget = null;
-    selectedLayerBorderTarget = null;
     paragraphSelectedFieldKey = '__CUSTOM_TEXT__';
     getCustomTextDefaults(grp.fields[fIdx]);
     if (typeof switchLeftSubTab === 'function') switchLeftSubTab(4);
@@ -73,7 +69,6 @@ function selectTtsItem(gIdx, fIdx) {
     selectedCountdownTarget = null;
     selectedProgressTrackerTarget = null;
     selectedAudioSfxTarget = null;
-    selectedLayerBorderTarget = null;
     paragraphSelectedFieldKey = '__TTS__';
     if (typeof switchLeftSubTab === 'function') switchLeftSubTab(4);
     renderTimelineLayersListUI();
@@ -91,7 +86,6 @@ function selectCountdownItem(gIdx, fIdx) {
     selectedTtsTarget = null;
     selectedProgressTrackerTarget = null;
     selectedAudioSfxTarget = null;
-    selectedLayerBorderTarget = null;
     paragraphSelectedFieldKey = '__COUNTDOWN__';
     if (typeof switchLeftSubTab === 'function') switchLeftSubTab(4);
     renderTimelineLayersListUI();
@@ -109,7 +103,6 @@ function selectProgressTrackerItem(gIdx, fIdx) {
     selectedTtsTarget = null;
     selectedCountdownTarget = null;
     selectedAudioSfxTarget = null;
-    selectedLayerBorderTarget = null;
     paragraphSelectedFieldKey = '__PROGRESS_TRACKER__';
     if (typeof switchLeftSubTab === 'function') switchLeftSubTab(4);
     renderTimelineLayersListUI();
@@ -127,74 +120,12 @@ function selectAudioSfxItem(gIdx, fIdx) {
     selectedTtsTarget = null;
     selectedCountdownTarget = null;
     selectedProgressTrackerTarget = null;
-    selectedLayerBorderTarget = null;
     paragraphSelectedFieldKey = '__AUDIO_SFX__';
     if (typeof switchLeftSubTab === 'function') switchLeftSubTab(4);
     renderTimelineLayersListUI();
     renderInspectorRibbon();
     drawParagraphCanvasFrame();
     showToast(`Đang cấu hình Thẻ Âm Thanh SFX trong Lớp ${gIdx + 1}!`);
-}
-
-function selectLayerBorderTarget(gIdx) {
-    const grp = paragraphGridConfig.groups[gIdx];
-    if (!grp) return;
-    paragraphSelectedGroupIdx = gIdx;
-    selectedLayerBorderTarget = { gIdx };
-    selectedCustomTextTarget = null;
-    selectedTtsTarget = null;
-    selectedCountdownTarget = null;
-    selectedProgressTrackerTarget = null;
-    selectedAudioSfxTarget = null;
-    paragraphSelectedFieldKey = '__LAYER_BORDER__';
-    if (typeof ensureGroupBorderDefaults === 'function') ensureGroupBorderDefaults(grp);
-    if (typeof switchLeftSubTab === 'function') switchLeftSubTab(4);
-    renderTimelineLayersListUI();
-    renderInspectorRibbon();
-    drawParagraphCanvasFrame();
-    showToast(`Đang cài đặt Khung Viền & Hộp Lớp: "${grp.name || `Lớp ${gIdx + 1}`}"!`);
-}
-
-function updateGroupBorderProp(gIdx, prop, val, skipRibbonRerender = false) {
-    const grp = paragraphGridConfig.groups[gIdx];
-    if (!grp) return;
-    if (typeof ensureGroupBorderDefaults === 'function') ensureGroupBorderDefaults(grp);
-    grp[prop] = val;
-    drawParagraphCanvasFrame();
-    if (!skipRibbonRerender) {
-        renderInspectorRibbon();
-        renderTimelineLayersListUI();
-    }
-    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
-}
-
-function copyLayerBorderStyleToAll(srcGIdx) {
-    const srcGrp = paragraphGridConfig.groups[srcGIdx];
-    if (!srcGrp) return;
-    if (typeof ensureGroupBorderDefaults === 'function') ensureGroupBorderDefaults(srcGrp);
-
-    paragraphGridConfig.groups.forEach((grp, idx) => {
-        if (idx !== srcGIdx) {
-            if (typeof ensureGroupBorderDefaults === 'function') ensureGroupBorderDefaults(grp);
-            grp.borderEnabled = srcGrp.borderEnabled;
-            grp.borderColor = srcGrp.borderColor;
-            grp.borderWidth = srcGrp.borderWidth;
-            grp.borderStyle = srcGrp.borderStyle;
-            grp.borderRadius = srcGrp.borderRadius;
-            grp.borderPadding = srcGrp.borderPadding;
-            grp.backgroundColor = srcGrp.backgroundColor;
-            grp.backgroundOpacity = srcGrp.backgroundOpacity;
-            grp.boxShadowEnabled = srcGrp.boxShadowEnabled;
-            grp.boxShadowColor = srcGrp.boxShadowColor;
-            grp.boxShadowBlur = srcGrp.boxShadowBlur;
-        }
-    });
-
-    renderTimelineLayersListUI();
-    renderInspectorRibbon();
-    drawParagraphCanvasFrame();
-    showToast(`Đã sao chép kiểu viền của "${srcGrp.name}" cho tất cả các lớp!`, "success");
-    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
 }
 
 function updateProgressTrackerProp(gIdx, fIdx, prop, val, skipRibbonRerender = false) {
@@ -1333,234 +1264,10 @@ function renderAudioSfxInspectorRibbon(item, gIdx, fIdx) {
     if (window.lucide && lucide.createIcons) lucide.createIcons();
 }
 
-function renderLayerBorderInspectorRibbon(grp, gIdx) {
-    const body = document.getElementById('inspector-panel-body');
-    const targetLabel = document.getElementById('inspector-target-label');
-    if (!body || !grp) return;
-
-    if (typeof ensureGroupBorderDefaults === 'function') ensureGroupBorderDefaults(grp);
-
-    if (targetLabel) {
-        targetLabel.innerHTML = `<span class="inline-block w-2.5 h-2.5 rounded-full mr-1.5" style="background:${grp.trackColor || '#3b82f6'}"></span>Viền & Hộp: ${grp.name || `Lớp ${gIdx + 1}`}`;
-        targetLabel.className = "text-[9px] font-bold bg-indigo-950/80 text-indigo-300 border border-indigo-700/60 px-2 py-0.5 rounded flex items-center shadow-sm";
-    }
-
-    const borderEnabled = !!grp.borderEnabled;
-    const borderColor = grp.borderColor || (grp.trackColor || '#3b82f6');
-    const borderWidth = grp.borderWidth !== undefined ? grp.borderWidth : 2;
-    const borderStyle = grp.borderStyle || 'solid';
-    const borderRadius = grp.borderRadius !== undefined ? grp.borderRadius : 12;
-    const borderPadding = grp.borderPadding !== undefined ? grp.borderPadding : 10;
-    const backgroundColor = grp.backgroundColor || 'transparent';
-    const backgroundOpacity = grp.backgroundOpacity !== undefined ? grp.backgroundOpacity : 100;
-    const boxShadowEnabled = !!grp.boxShadowEnabled;
-    const boxShadowColor = grp.boxShadowColor || 'rgba(0, 0, 0, 0.35)';
-    const boxShadowBlur = grp.boxShadowBlur !== undefined ? grp.boxShadowBlur : 10;
-
-    const paletteColors = ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#06b6d4', '#e2e8f0', '#ffffff', '#0f172a'];
-
-    body.innerHTML = `
-        <div class="space-y-3 bg-slate-900 p-3 rounded-xl border border-indigo-500/50 text-xs">
-            <!-- Header thông tin lớp -->
-            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-                <div class="flex items-center space-x-1.5">
-                    <span class="w-3 h-3 rounded-full flex-shrink-0" style="background: ${grp.trackColor || '#3b82f6'}"></span>
-                    <span class="font-bold text-indigo-300 text-xs uppercase tracking-wider">Cài Đặt Khung Viền & Hộp Lớp</span>
-                </div>
-                <span class="text-[9px] font-mono text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">Lớp #${gIdx + 1}</span>
-            </div>
-
-            <!-- Tên lớp & vị trí -->
-            <div class="bg-slate-950 p-2 rounded-lg border border-slate-800 space-y-1.5">
-                <div class="flex items-center justify-between">
-                    <label class="text-[10px] font-bold text-slate-300">Tên Lớp:</label>
-                    <input type="text" value="${(grp.name || '').replace(/"/g, '&quot;')}" onchange="grp.name = this.value; renderTimelineLayersListUI(); renderInspectorRibbon(); if (typeof triggerAutoSave === 'function') triggerAutoSave(false);" class="w-40 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-[11px] text-white font-semibold focus:border-indigo-500">
-                </div>
-                <div class="flex items-center justify-between text-[10px] text-slate-400">
-                    <span>Vị trí cột: <strong class="text-sky-300 font-mono">Cột ${grp.targetCol || 1}</strong> (span: ${grp.colSpan || 1})</span>
-                    <span>Phân khu: <strong class="text-amber-300 font-mono">${grp.timelineBoundary === 'intro' ? 'Khu 1' : (grp.timelineBoundary === 'outro' ? 'Khu 3' : 'Khu 2')}</strong></span>
-                </div>
-            </div>
-
-            <!-- 1. CÀI ĐẶT VIỀN TOÀN BỘ LỚP (LAYER BORDER) -->
-            <div class="space-y-2.5 bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-                <div class="flex items-center justify-between">
-                    <label class="flex items-center space-x-2 cursor-pointer select-none">
-                        <input type="checkbox" ${borderEnabled ? 'checked' : ''} onchange="updateGroupBorderProp(${gIdx}, 'borderEnabled', this.checked);" class="rounded bg-slate-800 border-slate-700 text-indigo-500 focus:ring-indigo-500 w-4 h-4 cursor-pointer">
-                        <span class="text-[11px] font-bold text-slate-200">Bật Viền Bao Quanh Lớp</span>
-                    </label>
-                    <span class="text-[9px] px-1.5 py-0.5 rounded font-bold ${borderEnabled ? 'bg-indigo-600/30 text-indigo-300 border border-indigo-500/40' : 'bg-slate-800 text-slate-400'}">${borderEnabled ? 'ĐANG BẬT' : 'ĐÃ TẮT'}</span>
-                </div>
-
-                ${borderEnabled ? `
-                <div class="space-y-2 pt-1 border-t border-slate-900">
-                    <!-- Chọn màu viền -->
-                    <div>
-                        <div class="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-                            <span>Màu sắc viền</span>
-                            <span class="font-mono text-indigo-300 font-bold">${borderColor}</span>
-                        </div>
-                        <div class="flex items-center space-x-1.5">
-                            <input type="color" value="${borderColor.startsWith('#') && borderColor.length === 7 ? borderColor : '#3b82f6'}" oninput="updateGroupBorderProp(${gIdx}, 'borderColor', this.value, true);" onchange="updateGroupBorderProp(${gIdx}, 'borderColor', this.value, false);" class="w-8 h-8 rounded border border-slate-700 bg-transparent cursor-pointer flex-shrink-0">
-                            <input type="text" value="${borderColor}" onchange="updateGroupBorderProp(${gIdx}, 'borderColor', this.value, false);" class="w-24 bg-slate-900 border border-slate-700 rounded p-1 text-slate-200 text-xs font-mono">
-                            <!-- Bảng màu mẫu nhanh -->
-                            <div class="flex flex-wrap gap-1 items-center flex-1 justify-end">
-                                ${paletteColors.map(c => `
-                                    <button type="button" onclick="updateGroupBorderProp(${gIdx}, 'borderColor', '${c}', false);" class="w-4 h-4 rounded-full border border-slate-700 hover:scale-125 transition flex-shrink-0" style="background:${c};" title="${c}"></button>
-                                `).join('')}
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Độ dày viền & Kiểu nét -->
-                    <div class="grid grid-cols-2 gap-2 pt-1">
-                        <div>
-                            <div class="flex items-center justify-between text-[10px] text-slate-400 mb-0.5">
-                                <span>Độ dày viền</span>
-                                <span id="layer-border-w-badge" class="font-mono text-indigo-300 font-bold">${borderWidth}px</span>
-                            </div>
-                            <input type="range" min="0.5" max="15" step="0.5" value="${borderWidth}" oninput="document.getElementById('layer-border-w-badge').innerText = this.value + 'px'; updateGroupBorderProp(${gIdx}, 'borderWidth', parseFloat(this.value), true);" onchange="updateGroupBorderProp(${gIdx}, 'borderWidth', parseFloat(this.value), false);" class="w-full accent-indigo-500">
-                        </div>
-
-                        <div>
-                            <span class="text-[10px] text-slate-400 block mb-0.5">Kiểu nét viền</span>
-                            <select onchange="updateGroupBorderProp(${gIdx}, 'borderStyle', this.value);" class="w-full bg-slate-900 border border-slate-700 rounded p-1 text-slate-200 text-xs">
-                                <option value="solid" ${borderStyle === 'solid' ? 'selected' : ''}>Nét liền (Solid)</option>
-                                <option value="dashed" ${borderStyle === 'dashed' ? 'selected' : ''}>Nét đứt (Dashed)</option>
-                                <option value="dotted" ${borderStyle === 'dotted' ? 'selected' : ''}>Chấm bi (Dotted)</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Bo góc & Khoảng đệm Padding -->
-                    <div class="grid grid-cols-2 gap-2 pt-1">
-                        <div>
-                            <div class="flex items-center justify-between text-[10px] text-slate-400 mb-0.5">
-                                <span>Bo góc (Radius)</span>
-                                <span id="layer-border-r-badge" class="font-mono text-indigo-300 font-bold">${borderRadius}px</span>
-                            </div>
-                            <input type="range" min="0" max="50" step="1" value="${borderRadius}" oninput="document.getElementById('layer-border-r-badge').innerText = this.value + 'px'; updateGroupBorderProp(${gIdx}, 'borderRadius', parseInt(this.value, 10), true);" onchange="updateGroupBorderProp(${gIdx}, 'borderRadius', parseInt(this.value, 10), false);" class="w-full accent-indigo-500">
-                        </div>
-
-                        <div>
-                            <div class="flex items-center justify-between text-[10px] text-slate-400 mb-0.5">
-                                <span>Khoảng đệm (Padding)</span>
-                                <span id="layer-border-p-badge" class="font-mono text-indigo-300 font-bold">${borderPadding}px</span>
-                            </div>
-                            <input type="range" min="0" max="40" step="2" value="${borderPadding}" oninput="document.getElementById('layer-border-p-badge').innerText = this.value + 'px'; updateGroupBorderProp(${gIdx}, 'borderPadding', parseInt(this.value, 10), true);" onchange="updateGroupBorderProp(${gIdx}, 'borderPadding', parseInt(this.value, 10), false);" class="w-full accent-indigo-500">
-                        </div>
-                    </div>
-                </div>
-                ` : ''}
-            </div>
-
-            <!-- 2. MÀU NỀN HỘP LỚP & ĐỘ MỜ ĐỤC (BACKGROUND & OPACITY) -->
-            <div class="space-y-2.5 bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-                <span class="text-[11px] font-bold text-slate-300 block">Màu Nền Hộp Lớp & Độ Mờ Đục</span>
-
-                <div>
-                    <div class="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-                        <span>Màu nền hộp</span>
-                        <div class="flex items-center space-x-1">
-                            <span class="font-mono text-indigo-300 font-bold">${backgroundColor}</span>
-                            <button type="button" onclick="updateGroupBorderProp(${gIdx}, 'backgroundColor', 'transparent');" class="text-[9px] text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 px-1 py-0.5 rounded border border-slate-700">Trong suốt</button>
-                        </div>
-                    </div>
-                    <div class="flex items-center space-x-1.5">
-                        <input type="color" value="${backgroundColor.startsWith('#') && backgroundColor.length === 7 ? backgroundColor : '#0f172a'}" oninput="updateGroupBorderProp(${gIdx}, 'backgroundColor', this.value, true);" onchange="updateGroupBorderProp(${gIdx}, 'backgroundColor', this.value, false);" class="w-8 h-8 rounded border border-slate-700 bg-transparent cursor-pointer flex-shrink-0">
-                        <input type="text" value="${backgroundColor}" onchange="updateGroupBorderProp(${gIdx}, 'backgroundColor', this.value, false);" placeholder="transparent hoặc #màu" class="w-28 bg-slate-900 border border-slate-700 rounded p-1 text-slate-200 text-xs font-mono">
-                    </div>
-                    
-                    <!-- Presets nền nhanh -->
-                    <div class="flex flex-wrap gap-1 pt-1.5">
-                        <button type="button" onclick="updateGroupBorderProp(${gIdx}, 'backgroundColor', 'rgba(15, 23, 42, 0.85)');" class="text-[8px] bg-slate-900 border border-slate-700 hover:border-indigo-400 text-slate-300 px-1.5 py-0.5 rounded">Tối Slate (85%)</button>
-                        <button type="button" onclick="updateGroupBorderProp(${gIdx}, 'backgroundColor', 'rgba(0, 0, 0, 0.7)');" class="text-[8px] bg-black border border-slate-700 hover:border-indigo-400 text-slate-300 px-1.5 py-0.5 rounded">Đen mờ (70%)</button>
-                        <button type="button" onclick="updateGroupBorderProp(${gIdx}, 'backgroundColor', 'rgba(255, 255, 255, 0.12)');" class="text-[8px] bg-white/10 border border-slate-700 hover:border-indigo-400 text-slate-300 px-1.5 py-0.5 rounded">Kính mờ (Frosted)</button>
-                        <button type="button" onclick="updateGroupBorderProp(${gIdx}, 'backgroundColor', '#ffffff');" class="text-[8px] bg-white text-slate-900 font-bold px-1.5 py-0.5 rounded">Trắng sáng</button>
-                        <button type="button" onclick="updateGroupBorderProp(${gIdx}, 'backgroundColor', 'transparent');" class="text-[8px] bg-slate-800 text-amber-300 px-1.5 py-0.5 rounded">Không nền</button>
-                    </div>
-                </div>
-
-                <!-- Độ mờ đục nền -->
-                <div>
-                    <div class="flex items-center justify-between text-[10px] text-slate-400 mb-0.5">
-                        <span>Độ mờ đục nền (Opacity)</span>
-                        <span id="layer-bg-op-badge" class="font-mono text-indigo-300 font-bold">${backgroundOpacity}%</span>
-                    </div>
-                    <input type="range" min="0" max="100" step="5" value="${backgroundOpacity}" oninput="document.getElementById('layer-bg-op-badge').innerText = this.value + '%'; updateGroupBorderProp(${gIdx}, 'backgroundOpacity', parseInt(this.value, 10), true);" onchange="updateGroupBorderProp(${gIdx}, 'backgroundOpacity', parseInt(this.value, 10), false);" class="w-full accent-indigo-500">
-                </div>
-            </div>
-
-            <!-- 3. HIỆU ỨNG ĐỔ BÓNG & HÀO QUANG (BOX SHADOW & GLOW) -->
-            <div class="space-y-2 bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-                <div class="flex items-center justify-between">
-                    <label class="flex items-center space-x-2 cursor-pointer select-none">
-                        <input type="checkbox" ${boxShadowEnabled ? 'checked' : ''} onchange="updateGroupBorderProp(${gIdx}, 'boxShadowEnabled', this.checked);" class="rounded bg-slate-800 border-slate-700 text-indigo-500 focus:ring-indigo-500 w-4 h-4 cursor-pointer">
-                        <span class="text-[11px] font-bold text-slate-200">Bật Đổ Bóng / Hào Quang Glow</span>
-                    </label>
-                    <span class="text-[9px] px-1.5 py-0.5 rounded font-bold ${boxShadowEnabled ? 'bg-indigo-600/30 text-indigo-300' : 'text-slate-500'}">${boxShadowEnabled ? 'BẬT' : 'TẮT'}</span>
-                </div>
-
-                ${boxShadowEnabled ? `
-                <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-900">
-                    <div>
-                        <span class="text-[10px] text-slate-400 block mb-1">Màu bóng / hào quang</span>
-                        <div class="flex items-center space-x-1">
-                            <input type="color" value="${boxShadowColor.startsWith('#') && boxShadowColor.length === 7 ? boxShadowColor : '#000000'}" oninput="updateGroupBorderProp(${gIdx}, 'boxShadowColor', this.value, true);" onchange="updateGroupBorderProp(${gIdx}, 'boxShadowColor', this.value, false);" class="w-6 h-6 rounded border border-slate-700 bg-transparent cursor-pointer">
-                            <input type="text" value="${boxShadowColor}" onchange="updateGroupBorderProp(${gIdx}, 'boxShadowColor', this.value, false);" class="w-full bg-slate-900 border border-slate-700 rounded p-1 text-[10px] font-mono text-slate-200">
-                        </div>
-                    </div>
-                    <div>
-                        <div class="flex items-center justify-between text-[10px] text-slate-400 mb-0.5">
-                            <span>Độ nhòe (Blur)</span>
-                            <span id="layer-shadow-blur-badge" class="font-mono text-indigo-300 font-bold">${boxShadowBlur}px</span>
-                        </div>
-                        <input type="range" min="0" max="35" step="1" value="${boxShadowBlur}" oninput="document.getElementById('layer-shadow-blur-badge').innerText = this.value + 'px'; updateGroupBorderProp(${gIdx}, 'boxShadowBlur', parseInt(this.value, 10), true);" onchange="updateGroupBorderProp(${gIdx}, 'boxShadowBlur', parseInt(this.value, 10), false);" class="w-full accent-indigo-500">
-                    </div>
-                </div>
-                ` : ''}
-            </div>
-
-            <!-- 4. TIỆN ÍCH & ÁP DỤNG ĐỒNG LOẠT -->
-            <div class="space-y-2 pt-1">
-                <button type="button" onclick="copyLayerBorderStyleToAll(${gIdx});" class="w-full py-1.5 px-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white rounded-lg font-bold text-xs flex items-center justify-center space-x-1.5 shadow-md shadow-indigo-950/50 transition cursor-pointer">
-                    <i data-lucide="copy" class="w-3.5 h-3.5"></i>
-                    <span>Áp Dụng Kiểu Viền Này Cho Tất Cả Các Lớp</span>
-                </button>
-
-                <div class="flex items-center justify-between pt-1 border-t border-slate-800 text-[10px]">
-                    <button type="button" onclick="updateGroupBorderProp(${gIdx}, 'borderEnabled', false); updateGroupBorderProp(${gIdx}, 'backgroundColor', 'transparent');" class="text-slate-400 hover:text-white hover:underline cursor-pointer">
-                        Đặt lại không viền
-                    </button>
-                    ${grp.fields && grp.fields.length > 0 ? `
-                    <button type="button" onclick="selectGridGroup(${gIdx});" class="text-sky-400 hover:text-sky-300 font-bold hover:underline cursor-pointer">
-                        Xem các thẻ con (${grp.fields.length}) →
-                    </button>
-                    ` : ''}
-                </div>
-            </div>
-        </div>
-    `;
-
-    if (window.lucide && lucide.createIcons) lucide.createIcons();
-}
-
 function renderInspectorRibbon() {
     const body = document.getElementById('inspector-panel-body');
     const targetLabel = document.getElementById('inspector-target-label');
     if (!body) return;
-
-    // KIỂM TRA NẾU ĐANG CHỌN KHUNG VIỀN LỚP
-    if (selectedLayerBorderTarget) {
-        const { gIdx } = selectedLayerBorderTarget;
-        const grp = paragraphGridConfig.groups[gIdx];
-        if (grp) {
-            renderLayerBorderInspectorRibbon(grp, gIdx);
-            return;
-        } else {
-            selectedLayerBorderTarget = null;
-        }
-    }
 
     // KIỂM TRA NẾU ĐANG CHỌN THẺ CHỮ TỰ DO
     if (selectedCustomTextTarget) {

@@ -263,6 +263,9 @@ function renderTimelineTracksUI() {
     if (tracksBadge) {
         tracksBadge.innerText = `${paragraphGridConfig.groups.length} Lớp (Hiện 100%)`;
     }
+    if (typeof updatePreviewButtonLabel === 'function') {
+        updatePreviewButtonLabel();
+    }
 
     paragraphGridConfig.groups.forEach((grp, gIdx) => {
         const trackRow = document.createElement('div');

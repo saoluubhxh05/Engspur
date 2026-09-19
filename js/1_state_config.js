@@ -5,19 +5,18 @@
 
 var APP_VERSION_INFO = {
     version: "V14.2",
-    releaseDate: "18/09/2026",
+    releaseDate: "19/09/2026",
     status: "Mới nhất & Ổn định",
-    summary: "Bản nâng cấp V14.2: Bổ sung bộ công cụ cài đặt và chỉnh sửa khung viền (Border) bao quanh toàn bộ lớp chuyên nghiệp; tùy chỉnh độ dày, kiểu nét (Solid/Dashed/Dotted), bo góc, khoảng đệm padding, màu nền và hiệu ứng đổ bóng cho lớp.",
+    summary: "Bản nâng cấp V14.2: Tối ưu tính năng 'Chạy Thử Toàn Bộ' theo Phương án 2 (Timeline 1 trang tĩnh). Khi chọn 'Hiện tất cả các dòng', Timeline chạy trọn vẹn đúng 1 chu kỳ thời lượng (8s-10s) cho toàn bộ trang bài học thay vì lặp reset từng câu; đồng bộ TTS đọc toàn trang và giao diện nút chạy thử hiển thị trực quan.",
     categories: [
         {
-            title: "Khung Viền & Hộp Lớp Bao Toàn Bộ (V14.2)",
-            icon: "square",
+            title: "Timeline 1 Trang Tĩnh Khi 'Hiện Tất Cả Dòng' (V14.2)",
+            icon: "play-circle",
             color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/30",
             items: [
-                "Khung viền bao trọn toàn bộ lớp: Thêm viền bao quanh toàn bộ các phần tử thuộc lớp (câu hỏi, đáp án, dịch nghĩa, ảnh minh họa...) tạo thành khối thẻ bài học thống nhất.",
-                "Đầy đủ công cụ viền: Tùy chỉnh bật/tắt viền, bảng chọn màu viền & màu mẫu, độ dày nét (0 - 15px), kiểu nét (Nét liền Solid / Nét đứt Dashed / Chấm bi Dotted), bo góc (0 - 50px) và khoảng đệm lề (Padding 0 - 40px).",
-                "Màu nền hộp lớp & Đổ bóng (Glow): Tùy biến màu nền hộp lớp kèm độ mờ đục (Opacity), hỗ trợ hiệu ứng đổ bóng mờ / hào quang phát sáng nổi bật trên Canvas Preview và khi xuất video MP4.",
-                "Thao tác trực quan đa vị trí: Chỉnh sửa nhanh ngay trên từng thẻ lớp ở Cột phải hoặc mở Bảng định dạng Ribbon chuyên sâu ở Cột trái, hỗ trợ sao chép kiểu viền cho tất cả các lớp."
+                "Phương án 2 - Chạy thử 1 chu kỳ trang tĩnh: Khi kịch bản hoặc lớp có tùy chọn 'Hiện tất cả các dòng', nút Chạy Thử Toàn Bộ tự động kích hoạt 1 chu kỳ duy nhất theo đúng thời lượng Timeline (8s-10s), không lặp lại tua kim qua từng câu.",
+                "Đồng bộ giọng đọc TTS toàn trang: Tự động tổng hợp và đọc toàn bộ các dòng bài tập hiển thị trên trang tĩnh thay vì chỉ đọc câu đầu tiên.",
+                "Hiển thị giao diện thông minh: Nút Chạy Thử và thanh trạng thái tự động cập nhật nhãn 'Chạy Thử Trang Tĩnh (1 Chu Kỳ)' giúp người dùng nắm bắt tức thì chế độ đang hoạt động."
             ]
         },
         {
@@ -208,11 +207,6 @@ var APP_VERSION_INFO = {
     ],
     history: [
         {
-            version: "V14.2",
-            date: "18/09/2026",
-            highlight: "Cài đặt chỉnh sửa khung viền bao toàn bộ lớp: Bật/tắt viền, màu viền, độ dày (0-15px), kiểu nét liền/đứt/chấm bi, bo góc (0-50px), khoảng đệm padding, màu nền và đổ bóng."
-        },
-        {
             version: "V14.1",
             date: "17/09/2026",
             highlight: "Khắc phục triệt để màn hình trống khi chuyển dòng trong chế độ 3.2, duy trì khung hình hoàn chỉnh liên tục suốt 0.5s chuyển câu."
@@ -370,22 +364,6 @@ var selectedFieldKeysList = ["Substitution words"];
 var paragraphSelectedGroupIdx = 0;
 var paragraphSelectedFieldKey = "Substitution words";
 var selectedCustomTextTarget = null; // { gIdx, fIdx }
-var selectedLayerBorderTarget = null; // { gIdx }
-
-function ensureGroupBorderDefaults(grp) {
-    if (!grp) return;
-    if (grp.borderEnabled === undefined) grp.borderEnabled = false;
-    if (grp.borderColor === undefined) grp.borderColor = grp.trackColor || "#3b82f6";
-    if (grp.borderWidth === undefined) grp.borderWidth = 2;
-    if (grp.borderStyle === undefined) grp.borderStyle = "solid"; // 'solid' | 'dashed' | 'dotted'
-    if (grp.borderRadius === undefined) grp.borderRadius = 12;
-    if (grp.borderPadding === undefined) grp.borderPadding = 10;
-    if (grp.backgroundColor === undefined) grp.backgroundColor = "transparent";
-    if (grp.backgroundOpacity === undefined) grp.backgroundOpacity = 100;
-    if (grp.boxShadowEnabled === undefined) grp.boxShadowEnabled = false;
-    if (grp.boxShadowColor === undefined) grp.boxShadowColor = "rgba(0, 0, 0, 0.35)";
-    if (grp.boxShadowBlur === undefined) grp.boxShadowBlur = 10;
-}
 
 function getCustomTextDefaults(item) {
     if (!item) item = {};
