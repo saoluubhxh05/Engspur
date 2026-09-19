@@ -722,6 +722,7 @@ function activateBatchRenderView() {
 
     ensureSavedParagraphProfiles();
     refreshBatchTopicsTable();
+    if (typeof syncMobileNavState === 'function') syncMobileNavState('batch');
     showToast("Đã mở giao diện Render Hàng Loạt!");
 }
 

@@ -716,6 +716,119 @@ function generateSynthesizedSfxBuffer(soundType, audioCtx) {
     }
 }
 
+function createTickSoundBuffer(audioCtx, style = 'mechanical', isWarning = false) {
+    const sampleRate = audioCtx.sampleRate || 44100;
+    const dur = isWarning ? 0.08 : 0.055;
+    const numSamples = Math.floor(sampleRate * dur);
+    const buffer = audioCtx.createBuffer(1, numSamples, sampleRate);
+    const data = buffer.getChannelData(0);
+
+    if (style === 'beep') {
+        const freq = isWarning ? 1200 : 880;
+        for (let i = 0; i < numSamples; i++) {
+            const t = i / sampleRate;
+            const env = Math.sin((t / dur) * Math.PI);
+            data[i] = Math.sin(2 * Math.PI * freq * t) * env * 0.75;
+        }
+    } else if (style === 'wood') {
+        const freq = isWarning ? 920 : 640;
+        for (let i = 0; i < numSamples; i++) {
+            const t = i / sampleRate;
+            const env = Math.exp(-t * 95);
+            const body = Math.sin(2 * Math.PI * freq * t);
+            const harm = 0.3 * Math.sin(2 * Math.PI * (freq * 1.6) * t);
+            data[i] = (body + harm) * env * 0.85;
+        }
+    } else {
+        const primaryFreq = isWarning ? 3200 : 2600;
+        const lowFreq = isWarning ? 1400 : 1100;
+        for (let i = 0; i < numSamples; i++) {
+            const t = i / sampleRate;
+            const clickEnv = Math.exp(-t * 260);
+            const bodyEnv = Math.exp(-t * 80);
+            const click = Math.sin(2 * Math.PI * primaryFreq * t) * clickEnv * 0.7;
+            const body = Math.sin(2 * Math.PI * lowFreq * t) * bodyEnv * 0.4;
+            const noise = (Math.random() * 2 - 1) * clickEnv * 0.25;
+            data[i] = (click + body + noise) * 0.95;
+        }
+    }
+    return buffer;
+}
+
+function playCountdownTickSound(item, isWarning = false, isEnd = false) {
+    if (!item || item.enableTickSound === false) return;
+    try {
+        const audioCtx = getSharedAudioContext();
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume().catch(() => {});
+        }
+
+        let buffer = null;
+        if (isEnd) {
+            if (item.playEndChime === false) return;
+            const soundType = item.endSoundType || 'ding';
+            buffer = generateSynthesizedSfxBuffer(soundType, audioCtx);
+        } else {
+            const style = item.tickSoundType || 'mechanical';
+            buffer = createTickSoundBuffer(audioCtx, style, isWarning);
+        }
+
+        if (!buffer) return;
+
+        const baseVolume = (item.tickVolume !== undefined ? item.tickVolume : 80) / 100;
+        const isDucking = (item.ducking !== false);
+        const actualVol = (isDucking && isTtsAudioSpeaking) ? (baseVolume * 0.35) : baseVolume;
+
+        const source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+        const gainNode = audioCtx.createGain();
+        gainNode.gain.setValueAtTime(actualVol, audioCtx.currentTime);
+
+        source.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        if (typeof batchStudioAudioDest !== 'undefined' && batchStudioAudioDest) {
+            try { gainNode.connect(batchStudioAudioDest); } catch(e) {}
+        }
+
+        source.start(0);
+
+        if (typeof isBatchRunning !== 'undefined' && isBatchRunning && typeof batchCurrentVideoStartTime !== 'undefined' && batchCurrentVideoStartTime > 0) {
+            const actualAudioTimeMs = Math.max(0, Math.round(performance.now() - batchCurrentVideoStartTime));
+            if (typeof batchTopicScheduledAudioList !== 'undefined' && Array.isArray(batchTopicScheduledAudioList)) {
+                batchTopicScheduledAudioList.push({
+                    timeMs: actualAudioTimeMs,
+                    audioBuffer: buffer
+                });
+            }
+        }
+    } catch (e) {
+        console.warn("Lỗi phát âm thanh đếm ngược:", e);
+    }
+}
+
+function testCountdownAudioSound(gIdx, fIdx) {
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (!grp || !grp.fields[fIdx]) return;
+    const item = grp.fields[fIdx];
+
+    playCountdownTickSound(item, false, false);
+    if (typeof showToast === 'function') {
+        const styleName = item.tickSoundType === 'beep' ? 'Điện tử' : (item.tickSoundType === 'wood' ? 'Gõ gỗ' : 'Cơ học');
+        showToast(`Đang nghe thử tiếng tích tắc: ${styleName} (Âm lượng ${item.tickVolume !== undefined ? item.tickVolume : 80}%)...`);
+    }
+
+    setTimeout(() => {
+        playCountdownTickSound(item, true, false);
+    }, 400);
+
+    if (item.playEndChime !== false) {
+        setTimeout(() => {
+            playCountdownTickSound(item, false, true);
+        }, 800);
+    }
+}
+
 // TRẠNG THÁI TOÀN CỤC PHỤC VỤ NÉ TIẾNG DUCKING & ÂM LƯỢNG THỜI GIAN THỰC
 var isTtsAudioSpeaking = false;
 var activeSfxInstances = [];
@@ -804,6 +917,9 @@ function stopAllSfxAudio() {
     activeSfxInstances = [];
     if (typeof outsideLoopTriggeredAudioGroups !== 'undefined' && outsideLoopTriggeredAudioGroups) {
         outsideLoopTriggeredAudioGroups.clear();
+    }
+    if (typeof currentCountdownTriggeredTicks !== 'undefined' && currentCountdownTriggeredTicks) {
+        currentCountdownTriggeredTicks.clear();
     }
     updateSfxTestButtonState(false);
 }

@@ -811,47 +811,275 @@ function renderCountdownInspectorRibbon(item, gIdx, fIdx) {
     if (!body) return;
 
     if (targetLabel) {
-        targetLabel.innerHTML = `<span class="flex items-center space-x-1"><i data-lucide="timer" class="w-3 h-3 text-rose-400"></i><span>Đếm Ngược (Lớp ${gIdx + 1})</span></span>`;
-        targetLabel.className = "text-[9px] font-extrabold bg-rose-950 text-rose-300 border border-rose-700/80 px-2 py-0.5 rounded";
+        targetLabel.innerHTML = `<span class="flex items-center space-x-1"><i data-lucide="timer" class="w-3 h-3 text-rose-400"></i><span>Đồng Hồ Đếm Ngược (Lớp ${gIdx + 1})</span></span>`;
+        targetLabel.className = "text-[9px] font-extrabold bg-rose-950 text-rose-300 border border-rose-700/80 px-2 py-0.5 rounded shadow-sm";
     }
 
     const sec = item.seconds !== undefined ? item.seconds : 3;
+    const curPreset = item.preset || 'green_to_red';
+    const isColorShift = item.colorShift !== false;
+    const enableTick = item.enableTickSound !== false;
+    const soundType = item.tickSoundType || 'mechanical';
+    const tickVol = item.tickVolume !== undefined ? item.tickVolume : 80;
+    const playChime = item.playEndChime !== false;
     const pos = item.position || 'top_right';
+    const size = item.size || 'medium';
+    const opacity = item.opacity !== undefined ? item.opacity : 100;
+
+    const presetsList = [
+        { id: 'green_to_red', title: 'Xanh ➔ Đỏ (Cảnh Báo)', desc: 'Chuyển màu Xanh -> Vàng -> Đỏ khi cạn giờ', icon: 'sparkles', badge: 'Hot' },
+        { id: 'neon_ring', title: 'Vòng Neon Hiện Đại', desc: 'Vòng tròn phát sáng neon quét 360°', icon: 'circle-dot', badge: 'Modern' },
+        { id: 'digital_badge', title: 'Digital LED Thể Thao', desc: 'Đồng hồ điện tử viền sáng kèm thanh bar', icon: 'watch', badge: 'LED' },
+        { id: 'minimal_pill', title: 'Pill Tối Giản', desc: 'Viên thuốc thanh lịch kèm icon đồng hồ', icon: 'pill', badge: 'Clean' },
+        { id: 'bomb_pulse', title: 'Quả Bom Kịch Tính', desc: 'Hiệu ứng nhịp đập rung lắc dồn dập', icon: 'flame', badge: 'Pulse' },
+        { id: 'classic_circle', title: 'Cổ Điển Bo Tròn', desc: 'Hình tròn nguyên bản đỏ đơn giản', icon: 'circle', badge: 'Classic' }
+    ];
 
     body.innerHTML = `
         <div class="space-y-3 text-xs">
-            <div class="space-y-2.5 bg-slate-900 p-2.5 rounded-xl border border-rose-500/50 shadow">
-                <span class="text-[10px] font-extrabold text-rose-300 uppercase tracking-wider flex items-center space-x-1.5">
-                    <i data-lucide="timer" class="w-3.5 h-3.5 text-rose-400"></i>
-                    <span>Cài Đặt Đồng Hồ Đếm Ngược</span>
+            <!-- 1. BỘ PRESETS ĐỒNG HỒ ĐẾM NGƯỢC -->
+            <div class="space-y-2 bg-slate-900 p-2.5 rounded-xl border border-rose-500/40 shadow">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-extrabold text-rose-300 uppercase tracking-wider flex items-center space-x-1.5">
+                        <i data-lucide="palette" class="w-3.5 h-3.5 text-rose-400"></i>
+                        <span>Presets Đồng Hồ Đếm Ngược</span>
+                    </span>
+                    <span class="text-[8px] bg-rose-950 text-rose-300 font-extrabold px-1.5 py-0.5 rounded border border-rose-800">6 Giao Diện</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-1.5 pt-1">
+                    ${presetsList.map(p => {
+                        const isSel = (curPreset === p.id);
+                        return `
+                            <button type="button" onclick="setCountdownPreset(${gIdx}, ${fIdx}, '${p.id}')" class="text-left p-1.5 rounded-lg border transition cursor-pointer flex flex-col justify-between ${isSel ? 'bg-rose-950/90 border-rose-400 ring-1 ring-rose-400/50 shadow-md' : 'bg-slate-950/70 border-slate-800 hover:border-slate-700 hover:bg-slate-800/50'}">
+                                <div class="flex items-center justify-between w-full mb-0.5">
+                                    <span class="text-[9px] font-extrabold ${isSel ? 'text-white' : 'text-slate-200'} flex items-center space-x-1">
+                                        <i data-lucide="${p.icon}" class="w-2.5 h-2.5 ${isSel ? 'text-rose-400' : 'text-slate-400'}"></i>
+                                        <span class="truncate">${p.title}</span>
+                                    </span>
+                                    <span class="text-[7px] font-bold px-1 rounded ${isSel ? 'bg-rose-500 text-white' : 'bg-slate-800 text-slate-400'}">${p.badge}</span>
+                                </div>
+                                <span class="text-[7.5px] text-slate-400 leading-tight line-clamp-1">${p.desc}</span>
+                            </button>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+
+            <!-- 2. HIỆU ỨNG ĐỔI MÀU TỪ XANH SANG ĐỎ (COLOR SHIFT) -->
+            <div class="space-y-2 bg-slate-900 p-2.5 rounded-xl border border-slate-800 shadow">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-extrabold text-amber-300 uppercase tracking-wider flex items-center space-x-1.5">
+                        <i data-lucide="sun-medium" class="w-3.5 h-3.5 text-amber-400"></i>
+                        <span>Đổi Màu Theo Thời Gian</span>
+                    </span>
+                    <label class="flex items-center space-x-1.5 cursor-pointer">
+                        <input type="checkbox" ${isColorShift ? 'checked' : ''} onchange="updateCountdownProp(${gIdx}, ${fIdx}, 'colorShift', this.checked)" class="rounded bg-slate-950 border-slate-700 text-emerald-500 focus:ring-0 w-3.5 h-3.5">
+                        <span class="text-[9px] font-bold ${isColorShift ? 'text-emerald-300' : 'text-slate-400'}">Kích hoạt</span>
+                    </label>
+                </div>
+
+                <div class="p-2 rounded-lg bg-slate-950 border border-slate-800 space-y-1.5">
+                    <div class="flex items-center justify-between text-[8px] font-extrabold">
+                        <span class="text-emerald-400 flex items-center space-x-0.5"><span>●</span><span>>50%: Xanh lá</span></span>
+                        <span class="text-amber-400 flex items-center space-x-0.5"><span>●</span><span>20-50%: Vàng cam</span></span>
+                        <span class="text-rose-400 flex items-center space-x-0.5"><span>●</span><span><20%: Đỏ cảnh báo</span></span>
+                    </div>
+                    <!-- Thanh dải màu trực quan -->
+                    <div class="w-full h-2 rounded-full bg-gradient-to-r from-emerald-500 via-amber-500 to-rose-500 shadow-inner"></div>
+                    <span class="text-[8px] text-slate-400 italic block text-center">Tự động đổi màu từ Xanh sang Đỏ khi sắp hết giờ để cảnh báo khẩn cấp.</span>
+                </div>
+            </div>
+
+            <!-- 3. THỜI LƯỢNG & PHÍM TẮT NHANH -->
+            <div class="space-y-2 bg-slate-900 p-2.5 rounded-xl border border-slate-800 shadow">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-extrabold text-indigo-300 uppercase tracking-wider flex items-center space-x-1.5">
+                        <i data-lucide="clock" class="w-3.5 h-3.5 text-indigo-400"></i>
+                        <span>Thời Lượng Đếm Ngược</span>
+                    </span>
+                    <span class="text-[9px] font-extrabold text-amber-300 bg-amber-950/80 px-1.5 py-0.5 rounded border border-amber-800/80">${sec} Giây</span>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <div class="w-24">
+                        <input type="number" min="1" max="120" value="${sec}" onchange="updateCountdownProp(${gIdx}, ${fIdx}, 'seconds', parseInt(this.value, 10))" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-amber-300 font-extrabold text-center text-xs">
+                    </div>
+                    <div class="flex-1 grid grid-cols-5 gap-1">
+                        ${[3, 5, 7, 10, 15].map(s => `
+                            <button type="button" onclick="updateCountdownProp(${gIdx}, ${fIdx}, 'seconds', ${s})" class="py-1 px-1 rounded text-[8px] font-extrabold border transition ${sec === s ? 'bg-indigo-600 border-indigo-400 text-white shadow' : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700 hover:text-white'}">
+                                ${s}s
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. ÂM THANH TÍCH TẮC KHI ĐẾM NGƯỢC (AUDIO ENGINE) -->
+            <div class="space-y-2 bg-slate-900 p-2.5 rounded-xl border border-rose-500/40 shadow">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-extrabold text-rose-300 uppercase tracking-wider flex items-center space-x-1.5">
+                        <i data-lucide="volume-2" class="w-3.5 h-3.5 text-rose-400"></i>
+                        <span>Âm Thanh Tích Tắc Đếm Ngược</span>
+                    </span>
+                    <label class="flex items-center space-x-1.5 cursor-pointer">
+                        <input type="checkbox" ${enableTick ? 'checked' : ''} onchange="updateCountdownProp(${gIdx}, ${fIdx}, 'enableTickSound', this.checked)" class="rounded bg-slate-950 border-slate-700 text-rose-500 focus:ring-0 w-3.5 h-3.5">
+                        <span class="text-[9px] font-bold ${enableTick ? 'text-rose-300' : 'text-slate-400'}">Bật tiếng</span>
+                    </label>
+                </div>
+
+                <div class="space-y-2 pt-0.5">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-[8.5px] text-slate-400 block mb-0.5 font-bold">Kiểu tiếng tích tắc</label>
+                            <select onchange="updateCountdownProp(${gIdx}, ${fIdx}, 'tickSoundType', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-1.5 text-slate-200 font-bold text-[10px]">
+                                <option value="mechanical" ${soundType === 'mechanical' ? 'selected' : ''}>Cơ học (Đồng hồ thật)</option>
+                                <option value="beep" ${soundType === 'beep' ? 'selected' : ''}>Điện tử (Digital Bíp)</option>
+                                <option value="wood" ${soundType === 'wood' ? 'selected' : ''}>Gõ gỗ (Woodblock ấm)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[8.5px] text-slate-400 block mb-0.5 font-bold">Âm lượng tích tắc: <span class="text-rose-300 font-extrabold">${tickVol}%</span></label>
+                            <input type="range" min="10" max="100" step="5" value="${tickVol}" oninput="updateCountdownProp(${gIdx}, ${fIdx}, 'tickVolume', parseInt(this.value, 10))" class="w-full accent-rose-500 mt-1 cursor-pointer">
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between p-1.5 rounded-lg bg-slate-950/80 border border-slate-800">
+                        <label class="flex items-center space-x-1.5 cursor-pointer text-[9px] font-bold text-slate-300">
+                            <input type="checkbox" ${playChime ? 'checked' : ''} onchange="updateCountdownProp(${gIdx}, ${fIdx}, 'playEndChime', this.checked)" class="rounded bg-slate-950 border-slate-700 text-rose-500 focus:ring-0 w-3 h-3">
+                            <span>Phát chuông Ting/Ding khi hết giờ (0s)</span>
+                        </label>
+                    </div>
+
+                    <!-- Nút nghe thử âm thanh & chạy thử đếm ngược -->
+                    <div class="grid grid-cols-2 gap-1.5 pt-1">
+                        <button type="button" onclick="testCountdownAudioSound(${gIdx}, ${fIdx})" class="py-1.5 px-2 bg-rose-950/80 hover:bg-rose-900 border border-rose-600/70 text-rose-200 rounded-lg text-[9px] font-extrabold flex items-center justify-center space-x-1 transition active:scale-95 shadow cursor-pointer">
+                            <i data-lucide="volume-2" class="w-3 h-3 text-rose-400"></i>
+                            <span>Nghe Thử Tích Tắc</span>
+                        </button>
+                        <button type="button" onclick="previewCountdownLiveAnimation(${gIdx}, ${fIdx})" class="py-1.5 px-2 bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-600/70 text-indigo-200 rounded-lg text-[9px] font-extrabold flex items-center justify-center space-x-1 transition active:scale-95 shadow cursor-pointer">
+                            <i data-lucide="play" class="w-3 h-3 text-indigo-400"></i>
+                            <span>Chạy Thử Timeline</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. VỊ TRÍ, KÍCH THƯỚC & ĐỘ MỜ ĐỤC -->
+            <div class="space-y-2 bg-slate-900 p-2.5 rounded-xl border border-slate-800 shadow">
+                <span class="text-[10px] font-extrabold text-slate-300 uppercase tracking-wider flex items-center space-x-1.5">
+                    <i data-lucide="move" class="w-3.5 h-3.5 text-slate-400"></i>
+                    <span>Vị Trí & Kích Thước</span>
                 </span>
 
                 <div class="grid grid-cols-2 gap-2">
                     <div>
-                        <label class="text-[9px] text-slate-400 block mb-0.5 font-bold">Số giây đếm ngược</label>
-                        <input type="number" min="1" max="60" value="${sec}" onchange="updateCountdownProp(${gIdx}, ${fIdx}, 'seconds', parseInt(this.value, 10))" class="w-full bg-slate-950 border border-slate-800 rounded p-1.5 text-amber-300 font-bold text-center">
-                    </div>
-                    <div>
-                        <label class="text-[9px] text-slate-400 block mb-0.5 font-bold">Vị trí hiển thị</label>
-                        <select onchange="updateCountdownProp(${gIdx}, ${fIdx}, 'position', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded p-1.5 text-slate-200 font-bold">
-                            <option value="top_right" ${pos === 'top_right' ? 'selected' : ''}>Góc trên phải</option>
+                        <label class="text-[8.5px] text-slate-400 block mb-0.5 font-bold">Vị trí hiển thị</label>
+                        <select onchange="updateCountdownProp(${gIdx}, ${fIdx}, 'position', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-1.5 text-slate-200 font-bold text-[10px]">
+                            <option value="top_right" ${pos === 'top_right' ? 'selected' : ''}>Góc trên bên phải</option>
+                            <option value="top_left" ${pos === 'top_left' ? 'selected' : ''}>Góc trên bên trái</option>
                             <option value="center" ${pos === 'center' ? 'selected' : ''}>Chính giữa màn hình</option>
                             <option value="bottom_center" ${pos === 'bottom_center' ? 'selected' : ''}>Dưới đáy màn hình</option>
+                            <option value="bottom_right" ${pos === 'bottom_right' ? 'selected' : ''}>Góc dưới bên phải</option>
+                            <option value="bottom_left" ${pos === 'bottom_left' ? 'selected' : ''}>Góc dưới bên trái</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[8.5px] text-slate-400 block mb-0.5 font-bold">Kích thước đồng hồ</label>
+                        <select onchange="updateCountdownProp(${gIdx}, ${fIdx}, 'size', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-1.5 text-slate-200 font-bold text-[10px]">
+                            <option value="small" ${size === 'small' ? 'selected' : ''}>Nhỏ (Gọn 24px)</option>
+                            <option value="medium" ${size === 'medium' ? 'selected' : ''}>Vừa (Chuẩn 34px)</option>
+                            <option value="large" ${size === 'large' ? 'selected' : ''}>Lớn (Nổi bật 46px)</option>
+                            <option value="xlarge" ${size === 'xlarge' ? 'selected' : ''}>Cực đại (58px)</option>
                         </select>
                     </div>
                 </div>
 
-                <div class="pt-2 border-t border-slate-800 flex items-center justify-between text-[10px]">
-                    <span class="text-[9px] text-slate-400 italic">Đếm ngược khớp theo thời lượng lớp.</span>
-                    <button onclick="removeFieldItemFromGroup(${gIdx}, ${fIdx}); selectedCountdownTarget = null; renderInspectorRibbon(); renderTimelineLayersListUI();" class="py-1 px-2 text-rose-400 hover:text-white hover:bg-rose-950/60 rounded font-bold transition">
-                        ✕ Xóa thẻ này
-                    </button>
+                <div>
+                    <div class="flex items-center justify-between text-[8.5px] font-bold text-slate-400 mb-0.5">
+                        <span>Độ mờ đục (Opacity)</span>
+                        <span class="text-slate-200">${opacity}%</span>
+                    </div>
+                    <input type="range" min="20" max="100" step="5" value="${opacity}" oninput="updateCountdownProp(${gIdx}, ${fIdx}, 'opacity', parseInt(this.value, 10))" class="w-full accent-slate-400 cursor-pointer">
                 </div>
+            </div>
+
+            <!-- NÚT XÓA THẺ -->
+            <div class="pt-1 flex items-center justify-between text-[10px]">
+                <span class="text-[8.5px] text-slate-500 italic">Đồng hồ đếm ngược tự động khớp theo layer.</span>
+                <button type="button" onclick="removeFieldItemFromGroup(${gIdx}, ${fIdx}); selectedCountdownTarget = null; renderInspectorRibbon(); renderTimelineLayersListUI();" class="py-1 px-2.5 text-rose-400 hover:text-white hover:bg-rose-950/80 rounded-lg font-extrabold border border-rose-800/60 transition cursor-pointer">
+                    ✕ Xóa thẻ này
+                </button>
             </div>
         </div>
     `;
     if (window.lucide && lucide.createIcons) lucide.createIcons();
 }
+
+function updateCountdownProp(gIdx, fIdx, prop, val) {
+    const grp = paragraphGridConfig.groups && paragraphGridConfig.groups[gIdx];
+    if (!grp || !grp.fields || !grp.fields[fIdx]) return;
+    const item = grp.fields[fIdx];
+    item[prop] = val;
+
+    if (prop === 'seconds' && typeof val === 'number' && val > 0) {
+        if (!grp.duration || grp.duration <= item.seconds + 1) {
+            grp.duration = val;
+            if (typeof renderTimelineTracksUI === 'function') renderTimelineTracksUI();
+        }
+    }
+
+    if (typeof renderTimelineLayersListUI === 'function') renderTimelineLayersListUI();
+    if (typeof drawParagraphCanvasFrame === 'function') drawParagraphCanvasFrame();
+    if (selectedCountdownTarget && selectedCountdownTarget.gIdx === gIdx && selectedCountdownTarget.fIdx === fIdx) {
+        renderCountdownInspectorRibbon(item, gIdx, fIdx);
+    }
+}
+
+function setCountdownPreset(gIdx, fIdx, presetName) {
+    const grp = paragraphGridConfig.groups && paragraphGridConfig.groups[gIdx];
+    if (!grp || !grp.fields || !grp.fields[fIdx]) return;
+    const item = grp.fields[fIdx];
+    item.preset = presetName;
+    if (presetName === 'green_to_red' || presetName === 'neon_ring') {
+        item.colorShift = true;
+    }
+    if (item.enableTickSound === undefined) {
+        item.enableTickSound = true;
+    }
+    if (typeof renderTimelineLayersListUI === 'function') renderTimelineLayersListUI();
+    if (typeof drawParagraphCanvasFrame === 'function') drawParagraphCanvasFrame();
+    renderCountdownInspectorRibbon(item, gIdx, fIdx);
+    if (typeof showToast === 'function') {
+        const names = {
+            green_to_red: 'Chuyển Màu Xanh ➔ Đỏ (Cảnh báo)',
+            neon_ring: 'Vòng Neon Hiện Đại',
+            digital_badge: 'Digital LED Thể Thao',
+            minimal_pill: 'Pill Tối Giản',
+            bomb_pulse: 'Quả Bom Kịch Tính',
+            classic_circle: 'Cổ Điển Bo Tròn'
+        };
+        showToast(`Đã áp dụng Preset: ${names[presetName] || presetName}`, 'success');
+    }
+}
+
+function previewCountdownLiveAnimation(gIdx, fIdx) {
+    const grp = paragraphGridConfig.groups && paragraphGridConfig.groups[gIdx];
+    if (!grp) return;
+    if (typeof seekTimeline === 'function') {
+        seekTimeline(grp.startTime || 0);
+    }
+    if (typeof isTimelinePlaying !== 'undefined' && !isTimelinePlaying && typeof toggleTimelinePlayback === 'function') {
+        toggleTimelinePlayback();
+    }
+    if (typeof showToast === 'function') {
+        showToast("Đang phát thử đồng hồ đếm ngược trên Timeline...", "info");
+    }
+}
+
+window.updateCountdownProp = updateCountdownProp;
+window.setCountdownPreset = setCountdownPreset;
+window.previewCountdownLiveAnimation = previewCountdownLiveAnimation;
 
 function ptExtractHexAndAlpha(colorVal, defaultHex, defaultAlphaPct) {
     if (!colorVal) return { hex: defaultHex, alpha: defaultAlphaPct };

@@ -8,30 +8,70 @@ function initFloatingPopoverDraggable() {
     const header = document.getElementById('floating-popover-header');
     if (!header || !popover) return;
 
-    header.addEventListener('mousedown', (e) => {
-        if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+    function handleDragStart(clientX, clientY, target) {
+        if (target.tagName === 'BUTTON' || target.closest('button')) return false;
         isPopoverDragging = true;
         const rect = popover.getBoundingClientRect();
-        popoverDragOffset.x = e.clientX - rect.left;
-        popoverDragOffset.y = e.clientY - rect.top;
+        popoverDragOffset.x = clientX - rect.left;
+        popoverDragOffset.y = clientY - rect.top;
         document.body.style.userSelect = 'none';
-    });
+        return true;
+    }
 
-    window.addEventListener('mousemove', (e) => {
+    function handleDragMove(clientX, clientY) {
         if (!isPopoverDragging) return;
-        const newX = Math.max(10, Math.min(window.innerWidth - 320, e.clientX - popoverDragOffset.x));
-        const newY = Math.max(10, Math.min(window.innerHeight - 300, e.clientY - popoverDragOffset.y));
+        const popWidth = popover.offsetWidth || 300;
+        const popHeight = popover.offsetHeight || 280;
+        const maxRight = Math.max(10, window.innerWidth - popWidth - 8);
+        const maxBottom = Math.max(10, window.innerHeight - popHeight - 8);
+        const newX = Math.max(8, Math.min(maxRight, clientX - popoverDragOffset.x));
+        const newY = Math.max(8, Math.min(maxBottom, clientY - popoverDragOffset.y));
         popover.style.left = `${newX}px`;
         popover.style.top = `${newY}px`;
         popover.style.right = 'auto';
         popover.style.bottom = 'auto';
-    });
+    }
 
-    window.addEventListener('mouseup', () => {
+    function handleDragEnd() {
         if (isPopoverDragging) {
             isPopoverDragging = false;
             document.body.style.userSelect = '';
         }
+    }
+
+    // Mouse drag events
+    header.addEventListener('mousedown', (e) => {
+        handleDragStart(e.clientX, e.clientY, e.target);
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        handleDragMove(e.clientX, e.clientY);
+    });
+
+    window.addEventListener('mouseup', () => {
+        handleDragEnd();
+    });
+
+    // Mobile touch drag events
+    header.addEventListener('touchstart', (e) => {
+        if (e.touches && e.touches.length > 0) {
+            const started = handleDragStart(e.touches[0].clientX, e.touches[0].clientY, e.target);
+            if (started && e.cancelable) e.preventDefault();
+        }
+    }, { passive: false });
+
+    window.addEventListener('touchmove', (e) => {
+        if (isPopoverDragging && e.touches && e.touches.length > 0) {
+            if (e.cancelable) e.preventDefault();
+            handleDragMove(e.touches[0].clientX, e.touches[0].clientY);
+        }
+    }, { passive: false });
+
+    window.addEventListener('touchend', () => {
+        handleDragEnd();
+    });
+    window.addEventListener('touchcancel', () => {
+        handleDragEnd();
     });
 }
 
@@ -119,20 +159,44 @@ function openFloatingCardPopover(e, gIdx, fIdx, type) {
         if (window.lucide && lucide.createIcons) lucide.createIcons();
     } else if (type === 'countdown') {
         badgeType.innerText = "Đồng Hồ Đếm Ngược";
-        badgeType.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500 text-white";
+        badgeType.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500 text-white shadow-sm";
 
         body.innerHTML = `
             <div class="space-y-2">
                 <div>
+                    <label class="text-[10px] text-slate-300 font-bold block mb-0.5">Presets Giao Diện:</label>
+                    <select onchange="updateCountdownProp(${gIdx}, ${fIdx}, 'preset', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded p-1 font-bold text-slate-200 text-xs">
+                        <option value="green_to_red" ${(item.preset || 'green_to_red') === 'green_to_red' ? 'selected' : ''}>Xanh ➔ Đỏ (Cảnh Báo)</option>
+                        <option value="neon_ring" ${item.preset === 'neon_ring' ? 'selected' : ''}>Vòng Neon Hiện Đại</option>
+                        <option value="digital_badge" ${item.preset === 'digital_badge' ? 'selected' : ''}>Digital LED Thể Thao</option>
+                        <option value="minimal_pill" ${item.preset === 'minimal_pill' ? 'selected' : ''}>Pill Tối Giản</option>
+                        <option value="bomb_pulse" ${item.preset === 'bomb_pulse' ? 'selected' : ''}>Quả Bom Kịch Tính</option>
+                        <option value="classic_circle" ${item.preset === 'classic_circle' ? 'selected' : ''}>Cổ Điển Bo Tròn</option>
+                    </select>
+                </div>
+                <div class="flex items-center justify-between pt-0.5">
+                    <label class="flex items-center space-x-1 cursor-pointer text-[9px] font-bold text-slate-300">
+                        <input type="checkbox" ${item.colorShift !== false ? 'checked' : ''} onchange="updateCountdownProp(${gIdx}, ${fIdx}, 'colorShift', this.checked)" class="rounded bg-slate-950 border-slate-700 text-emerald-500 w-3.5 h-3.5">
+                        <span>Đổi màu Xanh ➔ Đỏ</span>
+                    </label>
+                    <label class="flex items-center space-x-1 cursor-pointer text-[9px] font-bold text-slate-300">
+                        <input type="checkbox" ${item.enableTickSound !== false ? 'checked' : ''} onchange="updateCountdownProp(${gIdx}, ${fIdx}, 'enableTickSound', this.checked)" class="rounded bg-slate-950 border-slate-700 text-rose-500 w-3.5 h-3.5">
+                        <span>Tiếng tích tắc</span>
+                    </label>
+                </div>
+                <div>
                     <label class="text-[10px] text-slate-300 font-bold block mb-0.5">Số giây đếm ngược:</label>
-                    <input type="number" value="${item.seconds || 3}" onchange="updateCountdownProp(${gIdx}, ${fIdx}, 'seconds', parseInt(this.value))" class="w-full bg-slate-950 border border-slate-700 rounded p-1 font-bold text-amber-300 text-xs">
+                    <input type="number" min="1" max="120" value="${item.seconds || 3}" onchange="updateCountdownProp(${gIdx}, ${fIdx}, 'seconds', parseInt(this.value, 10))" class="w-full bg-slate-950 border border-slate-700 rounded p-1 font-bold text-amber-300 text-xs text-center">
                 </div>
                 <div>
                     <label class="text-[10px] text-slate-300 font-bold block mb-0.5">Vị trí hiển thị:</label>
                     <select onchange="updateCountdownProp(${gIdx}, ${fIdx}, 'position', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded p-1 font-bold text-slate-200 text-xs">
                         <option value="top_right" ${item.position === 'top_right' ? 'selected' : ''}>Góc trên bên phải</option>
+                        <option value="top_left" ${item.position === 'top_left' ? 'selected' : ''}>Góc trên bên trái</option>
                         <option value="center" ${item.position === 'center' ? 'selected' : ''}>Chính giữa màn hình</option>
                         <option value="bottom_center" ${item.position === 'bottom_center' ? 'selected' : ''}>Dưới đáy màn hình</option>
+                        <option value="bottom_right" ${item.position === 'bottom_right' ? 'selected' : ''}>Góc dưới bên phải</option>
+                        <option value="bottom_left" ${item.position === 'bottom_left' ? 'selected' : ''}>Góc dưới bên trái</option>
                     </select>
                 </div>
             </div>
@@ -182,11 +246,22 @@ function toggleTTSMultiFieldSelection(gIdx, fIdx, fieldKey, isChecked) {
 }
 
 function updateCountdownProp(gIdx, fIdx, prop, val) {
-    const item = paragraphGridConfig.groups[gIdx].fields[fIdx];
-    if (item) {
-        item[prop] = val;
-        renderTimelineLayersListUI();
-        drawParagraphCanvasFrame();
+    const grp = paragraphGridConfig.groups && paragraphGridConfig.groups[gIdx];
+    if (!grp || !grp.fields || !grp.fields[fIdx]) return;
+    const item = grp.fields[fIdx];
+    item[prop] = val;
+
+    if (prop === 'seconds' && typeof val === 'number' && val > 0) {
+        if (!grp.duration || grp.duration <= item.seconds + 1) {
+            grp.duration = val;
+            if (typeof renderTimelineTracksUI === 'function') renderTimelineTracksUI();
+        }
+    }
+
+    if (typeof renderTimelineLayersListUI === 'function') renderTimelineLayersListUI();
+    if (typeof drawParagraphCanvasFrame === 'function') drawParagraphCanvasFrame();
+    if (typeof selectedCountdownTarget !== 'undefined' && selectedCountdownTarget && selectedCountdownTarget.gIdx === gIdx && selectedCountdownTarget.fIdx === fIdx) {
+        if (typeof renderCountdownInspectorRibbon === 'function') renderCountdownInspectorRibbon(item, gIdx, fIdx);
     }
 }
 

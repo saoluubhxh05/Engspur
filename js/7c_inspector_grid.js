@@ -232,13 +232,14 @@ function renderTimelineLayersListUI() {
                 `;
             } else if (itemType === 'countdown') {
                 const sec = item.seconds !== undefined ? item.seconds : 3;
+                const pName = item.preset === 'green_to_red' ? 'Xanh➔Đỏ' : (item.preset === 'neon_ring' ? 'Neon' : (item.preset === 'digital_badge' ? 'LED' : (item.preset === 'minimal_pill' ? 'Pill' : (item.preset === 'bomb_pulse' ? 'Bom' : ''))));
                 const isCdSel = (typeof selectedCountdownTarget !== 'undefined' && selectedCountdownTarget && selectedCountdownTarget.gIdx === gIdx && selectedCountdownTarget.fIdx === fIdx);
                 const selClass = isCdSel ? 'bg-rose-900 border-2 border-rose-400 ring-2 ring-rose-400/50 shadow-md text-white' : 'bg-rose-950/80 border border-rose-700/80 hover:border-rose-500';
                 return `
-                    <div class="flex items-center space-x-1 p-0.5 px-1.5 rounded-md transition cursor-pointer ${selClass}" onclick="event.stopPropagation(); selectCountdownItem(${gIdx}, ${fIdx})" title="Nhấp để mở bảng định dạng ở cột trái">
+                    <div class="flex items-center space-x-1 p-0.5 px-1.5 rounded-md transition cursor-pointer ${selClass}" onclick="event.stopPropagation(); selectCountdownItem(${gIdx}, ${fIdx})" title="Nhấp để cấu hình tiếng tích tắc, đổi màu Xanh-Đỏ và chọn Presets">
                         <span class="text-[9px] font-bold text-rose-200 flex items-center space-x-1 cursor-pointer">
                             <i data-lucide="timer" class="w-2.5 h-2.5 text-rose-400"></i>
-                            <span>Đếm: ${sec}s</span>
+                            <span>Đếm: ${sec}s${pName ? ` (${pName})` : ''}</span>
                         </span>
                         <button onclick="event.stopPropagation(); removeFieldItemFromGroup(${gIdx}, ${fIdx})" class="text-rose-400 hover:text-white text-[10px] font-bold ml-1" title="Xóa thẻ">✕</button>
                     </div>

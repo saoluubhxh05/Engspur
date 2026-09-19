@@ -1,10 +1,108 @@
 /**
  * app.js
- * Điểm khởi tạo ứng dụng, chuyển đổi view/cột, thông báo Toast và sự kiện DOMContentLoaded
+ * Điểm khởi tạo ứng dụng, chuyển đổi view/cột, điều hướng di động, thông báo Toast và sự kiện DOMContentLoaded
  */
+
+var currentMobileTab = 'center';
+
+function syncMobileNavState(tab) {
+    const tabs = ['studio', 'data', 'grid', 'batch', 'tools'];
+    const tabMap = {
+        'center': 'studio',
+        'left': 'data',
+        'right': 'grid',
+        'batch': 'batch'
+    };
+    const activeNavKey = tabMap[tab] || tab;
+
+    tabs.forEach(tKey => {
+        const btn = document.getElementById(`mob-nav-${tKey}`);
+        if (!btn) return;
+        const iconDiv = btn.querySelector('div');
+        if (tKey === activeNavKey) {
+            btn.className = "flex flex-col items-center justify-center flex-1 py-1 text-indigo-400 font-bold text-[10px] transition active:scale-95 mob-nav-active";
+            if (iconDiv) iconDiv.className = "p-1 rounded-lg bg-indigo-600/30 text-indigo-300";
+        } else {
+            btn.className = "flex flex-col items-center justify-center flex-1 py-1 text-slate-400 font-bold text-[10px] transition active:scale-95";
+            if (iconDiv) iconDiv.className = "p-1 rounded-lg text-slate-400";
+        }
+    });
+}
+
+function switchMobileTab(tab) {
+    currentMobileTab = tab;
+    syncMobileNavState(tab);
+
+    const vStudio = document.getElementById('view-studio');
+    const vBatch = document.getElementById('view-batch-render');
+
+    if (tab === 'batch') {
+        if (typeof activateBatchRenderView === 'function') {
+            activateBatchRenderView();
+        }
+        return;
+    }
+
+    if (vStudio) {
+        vStudio.classList.remove('hidden');
+        vStudio.classList.remove('mobile-show-center', 'mobile-show-left', 'mobile-show-right');
+        vStudio.classList.add(`mobile-show-${tab}`);
+    }
+    if (vBatch) {
+        vBatch.classList.add('hidden');
+    }
+
+    const btnStudio = document.getElementById('tab-paragraph-btn');
+    const btnBatch = document.getElementById('tab-batch-btn');
+    if (btnStudio) {
+        btnStudio.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 whitespace-nowrap bg-indigo-600 text-white shadow-md";
+    }
+    if (btnBatch) {
+        btnBatch.className = "px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition flex items-center space-x-1.5 whitespace-nowrap";
+    }
+
+    if (tab === 'center') {
+        setTimeout(() => {
+            if (typeof drawParagraphCanvasFrame === 'function') drawParagraphCanvasFrame();
+            if (typeof renderTimelineTracksUI === 'function') renderTimelineTracksUI();
+        }, 60);
+    } else if (tab === 'left') {
+        setTimeout(() => {
+            if (typeof renderMailMergeFieldChips === 'function') renderMailMergeFieldChips();
+            if (typeof renderInspectorRibbon === 'function') renderInspectorRibbon();
+        }, 60);
+    } else if (tab === 'right') {
+        setTimeout(() => {
+            if (typeof renderTimelineLayersListUI === 'function') renderTimelineLayersListUI();
+            if (typeof syncInlineGridSettingsInputs === 'function') syncInlineGridSettingsInputs();
+        }, 60);
+    }
+}
+
+function openMobileQuickActionsSheet() {
+    const modal = document.getElementById('mobile-quick-actions-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+    if (window.lucide && lucide.createIcons) lucide.createIcons();
+}
+
+function closeMobileQuickActionsSheet() {
+    const modal = document.getElementById('mobile-quick-actions-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+}
 
 function switchLeftSubTab(subTabNum) {
     if (isLeftCollapsed) toggleLeftColumn();
+
+    // Nếu đang trên di động và đang xem màn hình khác, tự động chuyển về tab Dữ liệu
+    if (window.innerWidth < 1024 && currentMobileTab !== 'left') {
+        switchMobileTab('left');
+    }
 
     const titles = [
         "1. Upload Excel & Ảnh",
@@ -17,12 +115,15 @@ function switchLeftSubTab(subTabNum) {
 
     for (let i = 1; i <= 4; i++) {
         const btn = document.getElementById(`hdr-subtab-btn-${i}`);
+        const mobBtn = document.getElementById(`mob-subtab-btn-${i}`);
         const panel = document.getElementById(`subtab-panel-${i}`);
         if (i === subTabNum) {
             if (btn) btn.className = "px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 whitespace-nowrap subtab-active";
+            if (mobBtn) mobBtn.className = "px-2.5 py-1 rounded-lg text-[10px] font-bold subtab-active whitespace-nowrap";
             if (panel) panel.classList.remove('hidden');
         } else {
             if (btn) btn.className = "px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 whitespace-nowrap text-slate-400 hover:text-white";
+            if (mobBtn) mobBtn.className = "px-2.5 py-1 rounded-lg text-[10px] font-bold text-slate-400 hover:text-white whitespace-nowrap";
             if (panel) panel.classList.add('hidden');
         }
     }
@@ -39,8 +140,16 @@ function switchLeftSubTab(subTabNum) {
 function activateStudioWorkspace() {
     const vStudio = document.getElementById('view-studio');
     const vBatch = document.getElementById('view-batch-render');
-    if (vStudio) vStudio.classList.remove('hidden');
+    if (vStudio) {
+        vStudio.classList.remove('hidden');
+        if (window.innerWidth < 1024) {
+            vStudio.classList.remove('mobile-show-left', 'mobile-show-right');
+            vStudio.classList.add('mobile-show-center');
+            currentMobileTab = 'center';
+        }
+    }
     if (vBatch) vBatch.classList.add('hidden');
+    syncMobileNavState('center');
 
     const btnStudio = document.getElementById('tab-paragraph-btn');
     const btnBatch = document.getElementById('tab-batch-btn');
@@ -70,8 +179,10 @@ function activateStudioWorkspace() {
         if (typeof updateTopicDropdown === 'function') updateTopicDropdown();
     }
 
-    if (isLeftCollapsed) toggleLeftColumn();
-    if (isRightCollapsed) toggleRightColumn();
+    if (window.innerWidth >= 1024) {
+        if (isLeftCollapsed) toggleLeftColumn();
+        if (isRightCollapsed) toggleRightColumn();
+    }
     if (typeof drawParagraphCanvasFrame === 'function') drawParagraphCanvasFrame();
     if (typeof renderTimelineTracksUI === 'function') renderTimelineTracksUI();
     showToast("Đã kích hoạt Studio Timeline & Lưới Bố Cục!");

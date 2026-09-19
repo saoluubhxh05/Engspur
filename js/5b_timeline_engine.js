@@ -56,6 +56,7 @@ function timelinePlaybackLoop(timestamp) {
             seekTimeline(0);
             activePlayingAudioGroupIdx = -1;
             if (currentSentenceTriggeredAudioGroups) currentSentenceTriggeredAudioGroups.clear();
+            if (typeof currentCountdownTriggeredTicks !== 'undefined' && currentCountdownTriggeredTicks) currentCountdownTriggeredTicks.clear();
             const statusBadge = document.getElementById('p-status-badge-text');
             if (statusBadge) statusBadge.innerText = "Trạng thái: Đã phát xong câu!";
             return;
@@ -63,6 +64,7 @@ function timelinePlaybackLoop(timestamp) {
             currentTimelinePlayTime = 0;
             activePlayingAudioGroupIdx = -1;
             if (currentSentenceTriggeredAudioGroups) currentSentenceTriggeredAudioGroups.clear();
+            if (typeof currentCountdownTriggeredTicks !== 'undefined' && currentCountdownTriggeredTicks) currentCountdownTriggeredTicks.clear();
         }
     }
 
@@ -222,6 +224,30 @@ function checkAndTriggerTimelineAudio(curTime) {
                 }
             }
         }
+
+        // XỬ LÝ ÂM THANH TÍCH TẮC CHO THẺ ĐẾM NGƯỢC (COUNTDOWN TIMER)
+        const countdownItem = (grp.fields || []).find(f => f.type === 'countdown');
+        if (countdownItem && countdownItem.enableTickSound !== false) {
+            if (!(isBatchRunning && typeof batchCurrentSubPhase !== 'undefined' && batchCurrentSubPhase === 'clean')) {
+                const cdStart = grp.startTime || 0;
+                const cdDur = grp.duration || countdownItem.seconds || 3.0;
+                const cdEnd = cdStart + cdDur;
+
+                if (curTime >= cdStart && curTime <= cdEnd + 0.15) {
+                    const remaining = Math.max(0, cdEnd - curTime);
+                    const remainingSec = Math.ceil(remaining);
+                    const tickKey = `${gIdx}_tick_${remainingSec}`;
+                    if (typeof currentCountdownTriggeredTicks !== 'undefined' && !currentCountdownTriggeredTicks.has(tickKey)) {
+                        currentCountdownTriggeredTicks.add(tickKey);
+                        if (typeof playCountdownTickSound === 'function') {
+                            const isWarning = (remainingSec <= 1 || (remaining / cdDur) <= 0.25);
+                            const isEnd = (remainingSec === 0 || remaining <= 0.08);
+                            playCountdownTickSound(countdownItem, isWarning, isEnd);
+                        }
+                    }
+                }
+            }
+        }
     });
 }
 
@@ -350,6 +376,7 @@ function runUnifiedSentenceSequence() {
     updateParagraphProgressBar();
     activePlayingAudioGroupIdx = -1;
     if (currentSentenceTriggeredAudioGroups) currentSentenceTriggeredAudioGroups.clear();
+    if (typeof currentCountdownTriggeredTicks !== 'undefined' && currentCountdownTriggeredTicks) currentCountdownTriggeredTicks.clear();
     if (typeof stopInsideLoopSfxAudio === 'function') stopInsideLoopSfxAudio();
 
     // Ghi nhận mốc thời gian bắt đầu câu thực tế cho Báo cáo Sheet 2 của Batch Render

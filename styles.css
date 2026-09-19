@@ -78,3 +78,102 @@ body {
 .col-transition {
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* ========================================================
+   RESPONSIVE MOBILE STYLES (ĐIỆN THOẠI DI ĐỘNG & TABLET)
+   ======================================================== */
+
+/* Hiển thị phân vùng Studio tương ứng trên màn hình di động (< 1024px) */
+@media (max-width: 1023px) {
+    #view-studio.mobile-show-center #col-center {
+        display: flex !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+    #view-studio.mobile-show-center #col-left {
+        display: none !important;
+    }
+    #view-studio.mobile-show-center #col-right {
+        display: none !important;
+    }
+
+    #view-studio.mobile-show-left #col-left {
+        display: flex !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+    #view-studio.mobile-show-left #col-center {
+        display: none !important;
+    }
+    #view-studio.mobile-show-left #col-right {
+        display: none !important;
+    }
+
+    #view-studio.mobile-show-right #col-right {
+        display: flex !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+    #view-studio.mobile-show-right #col-center {
+        display: none !important;
+    }
+    #view-studio.mobile-show-right #col-left {
+        display: none !important;
+    }
+
+    /* Đảm bảo modal và popover nổi nằm trọn trong viền màn hình điện thoại */
+    .floating-popover {
+        max-width: calc(100vw - 24px) !important;
+        right: 12px !important;
+    }
+}
+
+/* Vùng an toàn viền đáy cho iPhone / Home Indicator */
+.safe-area-bottom {
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+}
+.safe-area-top {
+    padding-top: calc(0.5rem + env(safe-area-inset-top, 0px));
+}
+
+/* Tối ưu cảm ứng Touch và cuộn mượt mà */
+.touch-scroll {
+    -webkit-overflow-scrolling: touch;
+}
+
+button, a, select, input {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Resizer handle mở rộng vùng chạm cảm ứng trên điện thoại */
+.resizer-handle::after {
+    content: '';
+    position: absolute;
+    top: -6px;
+    bottom: -6px;
+    left: -8px;
+    right: -8px;
+}
+
+/* Khắc phục hiện tượng Safari tự zoom vào input khi font chữ < 16px */
+@media screen and (max-width: 767px) {
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    select:focus,
+    textarea:focus {
+        font-size: 16px !important;
+    }
+}
+
+/* Trạng thái tab đang kích hoạt trên Bottom Nav điện thoại */
+.mob-nav-active {
+    color: #818cf8 !important;
+}
+.mob-nav-active div {
+    background-color: rgba(99, 102, 241, 0.25) !important;
+    color: #a5b4fc !important;
+}

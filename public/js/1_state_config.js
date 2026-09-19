@@ -4,11 +4,22 @@
  */
 
 var APP_VERSION_INFO = {
-    version: "V14.2",
+    version: "V14.3",
     releaseDate: "19/09/2026",
     status: "Mới nhất & Ổn định",
-    summary: "Bản nâng cấp V14.2: Tối ưu tính năng 'Chạy Thử Toàn Bộ' theo Phương án 2 (Timeline 1 trang tĩnh). Khi chọn 'Hiện tất cả các dòng', Timeline chạy trọn vẹn đúng 1 chu kỳ thời lượng (8s-10s) cho toàn bộ trang bài học thay vì lặp reset từng câu; đồng bộ TTS đọc toàn trang và giao diện nút chạy thử hiển thị trực quan.",
+    summary: "Bản nâng cấp V14.3: Nâng cấp toàn diện Thẻ Đếm Ngược (Countdown Timer): Thêm tính năng tạo tiếng tích tắc (Tick-tock cơ học/điện tử/gỗ) đồng bộ theo giây và chuông khi kết thúc; Bổ sung bộ Presets đồng hồ đếm ngược đa dạng (Chuyển màu Xanh ➔ Đỏ cảnh báo, Vòng Neon công nghệ, Đồng hồ Digital LED, Pill tối giản, Bom kịch tính, Vòng tròn cổ điển); Tùy chọn chuyển màu mượt mà từ xanh sang đỏ khi sắp hết giờ.",
     categories: [
+        {
+            title: "Đồng Hồ Đếm Ngược: Presets & Tiếng Tích Tắc (V14.3)",
+            icon: "timer",
+            color: "text-rose-400 bg-rose-500/10 border-rose-500/30",
+            items: [
+                "Tạo tiếng tích tắc chân thực: Tích hợp bộ tổng hợp âm thanh Web Audio API tạo tiếng tích tắc (Cơ học, Bíp điện tử, Gõ gỗ) đồng bộ chuẩn từng giây và chuông Ting/Ding khi đếm về 0s.",
+                "Kho Presets đồng hồ đếm ngược: Lựa chọn linh hoạt giữa 6 giao diện: Chuyển màu Xanh ➔ Đỏ cảnh báo, Vòng Neon công nghệ, Digital LED thể thao, Pill tối giản, Bom kịch tính, Vòng tròn cổ điển.",
+                "Hiệu ứng đổi màu Xanh sang Đỏ: Tự động đổi màu từ Xanh lá (>50%) sang Vàng cam (20%-50%) và Đỏ thẫm rực rỡ (<20% và giây cuối) kèm hiệu ứng rung đập (pulse) báo hiệu sắp hết giờ.",
+                "Xem thử trực quan tức thì: Xem trước ngay giao diện đồng hồ trên Canvas khi bấm thẻ và nút 'Nghe thử âm thanh' / 'Chạy thử đếm ngược' ngay trong bảng cài đặt."
+            ]
+        },
         {
             title: "Timeline 1 Trang Tĩnh Khi 'Hiện Tất Cả Dòng' (V14.2)",
             icon: "play-circle",
@@ -357,6 +368,7 @@ var currentBatchSentenceLog = null;
 var currentSentenceStartWallTime = 0;
 var currentSentenceTriggeredAudioGroups = new Set();
 var outsideLoopTriggeredAudioGroups = new Set();
+var currentCountdownTriggeredTicks = new Set();
 var runtimeAudioBufferCache = new Map();
 var batchAudioSampleRate = 44100;
 
@@ -364,6 +376,23 @@ var selectedFieldKeysList = ["Substitution words"];
 var paragraphSelectedGroupIdx = 0;
 var paragraphSelectedFieldKey = "Substitution words";
 var selectedCustomTextTarget = null; // { gIdx, fIdx }
+
+function getCountdownDefaults(item) {
+    if (!item) item = {};
+    if (item.type === undefined) item.type = "countdown";
+    if (item.seconds === undefined) item.seconds = 3;
+    if (item.preset === undefined) item.preset = "green_to_red";
+    if (item.colorShift === undefined) item.colorShift = true;
+    if (item.enableTickSound === undefined) item.enableTickSound = true;
+    if (item.tickSoundType === undefined) item.tickSoundType = "mechanical";
+    if (item.tickVolume === undefined) item.tickVolume = 80;
+    if (item.playEndChime === undefined) item.playEndChime = true;
+    if (item.endSoundType === undefined) item.endSoundType = "ding";
+    if (item.position === undefined) item.position = "top_right";
+    if (item.size === undefined) item.size = "medium";
+    if (item.opacity === undefined) item.opacity = 100;
+    return item;
+}
 
 function getCustomTextDefaults(item) {
     if (!item) item = {};
@@ -503,7 +532,7 @@ var DEFAULT_TEMPLATES_JSON = {
                     { type: "field", key: "Substitution words" },
                     { type: "field", key: "Dịch Substitution words" },
                     { type: "tts", ttsSpeakFields: ["Câu hỏi cho mẫu câu"] },
-                    { type: "countdown", seconds: 3, position: "top_right", size: "medium" }
+                    { type: "countdown", seconds: 3, position: "top_right", size: "medium", preset: "green_to_red", colorShift: true, enableTickSound: true, tickSoundType: "mechanical", playEndChime: true, tickVolume: 80 }
                 ]
             },
             {
@@ -590,7 +619,7 @@ var DEFAULT_TEMPLATES_JSON = {
                 fields: [
                     { type: "field", key: "Substitution words" },
                     { type: "field", key: "Dịch Substitution words" },
-                    { type: "countdown", seconds: 3, position: "top_right", size: "medium" }
+                    { type: "countdown", seconds: 3, position: "top_right", size: "medium", preset: "green_to_red", colorShift: true, enableTickSound: true, tickSoundType: "mechanical", playEndChime: true, tickVolume: 80 }
                 ]
             },
             {

@@ -319,6 +319,7 @@ function renderTimelineTracksUI() {
                 <span class="relative z-10 text-[8px] bg-black/40 px-1 rounded font-mono text-purple-200 shrink-0">${dur.toFixed(1)}s</span>
             `;
             bar.addEventListener('mousedown', (e) => onTimelineBarMouseDown(e, gIdx, 'move'));
+            bar.addEventListener('touchstart', (e) => onTimelineBarTouchStart(e, gIdx, 'move'), { passive: false });
         } else {
             bar.title = `${grp.name} (${start.toFixed(1)}s - ${(start + dur).toFixed(1)}s)`;
             bar.innerHTML = `
@@ -334,6 +335,7 @@ function renderTimelineTracksUI() {
             `;
 
             bar.addEventListener('mousedown', (e) => onTimelineBarMouseDown(e, gIdx, 'move'));
+            bar.addEventListener('touchstart', (e) => onTimelineBarTouchStart(e, gIdx, 'move'), { passive: false });
             bar.addEventListener('dblclick', (e) => {
                 e.stopPropagation();
                 promptEditTrackTimes(gIdx);
@@ -347,12 +349,20 @@ function renderTimelineTracksUI() {
                     e.stopPropagation();
                     onTimelineBarMouseDown(e, gIdx, 'resize-left');
                 });
+                handleLeft.addEventListener('touchstart', (e) => {
+                    e.stopPropagation();
+                    onTimelineBarTouchStart(e, gIdx, 'resize-left');
+                }, { passive: false });
             }
             if (handleRight) {
                 handleRight.addEventListener('mousedown', (e) => {
                     e.stopPropagation();
                     onTimelineBarMouseDown(e, gIdx, 'resize-right');
                 });
+                handleRight.addEventListener('touchstart', (e) => {
+                    e.stopPropagation();
+                    onTimelineBarTouchStart(e, gIdx, 'resize-right');
+                }, { passive: false });
             }
         }
 
@@ -444,13 +454,13 @@ function onTimelineBarMouseDown(e, gIdx, mode) {
     window.addEventListener('mouseup', onTimelineBarMouseUp);
 }
 
-function onTimelineBarMouseMove(e) {
+function handleTimelineBarDragMove(clientX) {
     if (!activeDragState) return;
     const { gIdx, mode, startX, initialStart, initialDuration, viewportWidth } = activeDragState;
     const grp = paragraphGridConfig.groups[gIdx];
     if (!grp) return;
 
-    const deltaX = e.clientX - startX;
+    const deltaX = clientX - startX;
     const deltaSec = (deltaX / viewportWidth) * masterTimelineDuration;
     const isAudio = typeof isAudioLayer === 'function' ? isAudioLayer(grp) : false;
 
@@ -486,6 +496,49 @@ function onTimelineBarMouseMove(e) {
     drawParagraphCanvasFrame();
 }
 
+function onTimelineBarMouseMove(e) {
+    handleTimelineBarDragMove(e.clientX);
+}
+
+function onTimelineBarTouchStart(e, gIdx, mode) {
+    if (!e.touches || e.touches.length === 0) return;
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (!grp) return;
+
+    paragraphSelectedGroupIdx = gIdx;
+    renderTimelineLayersListUI();
+    renderInspectorRibbon();
+
+    const viewport = document.getElementById('timeline-tracks-container');
+    const rect = viewport.getBoundingClientRect();
+
+    activeDragState = {
+        gIdx,
+        mode,
+        startX: e.touches[0].clientX,
+        initialStart: grp.startTime || 0,
+        initialDuration: grp.duration || 4.0,
+        viewportWidth: rect.width
+    };
+
+    window.addEventListener('touchmove', onTimelineBarTouchMove, { passive: false });
+    window.addEventListener('touchend', onTimelineBarTouchEnd);
+    window.addEventListener('touchcancel', onTimelineBarTouchEnd);
+}
+
+function onTimelineBarTouchMove(e) {
+    if (!activeDragState || !e.touches || e.touches.length === 0) return;
+    if (e.cancelable) e.preventDefault();
+    handleTimelineBarDragMove(e.touches[0].clientX);
+}
+
+function onTimelineBarTouchEnd() {
+    window.removeEventListener('touchmove', onTimelineBarTouchMove);
+    window.removeEventListener('touchend', onTimelineBarTouchEnd);
+    window.removeEventListener('touchcancel', onTimelineBarTouchEnd);
+    onTimelineBarMouseUp();
+}
+
 function onTimelineBarMouseUp() {
     if (activeDragState) {
         activeDragState = null;
@@ -505,6 +558,16 @@ function onTimelineRulerClick(e) {
     seekTimeline(sec);
 }
 
+function onTimelineRulerTouch(e) {
+    if (!e.touches || e.touches.length === 0) return;
+    const ruler = document.getElementById('timeline-ruler-track');
+    if (!ruler) return;
+    const rect = ruler.getBoundingClientRect();
+    const touchX = Math.max(0, Math.min(rect.width, e.touches[0].clientX - rect.left));
+    const sec = (touchX / rect.width) * masterTimelineDuration;
+    seekTimeline(sec);
+}
+
 function seekTimeline(sec) {
     currentTimelinePlayTime = Math.max(0, Math.min(masterTimelineDuration, sec));
     const timeDisplay = document.getElementById('timeline-current-time-display');
@@ -515,6 +578,9 @@ function seekTimeline(sec) {
     if ('speechSynthesis' in window && !isTimelinePlaying && !isParagraphRunning) {
         window.speechSynthesis.cancel();
         activePlayingAudioGroupIdx = -1;
+    }
+    if (typeof currentCountdownTriggeredTicks !== 'undefined' && currentCountdownTriggeredTicks) {
+        currentCountdownTriggeredTicks.clear();
     }
 }
 

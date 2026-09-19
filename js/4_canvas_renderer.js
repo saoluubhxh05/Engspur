@@ -537,9 +537,31 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
                         currentFieldY += renderedHeight + customSpacing;
                     }
                 } else if (itemType === 'countdown') {
-                    if ((isParagraphRunning || isTimelinePlaying) && currentTimelinePlayTime < (grp.startTime + (grp.duration || 3.0))) {
-                        const countVal = Math.max(1, Math.ceil((grp.startTime + (grp.duration || 3.0)) - currentTimelinePlayTime));
-                        drawCountdownOverlay(ctx, width, height, item, countVal);
+                    const start = grp.startTime || 0;
+                    const dur = grp.duration || item.seconds || 3.0;
+                    const end = start + dur;
+                    const isPlaying = (isParagraphRunning || isTimelinePlaying);
+                    const curGroupIdx = paragraphGridConfig.groups.indexOf(grp);
+                    const isThisCountdownSelected = (typeof selectedCountdownTarget !== 'undefined' && selectedCountdownTarget && selectedCountdownTarget.gIdx === curGroupIdx && selectedCountdownTarget.fIdx === fIdx);
+
+                    if (isPlaying) {
+                        if (currentTimelinePlayTime >= start && currentTimelinePlayTime <= end) {
+                            const remaining = Math.max(0, end - currentTimelinePlayTime);
+                            const countVal = Math.max(1, Math.ceil(remaining));
+                            const progressRatio = Math.max(0, Math.min(1, remaining / dur));
+                            drawCountdownOverlay(ctx, width, height, item, countVal, progressRatio, remaining, dur);
+                        }
+                    } else {
+                        if (currentTimelinePlayTime >= start && currentTimelinePlayTime <= end) {
+                            const remaining = Math.max(0, end - currentTimelinePlayTime);
+                            const countVal = Math.max(1, Math.ceil(remaining));
+                            const progressRatio = Math.max(0, Math.min(1, remaining / dur));
+                            drawCountdownOverlay(ctx, width, height, item, countVal, progressRatio, remaining, dur);
+                        } else if (isThisCountdownSelected) {
+                            // Xem trước trực tiếp khi người dùng bấm chọn thẻ Đếm ngược trong Inspector hoặc Danh sách lớp
+                            const previewCount = item.seconds !== undefined ? item.seconds : 3;
+                            drawCountdownOverlay(ctx, width, height, item, previewCount, 1.0, previewCount, dur);
+                        }
                     }
                 } else if (itemType === 'progress_tracker') {
                     drawProgressTrackerOverlay(ctx, width, height, item);
@@ -924,27 +946,271 @@ function calculateTextLines(ctx, text, maxW, fontSize, fontFam) {
     return lines;
 }
 
-function drawCountdownOverlay(ctx, width, height, item, countVal) {
+function drawCountdownOverlay(ctx, width, height, item, countVal, progressRatio = 1.0, remainingTime = null, totalDur = null) {
+    if (!item) return;
     ctx.save();
-    const radius = 28;
-    let cx = width - 60, cy = 60;
 
-    if (item.position === 'center') {
+    // 1. Vị trí hiển thị (Positioning)
+    const pos = item.position || 'top_right';
+    let cx = width - 68;
+    let cy = 68;
+
+    if (pos === 'top_left') {
+        cx = 68; cy = 68;
+    } else if (pos === 'center') {
         cx = width / 2; cy = height / 2;
-    } else if (item.position === 'bottom_center') {
-        cx = width / 2; cy = height - 70;
+    } else if (pos === 'bottom_center') {
+        cx = width / 2; cy = height - 76;
+    } else if (pos === 'bottom_right') {
+        cx = width - 68; cy = height - 76;
+    } else if (pos === 'bottom_left') {
+        cx = 68; cy = height - 76;
+    } else if (pos === 'custom') {
+        cx = item.posX !== undefined ? item.posX : width - 68;
+        cy = item.posY !== undefined ? item.posY : 68;
     }
 
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-    ctx.fillStyle = '#ef4444';
-    ctx.fill();
+    // 2. Kích thước (Size)
+    const size = item.size || 'medium';
+    let radius = 34;
+    let fontSize = 28;
+    if (size === 'small') {
+        radius = 24;
+        fontSize = 20;
+    } else if (size === 'large') {
+        radius = 46;
+        fontSize = 38;
+    } else if (size === 'xlarge') {
+        radius = 58;
+        fontSize = 48;
+    }
+    if (item.radius) radius = item.radius;
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `900 28px "Plus Jakarta Sans"`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(countVal.toString(), cx, cy + 2);
+    // 3. Độ trong suốt (Opacity)
+    const opacity = (item.opacity !== undefined ? item.opacity : 100) / 100;
+    ctx.globalAlpha = Math.max(0.05, Math.min(1, opacity));
+
+    // 4. Preset & Thuật toán chuyển màu (Color Shift Xanh ➔ Vàng ➔ Đỏ)
+    const preset = item.preset || 'green_to_red';
+    const isColorShift = (item.colorShift !== false);
+
+    let mainColor = '#10b981';
+    let glowColor = 'rgba(16, 185, 129, 0.4)';
+    const clampedRatio = Math.max(0, Math.min(1, progressRatio));
+
+    if (isColorShift) {
+        if (clampedRatio > 0.5) {
+            const t = (1 - clampedRatio) * 2;
+            const r = Math.round(16 + (245 - 16) * t);
+            const g = Math.round(185 + (158 - 185) * t);
+            const b = Math.round(129 + (11 - 129) * t);
+            mainColor = `rgb(${r}, ${g}, ${b})`;
+            glowColor = `rgba(${r}, ${g}, ${b}, 0.4)`;
+        } else if (clampedRatio > 0.18) {
+            const t = (0.5 - clampedRatio) / 0.32;
+            const r = Math.round(245 + (239 - 245) * t);
+            const g = Math.round(158 + (68 - 158) * t);
+            const b = Math.round(11 + (68 - 11) * t);
+            mainColor = `rgb(${r}, ${g}, ${b})`;
+            glowColor = `rgba(${r}, ${g}, ${b}, 0.55)`;
+        } else {
+            mainColor = '#ef4444';
+            glowColor = 'rgba(239, 68, 68, 0.8)';
+        }
+    } else {
+        mainColor = item.customColor || (preset === 'classic_circle' ? '#ef4444' : '#10b981');
+        glowColor = ptHexToRgbaStr(mainColor, 0.4);
+    }
+
+    const isUrgent = (countVal <= 1 || clampedRatio <= 0.2);
+
+    let pulseScale = 1.0;
+    if (isUrgent && (preset === 'bomb_pulse' || preset === 'green_to_red' || preset === 'neon_ring')) {
+        const tVal = (remainingTime !== null) ? remainingTime : countVal;
+        const phase = (tVal % 1);
+        pulseScale = 1.0 + 0.08 * Math.sin(phase * Math.PI * 2);
+    }
+
+    ctx.translate(cx, cy);
+    ctx.scale(pulseScale, pulseScale);
+
+    if (preset === 'green_to_red') {
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, radius - 2, 0, Math.PI * 2);
+        ctx.lineWidth = Math.max(3.5, radius * 0.13);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+        ctx.stroke();
+
+        const startAngle = -Math.PI / 2;
+        const sweepAngle = Math.PI * 2 * clampedRatio;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius - 2, startAngle, startAngle + sweepAngle);
+        ctx.strokeStyle = mainColor;
+        ctx.lineWidth = Math.max(4, radius * 0.14);
+        ctx.lineCap = 'round';
+        ctx.shadowBlur = isUrgent ? 14 : 7;
+        ctx.shadowColor = mainColor;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `900 ${fontSize}px "Plus Jakarta Sans", system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+        ctx.shadowBlur = 4;
+        ctx.fillText(countVal.toString(), 0, 2);
+
+    } else if (preset === 'neon_ring') {
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(10, 15, 30, 0.92)';
+        ctx.fill();
+
+        ctx.shadowBlur = isUrgent ? 22 : 14;
+        ctx.shadowColor = mainColor;
+        ctx.lineWidth = Math.max(3.5, radius * 0.14);
+        ctx.strokeStyle = mainColor;
+        const startAngle = -Math.PI / 2;
+        const sweepAngle = Math.PI * 2 * clampedRatio;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius - 2, startAngle, startAngle + sweepAngle);
+        ctx.lineCap = 'round';
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.72, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `900 ${fontSize}px "Plus Jakarta Sans", monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(countVal.toString(), 0, 1);
+
+    } else if (preset === 'digital_badge') {
+        const badgeW = radius * 2.7;
+        const badgeH = radius * 1.45;
+        const x0 = -badgeW / 2;
+        const y0 = -badgeH / 2;
+        const cornerR = 10;
+
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x0, y0, badgeW, badgeH, cornerR);
+        else ctx.rect(x0, y0, badgeW, badgeH);
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
+        ctx.fill();
+
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = mainColor;
+        ctx.shadowBlur = isUrgent ? 10 : 5;
+        ctx.shadowColor = mainColor;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        const paddedVal = countVal < 10 ? `0${countVal}s` : `${countVal}s`;
+        ctx.fillStyle = mainColor;
+        ctx.font = `900 ${Math.round(fontSize * 0.82)}px "Courier New", monospace, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(paddedVal, 0, -3);
+
+        const barMargin = 7;
+        const barW = badgeW - barMargin * 2;
+        const barH = 3.5;
+        const barY = y0 + badgeH - 6.5;
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+        if (ctx.roundRect) ctx.roundRect(x0 + barMargin, barY, barW, barH, 2);
+        else ctx.rect(x0 + barMargin, barY, barW, barH);
+        ctx.fill();
+
+        ctx.fillStyle = mainColor;
+        const activeBarW = Math.max(0, barW * clampedRatio);
+        if (ctx.roundRect) ctx.roundRect(x0 + barMargin, barY, activeBarW, barH, 2);
+        else ctx.rect(x0 + barMargin, barY, activeBarW, barH);
+        ctx.fill();
+
+    } else if (preset === 'minimal_pill') {
+        const pillW = radius * 2.5;
+        const pillH = radius * 1.25;
+        const x0 = -pillW / 2;
+        const y0 = -pillH / 2;
+        const r = pillH / 2;
+
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x0, y0, pillW, pillH, r);
+        else ctx.rect(x0, y0, pillW, pillH);
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = mainColor;
+        ctx.stroke();
+
+        const iconX = x0 + pillH * 0.52;
+        const iconY = 0;
+        const iconR = pillH * 0.26;
+        ctx.beginPath();
+        ctx.arc(iconX, iconY, iconR, 0, Math.PI * 2);
+        ctx.strokeStyle = mainColor;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(iconX, iconY);
+        ctx.lineTo(iconX, iconY - iconR * 0.55);
+        ctx.lineTo(iconX + iconR * 0.45, iconY);
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `800 ${Math.round(fontSize * 0.78)}px "Plus Jakarta Sans", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${countVal}s`, pillW * 0.16, 1);
+
+    } else if (preset === 'bomb_pulse') {
+        if (isUrgent) {
+            ctx.beginPath();
+            ctx.arc(0, 0, radius * 1.35, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(239, 68, 68, 0.35)';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.fillStyle = mainColor;
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `900 ${fontSize}px "Plus Jakarta Sans", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(countVal.toString(), 0, 2);
+
+    } else {
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.fillStyle = mainColor;
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `900 ${fontSize}px "Plus Jakarta Sans", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(countVal.toString(), 0, 2);
+    }
+
     ctx.restore();
 }
 
