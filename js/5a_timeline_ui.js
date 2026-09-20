@@ -437,6 +437,9 @@ function onTimelineBarMouseDown(e, gIdx, mode) {
     paragraphSelectedGroupIdx = gIdx;
     renderTimelineLayersListUI();
     renderInspectorRibbon();
+    if (typeof focusAndScrollToLayer === 'function') {
+        focusAndScrollToLayer(gIdx);
+    }
 
     const viewport = document.getElementById('timeline-tracks-container');
     const rect = viewport.getBoundingClientRect();
@@ -508,6 +511,9 @@ function onTimelineBarTouchStart(e, gIdx, mode) {
     paragraphSelectedGroupIdx = gIdx;
     renderTimelineLayersListUI();
     renderInspectorRibbon();
+    if (typeof focusAndScrollToLayer === 'function') {
+        focusAndScrollToLayer(gIdx);
+    }
 
     const viewport = document.getElementById('timeline-tracks-container');
     const rect = viewport.getBoundingClientRect();

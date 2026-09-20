@@ -4,11 +4,63 @@
  */
 
 var APP_VERSION_INFO = {
-    version: "V14.3",
+    version: "V14.8",
     releaseDate: "19/09/2026",
     status: "Mới nhất & Ổn định",
-    summary: "Bản nâng cấp V14.3: Nâng cấp toàn diện Thẻ Đếm Ngược (Countdown Timer): Thêm tính năng tạo tiếng tích tắc (Tick-tock cơ học/điện tử/gỗ) đồng bộ theo giây và chuông khi kết thúc; Bổ sung bộ Presets đồng hồ đếm ngược đa dạng (Chuyển màu Xanh ➔ Đỏ cảnh báo, Vòng Neon công nghệ, Đồng hồ Digital LED, Pill tối giản, Bom kịch tính, Vòng tròn cổ điển); Tùy chọn chuyển màu mượt mà từ xanh sang đỏ khi sắp hết giờ.",
+    summary: "Bản nâng cấp V14.8: Tinh giản bảng điều khiển định dạng đối tượng, xóa khung cài đặt 'Nhãn phụ dưới đồng hồ' giúp giao diện đồng hồ đếm ngược gọn gàng, tập trung tối đa vào trải nghiệm canh giờ và thị giác.",
     categories: [
+        {
+            title: "Tinh Giản Giao Diện Đồng Hồ (V14.8)",
+            icon: "minimize-2",
+            color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            items: [
+                "Lược bỏ khung 'Nhãn phụ dưới đồng hồ' (Sub-Label) trong bảng điều khiển đối tượng.",
+                "Giao diện gọn gàng, liền mạch: Các thanh cấu hình thời lượng, âm thanh tích tắc và màu sắc hiển thị tối ưu hơn."
+            ]
+        },
+        {
+            title: "Tùy Chỉnh Màu Nền Đồng Hồ Đếm Ngược (V14.7)",
+            icon: "paint-bucket",
+            color: "text-rose-400 bg-rose-500/10 border-rose-500/30",
+            items: [
+                "Tùy chỉnh màu nền linh hoạt: Bộ chọn màu (Color Picker), mã HEX và 8 tông màu nền tương phản cao (Đen tuyền, Đen than, Xám Slate, Xanh đêm, Tím đậm, Nâu đỏ, Xanh rêu, Trắng sáng).",
+                "3 phím chọn nhanh chế độ nền: Chuyển đổi 1 chạm giữa Đen Đậm Siêu Rõ (khuyên dùng để làm nổi bật 100% vòng tròn quét màu Xanh ➔ Vàng ➔ Đỏ), Trong Suốt Hoàn Toàn và Xám Slate Mặc Định.",
+                "Thanh trượt độ mờ đục nền (0% - 100%): Cho phép tùy biến độ đậm nhạt của đĩa đệm chống lóa, xem trước trực quan tức thì trên Canvas Preview."
+            ]
+        },
+        {
+            title: "Tối Ưu & Bóc Tách Module Chuyên Môn (V14.6)",
+            icon: "box",
+            color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+            items: [
+                "Bóc tách Động cơ Canvas: Chia nhỏ thành 4a_canvas_engine (vòng lặp render), 4b_canvas_text (thuật toán ngắt dòng chữ) và 4c_canvas_overlays (đồng hồ, thanh tiến độ, ảnh).",
+                "Bóc tách Hệ thống Âm thanh: Tách riêng 6a_tts_voice (giọng đọc AI Edge TTS & Web Speech) và 6b_sfx_audio (tích tắc, chuông báo, Audio Ducking).",
+                "Bóc tách Bảng điều khiển Inspector: Tách 7b_inspector_ribbon (định dạng chữ/màu) và 7b2_inspector_countdown (tiện ích đồng hồ, SFX, tiến độ).",
+                "Bóc tách Quản lý Lớp & Lưới: Phân tách 7c_inspector_layers (danh sách layers, thêm/xóa thẻ) và 7d_inspector_grid (cấu hình ma trận cột, lề đệm và khóa cột Excel)."
+            ]
+        },
+        {
+            title: "Đĩa Chống Lóa & Chữ Số Siêu Sáng 100% (V14.5)",
+            icon: "sun",
+            color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            items: [
+                "Khóa độ sáng 100% cho chữ số (Solid Pure White): Tách riêng độ trong suốt của vỏ ngoài khỏi chữ số bên trong, đảm bảo con số luôn giữ màu trắng sáng tinh khiết hoặc màu tự chọn 100%, không bị xỉn màu.",
+                "Đĩa đệm chống lóa cao cấp (Anti-Glare Shield): Tích hợp đĩa đệm đen than sâu bên dưới đồng hồ, che chắn hoàn toàn các chi tiết/màu nền video phức tạp không bị xuyên qua làm chìm con số.",
+                "Mặc định viền nét tương phản (Crisp Stroke Outline 3px): Tự động bật viền nét đen sắc nét bao quanh con số, phân tách hoàn toàn chữ số khỏi màu sắc vòng đĩa.",
+                "Đổ bóng kép nổi khối (Double-layer Drop Shadow): Tăng cường chiều sâu 3D giúp số nổi bật, rõ ràng ngay cả khi xem ở khoảng cách xa hoặc trên màn hình nhỏ."
+            ]
+        },
+        {
+            title: "Màu Sắc & Hiệu Ứng Số Đồng Hồ Đếm Ngược (V14.4)",
+            icon: "palette",
+            color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/30",
+            items: [
+                "Tùy chọn màu số tự do: Bảng chọn mã màu HEX (Color Picker) kèm 8 nút màu nhanh (Trắng, Vàng Neon, Cam, Đỏ, Xanh Lá, Cyan, Hồng, Đen) xem trước trực tiếp trên Canvas.",
+                "Hiệu ứng viền nét chữ (Stroke Outline): Cho phép bật/tắt viền nét đậm, tùy chỉnh màu viền và độ dày viền nét để chữ số luôn rõ ràng ngay cả khi đặt trên nền phức tạp.",
+                "Đổ bóng nổi bật & Phát sáng Neon (Glow/Shadow): Tùy chọn đổ bóng mờ 3D hoặc phát sáng neon rực rỡ, tự động hòa trộn ánh sáng chuyên nghiệp.",
+                "Tọa độ Pixel & Bán kính chính xác: Cung cấp thanh trượt tọa độ X/Y và bán kính R (pixel) kèm các phím căn vị trí chuẩn và dịch chuyển vi sai ±10px."
+            ]
+        },
         {
             title: "Đồng Hồ Đếm Ngược: Presets & Tiếng Tích Tắc (V14.3)",
             icon: "timer",
@@ -390,7 +442,24 @@ function getCountdownDefaults(item) {
     if (item.endSoundType === undefined) item.endSoundType = "ding";
     if (item.position === undefined) item.position = "top_right";
     if (item.size === undefined) item.size = "medium";
+    if (item.radius === undefined) {
+        item.radius = (item.size === 'small' ? 24 : (item.size === 'large' ? 46 : (item.size === 'xlarge' ? 58 : 34)));
+    }
+    if (item.posX === undefined) {
+        item.posX = (item.position === 'top_left' || item.position === 'bottom_left') ? 68 : (item.position === 'center' || item.position === 'bottom_center' ? 960 : 1852);
+    }
+    if (item.posY === undefined) {
+        item.posY = (item.position === 'bottom_left' || item.position === 'bottom_center' || item.position === 'bottom_right') ? 1004 : 68;
+    }
     if (item.opacity === undefined) item.opacity = 100;
+    if (item.textColor === undefined) item.textColor = "#ffffff";
+    if (item.textShadow === undefined) item.textShadow = true;
+    if (item.shadowColor === undefined) item.shadowColor = "rgba(0, 0, 0, 0.95)";
+    if (item.textGlow === undefined) item.textGlow = false;
+    if (item.glowColor === undefined) item.glowColor = "#ffffff";
+    if (item.textStroke === undefined) item.textStroke = true; // Mặc định bật viền nét để chữ số luôn rõ nét trên mọi nền
+    if (item.strokeColor === undefined) item.strokeColor = "#000000";
+    if (item.strokeWidth === undefined) item.strokeWidth = 3;
     return item;
 }
 

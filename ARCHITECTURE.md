@@ -21,13 +21,18 @@ Dự án tạo video tự động từ file Excel & ảnh, hỗ trợ xem trư�
     ├── 2b_profiles_manager.js  # Quản lý kịch bản (Profiles CRUD), nạp mẫu mặc định, xuất/nhập JSON
     ├── 2c_workspace_io.js      # Xuất/nhập toàn bộ Workspace (dữ liệu + ảnh + kịch bản), tải mẫu demo
     ├── 3_excel_assets.js       # Đọc file Excel (.xlsx), phân loại chủ đề, quản lý thư viện ảnh cục bộ
-    ├── 4_canvas_renderer.js    # Render Canvas 1920x1080, chia cột grid, tính lề, highlight vệt chữ, ảnh
+    ├── 4a_canvas_engine.js     # Lõi đồ họa Canvas 1920x1080, context, cấu trúc render khung hình và hit-boxes
+    ├── 4b_canvas_text.js       # Động cơ chữ: Word-Wrap thông minh, tự co dãn hộp thẻ auto-flow, chữ tự do
+    ├── 4c_canvas_overlays.js   # Các lớp phủ đặc biệt: đồng hồ đếm ngược, thanh tiến độ, khung ảnh đính kèm
     ├── 5a_timeline_ui.js       # Giao diện Timeline: vẽ đường ray, waveform, ruler, mật độ, kéo thả tay nắm
     ├── 5b_timeline_engine.js   # Động cơ Timeline: vòng lặp playback, Web Worker clock, đồng bộ TTS, preview
-    ├── 6_tts_audio.js          # Giọng đọc AI Web Speech & Edge TTS, đo thời lượng ray, xuất AudioBuffer/WAV
+    ├── 6a_tts_voice.js         # Giọng đọc AI Web Speech & Edge TTS, đo thời lượng ray, xuất Audio Master WAV
+    ├── 6b_sfx_audio.js         # Tổng hợp âm thanh SFX Web Audio (tích tắc, chuông báo) và cơ chế né tiếng Audio Ducking
     ├── 7a_inspector_popover.js # Hộp thoại Popover nổi cấu hình thẻ TTS đọc AI, countdown, chữ tự do
-    ├── 7b_inspector_ribbon.js  # Ribbon định dạng phông, cỡ chữ, vệt highlight, bo góc, mail-merge chips
-    ├── 7c_inspector_grid.js    # Quản lý danh sách lớp (Layers), ma trận lưới Grid, khóa đồng bộ hàng Excel
+    ├── 7b_inspector_ribbon.js  # Ribbon định dạng phông, cỡ chữ, màu sắc, vệt highlight, bo góc, mail-merge chips
+    ├── 7b2_inspector_countdown.js # Ribbon cấu hình chuyên sâu Đồng hồ đếm ngược, Thẻ tiến độ và Thẻ SFX
+    ├── 7c_inspector_layers.js  # Quản lý danh sách lớp (Layers), thêm/sắp xếp/xóa lớp và điều khiển thẻ trong lớp
+    ├── 7d_inspector_grid.js    # Cấu hình ma trận lưới Grid Matrix (1-4 cột), tỉ lệ cột, lề đệm và khóa cột Excel
     ├── 8a_batch_queue.js       # Hàng đợi Batch Render: định dạng tên file, chuỗi kịch bản, chọn thư mục
     ├── 8b_batch_runner.js      # Động cơ Batch: MediaRecorder kép (Full + Clean), ghi âm PCM/WAV, wake lock
     ├── 8c_batch_exporter.js    # Xuất báo cáo Excel 2 Sheet (Tổng quan + Timeline ms), File Picker API lưu file
@@ -41,7 +46,7 @@ Dự án tạo video tự động từ file Excel & ảnh, hỗ trợ xem trư�
 ### 1. `index.html`
 - Chứa toàn bộ cây DOM giao diện: Thanh công cụ Header, Cột điều khiển trái (5 Sub-tabs), Màn hình Canvas 16:9 trung tâm, Trục Timeline phía dưới, Cột bên phải, và Màn hình Render Hàng Loạt (Batch Multi-Chain View).
 - Nạp CDN thư viện: Tailwind CSS, Lucide Icons, SheetJS XLSX.
-- Nạp 16 tệp JavaScript theo đúng thứ tự phân tầng kiến trúc từ lõi State đến UI và Khởi tạo.
+- Nạp 21 tệp JavaScript theo đúng thứ tự phân tầng kiến trúc từ lõi State đến Động cơ đồ họa, Âm thanh, UI và Khởi tạo.
 
 ### 2. `styles.css` (và `css/styles.css`, `public/styles.css`)
 - Nạp phông chữ quốc tế qua Google Fonts (@import Quicksand, Plus Jakarta Sans, Nunito, Inter, Courier Prime).
@@ -50,7 +55,7 @@ Dự án tạo video tự động từ file Excel & ảnh, hỗ trợ xem trư�
 ### 3. `js/1_state_config.js`
 - **Chuyên môn:** Khai báo cấu trúc dữ liệu và biến trạng thái toàn cục.
 - **Biến chủ chốt:**
-  - `APP_VERSION_INFO`: Lưu trữ số hiệu phiên bản hiện tại (V12.8), ngày phát hành, trạng thái, danh mục tính năng cập nhật và lịch sử các bản phát hành trước.
+  - `APP_VERSION_INFO`: Lưu trữ số hiệu phiên bản hiện tại (V14.6), ngày phát hành, trạng thái, danh mục tính năng cập nhật và lịch sử các bản phát hành trước.
   - `importedDatasets`: Mảng chứa danh sách câu, mẫu câu, từ thay thế (drills) trích xuất từ Excel.
   - `paragraphGridConfig`: Cấu hình bố cục lưới Canvas (ma trận cột, danh sách các nhóm/lớp Groups, lề đệm).
   - `paragraphFieldStyles`: Từ điển cấu hình phông, cỡ, màu sắc, kiểu highlight, thụt lề cho từng trường.
@@ -79,12 +84,19 @@ Dự án tạo video tự động từ file Excel & ảnh, hỗ trợ xem trư�
 - `handleLocalImagesUpload()`: Đọc hàng loạt file ảnh từ thư mục máy tính, chuyển sang Base64 lưu vào `localPCImageMap`.
 - `updateTopicDropdown()`, `onParagraphTopicSelectChange()`: Quản lý danh sách chủ đề bài học và lọc câu.
 
-### 6. `js/4_canvas_renderer.js`
-- **Chuyên môn:** Động cơ đồ họa kết xuất Canvas độ phân giải 1920x1080.
-- `drawParagraphCanvasFrame()`: Vẽ khung hình Canvas chính và đồng bộ sang Mini Live Monitor.
-- `renderSingleFrameToContext()`: Vẽ các thành phần hình học, ảnh nền, logo, và các khối cột lưới.
-- `drawAutoFlowCardBox()`: Thuật toán tự động ngắt dòng thông minh (Smart Word-Wrap), tự co giãn khung theo nội dung chữ (`shrinkToFit`), đổ bóng, bo góc, vẽ vệt nền Highlight tùy chỉnh đệm viền.
-- `drawRect916PhotoFrame()`: Vẽ khung chứa ảnh đính kèm theo tỉ lệ dọc hoặc ngang với bo góc mượt mà.
+### 6. Nhóm Động Cơ Đồ Họa Canvas (`js/4a_`, `js/4b_`, `js/4c_`)
+- **`4a_canvas_engine.js`:**
+  - `drawParagraphCanvasFrame()`: Vẽ khung hình Canvas chính và đồng bộ sang Mini Live Monitor.
+  - `renderSingleFrameToContext()`: Quản lý vòng lặp vẽ khung hình, tỷ lệ chia cột, ảnh nền, logo và phân bổ tọa độ các lớp.
+  - `ensureCanvasClickListener()`: Quản lý sự kiện nhấp chuột chọn đối tượng trực tiếp trên mặt Canvas (Hit-testing).
+- **`4b_canvas_text.js`:**
+  - `calculateTextLines()`: Thuật toán ngắt dòng thông minh (Smart Word-Wrap) chuẩn từng pixel font.
+  - `drawAutoFlowCardBox()`: Tự co giãn hộp thẻ theo nội dung (`shrinkToFit`), đổ bóng, bo góc, vẽ vệt nền Highlight tùy chỉnh đệm viền.
+  - `drawCustomTextCardBox()`: Kết xuất thẻ chữ tự do với tiền tố, hậu tố, chữ hoa/thường, bóng đổ nổi khối.
+- **`4c_canvas_overlays.js`:**
+  - `drawCountdownOverlay()`: Vẽ đồng hồ đếm ngược với đĩa chống lóa than chì, chữ số Solid 100%, viền nét tương phản và hiệu ứng chuyển màu sống động.
+  - `drawProgressTrackerOverlay()`: Vẽ thanh tiến độ hoặc chỉ số phần trăm hoàn thành bài học.
+  - `drawRect916PhotoFrame()`: Vẽ khung ảnh đính kèm bo góc mượt mà, hiệu ứng mờ đục và icon dự phòng.
 
 ### 7. Nhóm Trục Thời Gian & Phát Video (`js/5a_`, `js/5b_`)
 - **`5a_timeline_ui.js`:**
@@ -99,23 +111,32 @@ Dự án tạo video tự động từ file Excel & ảnh, hỗ trợ xem trư�
   - `runUnifiedSentenceSequence()`: Trình điều phối chạy nối tiếp các câu theo thứ tự, tự động kích hoạt giọng đọc AI và chuyển câu.
   - `togglePreviewAllPlayback()`: Chế độ chạy thử liên tục toàn bộ kịch bản.
 
-### 8. `js/6_tts_audio.js`
-- **Chuyên môn:** Xử lý âm thanh, phát giọng đọc AI và xuất file WAV chất lượng cao.
-- `speakTTS()`, `populateVoiceList()`: Tích hợp Web Speech API trình duyệt và Edge TTS service.
-- `fetchEdgeTtsAudioBuffer()`: Tải và giải mã âm thanh trước vào bộ nhớ đệm giúp phát với độ trễ 0ms.
-- `autoRecalculateAudioLayersDuration()`: Tự động đo độ dài đoạn văn bản để khóa thời lượng ray Timeline vừa khít với giọng nói.
-- `createWavHeader()`, `encodePcmChunksToWavBlob()`: Thu thập dữ liệu PCM và đóng gói thành file âm thanh WAV chuẩn 44.1kHz Stereo 16-bit.
+### 8. Nhóm Âm Thanh & Giọng Đọc AI (`js/6a_`, `js/6b_`)
+- **`6a_tts_voice.js`:**
+  - `speakTTS()`, `populateVoiceList()`: Tích hợp Web Speech API trình duyệt và Edge TTS service.
+  - `fetchEdgeTtsAudioBuffer()`: Tải và giải mã âm thanh trước vào bộ nhớ đệm giúp phát với độ trễ 0ms.
+  - `autoRecalculateAudioLayersDuration()`: Tự động đo độ dài đoạn văn bản để khóa thời lượng ray Timeline vừa khít với giọng nói.
+  - `createMasterWavBlobFromSentenceAudios()`, `createWavHeader()`: Tổng hợp và đóng gói file âm thanh Master WAV chuẩn 44.1kHz Stereo 16-bit.
+- **`6b_sfx_audio.js`:**
+  - `generateSynthesizedSfxBuffer()`: Tổng hợp tiếng tích tắc cơ học, bíp điện tử, tiếng vút (whoosh), chuông báo hoàn toàn offline qua Web Audio API.
+  - `duckAllActiveSfx()`: Cơ chế né tiếng thông minh (Audio Ducking) tự động hạ âm lượng SFX khi giọng đọc AI cất tiếng.
+  - `playSfxItem()`, `testPlayAudioSfxWithDucking()`: Phát và kiểm tra hiệu ứng âm thanh SFX tức thì.
 
-### 9. Nhóm Thanh Công Cụ & Tùy Chỉnh (`js/7a_`, `js/7b_`, `js/7c_`)
+### 9. Nhóm Thanh Công Cụ & Tùy Chỉnh (`js/7a_`, `js/7b_`, `js/7b2_`, `js/7c_`, `js/7d_`)
 - **`7a_inspector_popover.js`:**
-  - `openFloatingCardPopover()`: Mở hộp thoại nổi điều khiển thẻ thành phần khi nhấp vào chip trong lớp.
-  - Hỗ trợ 3 loại thẻ đặc biệt: Thẻ Giọng Đọc AI (chọn trường đọc nối tiếp), Đồng Hồ Đếm Ngược (cấu hình số giây, vị trí), và Thẻ Chữ Tự Do.
+  - `openFloatingCardPopover()`: Hộp thoại nổi nhanh khi nhấp trực tiếp vào chip thành phần trên Timeline.
 - **`7b_inspector_ribbon.js`:**
-  - `renderInspectorRibbon()`: Bảng điều khiển định dạng kiểu dáng (Phông chữ, Cỡ px, In đậm/nghiêng/gạch chân, Màu chữ, Màu highlight, Đệm viền ngang/dọc, Căn lề, Bo góc thẻ).
+  - `renderInspectorRibbon()`: Bảng điều khiển định dạng kiểu dáng văn bản, kích thước vệt highlight, lề đệm, bo góc và khung ảnh.
   - `applyPresetToSelectedFields()`: Áp dụng nhanh các bộ phối màu thị giác (Vàng Pill, Kem Pastel, Tím IPA, Ghi Dịch).
   - `renderMailMergeFieldChips()`: Hiển thị thanh thẻ trường dữ liệu Excel để thêm vào lớp thiết kế.
-- **`7c_inspector_grid.js`:**
-  - `renderTimelineLayersListUI()`: Danh sách các lớp (Layers), phân bổ cột Grid, độ dịch dòng (Row Offset).
+- **`7b2_inspector_countdown.js`:**
+  - `renderCountdownInspectorRibbon()`: Cấu hình chuyên sâu Đồng hồ đếm ngược (thời gian, giao diện preset, màu số, tọa độ pixel, âm thanh tích tắc).
+  - `renderProgressTrackerInspectorRibbon()`: Bảng điều khiển thanh tiến độ bài tập.
+  - `renderAudioSfxInspectorRibbon()`: Bảng điều khiển thẻ âm thanh SFX và nhạc nền.
+- **`7c_inspector_layers.js`:**
+  - `renderTimelineLayersListUI()`: Danh sách các lớp (Layers), thêm lớp mới, nhân bản, ẩn/hiện, sắp xếp thứ tự và gắn chip dữ liệu.
+  - `addSpecialObjectComponent()`: Chèn nhanh các đối tượng đặc biệt (Custom Text, Giọng đọc TTS, Đồng hồ, SFX).
+- **`7d_inspector_grid.js`:**
   - `syncInlineGridSettingsInputs()`: Thiết lập ma trận lưới Grid Matrix (1 - 4 cột), tỉ lệ độ rộng các cột (%), đệm lề 4 chiều.
   - `renderColumnLockControls()`: Khóa đồng bộ hàng Excel song song hoặc để cột ở chế độ căn giữa tự do.
 

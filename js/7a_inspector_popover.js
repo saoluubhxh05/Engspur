@@ -190,7 +190,7 @@ function openFloatingCardPopover(e, gIdx, fIdx, type) {
                 </div>
                 <div>
                     <label class="text-[10px] text-slate-300 font-bold block mb-0.5">Vị trí hiển thị:</label>
-                    <select onchange="updateCountdownProp(${gIdx}, ${fIdx}, 'position', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded p-1 font-bold text-slate-200 text-xs">
+                    <select onchange="updateCountdownPositionPreset(${gIdx}, ${fIdx}, this.value)" class="w-full bg-slate-950 border border-slate-700 rounded p-1 font-bold text-slate-200 text-xs">
                         <option value="top_right" ${item.position === 'top_right' ? 'selected' : ''}>Góc trên bên phải</option>
                         <option value="top_left" ${item.position === 'top_left' ? 'selected' : ''}>Góc trên bên trái</option>
                         <option value="center" ${item.position === 'center' ? 'selected' : ''}>Chính giữa màn hình</option>
@@ -199,6 +199,41 @@ function openFloatingCardPopover(e, gIdx, fIdx, type) {
                         <option value="bottom_left" ${item.position === 'bottom_left' ? 'selected' : ''}>Góc dưới bên trái</option>
                     </select>
                 </div>
+                <div class="grid grid-cols-2 gap-1.5 pt-0.5">
+                    <div>
+                        <label class="text-[9px] text-rose-300 font-bold block mb-0.5">Tọa độ X (px):</label>
+                        <input type="number" min="0" max="2560" value="${item.posX !== undefined ? item.posX : 1852}" onchange="updateCountdownProp(${gIdx}, ${fIdx}, 'posX', parseInt(this.value, 10))" class="w-full bg-slate-950 border border-slate-700 rounded p-1 font-bold text-rose-300 text-xs font-mono">
+                    </div>
+                    <div>
+                        <label class="text-[9px] text-rose-300 font-bold block mb-0.5">Tọa độ Y (px):</label>
+                        <input type="number" min="0" max="2560" value="${item.posY !== undefined ? item.posY : 68}" onchange="updateCountdownProp(${gIdx}, ${fIdx}, 'posY', parseInt(this.value, 10))" class="w-full bg-slate-950 border border-slate-700 rounded p-1 font-bold text-rose-300 text-xs font-mono">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-1.5">
+                    <div>
+                        <label class="text-[9px] text-amber-300 font-bold block mb-0.5">Bán kính R (px):</label>
+                        <input type="number" min="12" max="300" value="${item.radius || (item.size === 'small' ? 24 : (item.size === 'large' ? 46 : (item.size === 'xlarge' ? 58 : 34)))}" onchange="updateCountdownProp(${gIdx}, ${fIdx}, 'radius', parseInt(this.value, 10))" class="w-full bg-slate-950 border border-slate-700 rounded p-1 font-bold text-amber-300 text-xs font-mono">
+                    </div>
+                    <div>
+                        <label class="text-[9px] text-indigo-300 font-bold block mb-0.5">Cỡ chữ (px):</label>
+                        <input type="number" min="0" max="200" value="${item.fontSize || 0}" placeholder="0 = Tự động" onchange="updateCountdownProp(${gIdx}, ${fIdx}, 'fontSize', parseInt(this.value, 10))" class="w-full bg-slate-950 border border-slate-700 rounded p-1 font-bold text-indigo-300 text-xs font-mono">
+                    </div>
+                </div>
+                <div class="flex items-center justify-between p-1 rounded bg-slate-950/80 border border-slate-800">
+                    <span class="text-[9px] text-amber-300 font-bold flex items-center space-x-1">
+                        <span>Màu chữ số:</span>
+                    </span>
+                    <div class="flex items-center space-x-2">
+                        <input type="color" value="${(item.textColor && item.textColor.startsWith('#') && item.textColor.length === 7) ? item.textColor : '#ffffff'}" onchange="updateCountdownProp(${gIdx}, ${fIdx}, 'textColor', this.value)" class="w-6 h-5 rounded border border-slate-700 bg-slate-900 p-0 cursor-pointer" title="Màu số">
+                        <label class="text-[8.5px] text-slate-300 font-bold flex items-center space-x-1 cursor-pointer">
+                            <input type="checkbox" ${item.textStroke !== false ? 'checked' : ''} onchange="updateCountdownProp(${gIdx}, ${fIdx}, 'textStroke', this.checked)" class="w-3 h-3 rounded bg-slate-950 border-slate-700 text-amber-500">
+                            <span>Viền nét</span>
+                        </label>
+                    </div>
+                </div>
+                <button type="button" onclick="if (typeof selectCountdownItem === 'function') selectCountdownItem(${gIdx}, ${fIdx}); closeFloatingPopover();" class="w-full py-1.5 px-2 bg-rose-950 hover:bg-rose-900 border border-rose-600/70 text-rose-200 rounded text-[9.5px] font-extrabold flex items-center justify-center space-x-1 transition cursor-pointer shadow mt-1">
+                    <span>Mở Ribbon Tùy Chỉnh Chi Tiết (Slider Pixel & Presets) ➔</span>
+                </button>
             </div>
         `;
     } else if (type === 'custom_text') {
