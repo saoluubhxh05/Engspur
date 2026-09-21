@@ -7,6 +7,7 @@ var miniBatchFrameCounter = 0;
 var canvasCustomTextHitBoxes = [];
 var canvasFieldHitBoxes = [];
 var canvasCountdownHitBoxes = [];
+var canvasVideoHitBoxes = [];
 
 function ensureCanvasClickListener() {
     if (pCanvas && !pCanvas.__hasCustomTextClickListener) {
@@ -42,6 +43,20 @@ function ensureCanvasClickListener() {
                     }
                     if (typeof focusAndScrollToLayer === 'function') {
                         focusAndScrollToLayer(cb.gIdx);
+                    }
+                    return;
+                }
+            }
+
+            // 2b. Hit-test Thẻ Video Clip
+            for (let i = canvasVideoHitBoxes.length - 1; i >= 0; i--) {
+                const vb = canvasVideoHitBoxes[i];
+                if (clickX >= vb.x && clickX <= vb.x + vb.w && clickY >= vb.y && clickY <= vb.y + vb.h) {
+                    if (typeof selectVideoItem === 'function') {
+                        selectVideoItem(vb.gIdx, vb.fIdx);
+                    }
+                    if (typeof focusAndScrollToLayer === 'function') {
+                        focusAndScrollToLayer(vb.gIdx);
                     }
                     return;
                 }
@@ -166,6 +181,7 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
         canvasCustomTextHitBoxes = [];
         canvasFieldHitBoxes = [];
         canvasCountdownHitBoxes = [];
+        canvasVideoHitBoxes = [];
     }
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, width, height);
@@ -224,6 +240,61 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
         ctx.setLineDash([8, 6]);
         colLayouts.forEach(cl => ctx.strokeRect(cl.x, paddingTop, cl.w, effectiveHeight));
         ctx.restore();
+    }
+
+    // TÍNH TOÁN & VẼ NỀN KHUNG VIỀN BAO GỘP CỘT (MODE 2 - COLUMN BOX WRAPPER)
+    const wrapBox = matrix.columnBoxWrapper;
+    const isWrapBoxActive = !!(wrapBox && wrapBox.enabled);
+    let wrapBoxX = 0, wrapBoxW = 0, wrapBoxPadLeft = 0, wrapBoxPadRight = 0, wrapBoxPadTop = 0, wrapBoxPadBottom = 0;
+    let wrapStartCol = 1, wrapEndCol = 2;
+    let wrapMaxY = paddingTop;
+    let wrapMinY = height;
+    let wrapActualContentBottom = 0;
+
+    if (isWrapBoxActive) {
+        wrapStartCol = Math.max(1, Math.min(colCount, parseInt(wrapBox.startCol) || 1));
+        wrapEndCol = Math.max(wrapStartCol, Math.min(colCount, parseInt(wrapBox.endCol) || 2));
+        
+        const padXFallback = wrapBox.paddingX !== undefined ? wrapBox.paddingX : 16;
+        const padYFallback = wrapBox.paddingY !== undefined ? wrapBox.paddingY : 16;
+        wrapBoxPadLeft = wrapBox.paddingLeft !== undefined ? wrapBox.paddingLeft : padXFallback;
+        wrapBoxPadRight = wrapBox.paddingRight !== undefined ? wrapBox.paddingRight : padXFallback;
+        wrapBoxPadTop = wrapBox.paddingTop !== undefined ? wrapBox.paddingTop : padYFallback;
+        wrapBoxPadBottom = wrapBox.paddingBottom !== undefined ? wrapBox.paddingBottom : padYFallback;
+
+        const isFullGrid = (wrapBox.heightMode === 'full' || wrapBox.heightMode === 'full_grid');
+        const isFullHeight = (isFullGrid || wrapBox.heightMode === 'full_cols');
+
+        let startColLayout, endColLayout;
+        if (isFullGrid) {
+            startColLayout = colLayouts[0];
+            endColLayout = colLayouts[colLayouts.length - 1];
+        } else {
+            startColLayout = colLayouts[wrapStartCol - 1] || colLayouts[0];
+            endColLayout = colLayouts[wrapEndCol - 1] || colLayouts[colLayouts.length - 1];
+        }
+
+        if (startColLayout && endColLayout) {
+            wrapBoxX = startColLayout.x - wrapBoxPadLeft;
+            wrapBoxW = Math.max(0, (endColLayout.x + endColLayout.w) - startColLayout.x + wrapBoxPadLeft + wrapBoxPadRight);
+        }
+
+        if (wrapBox.bgColor && wrapBox.bgColor !== 'transparent' && wrapBoxW > 0) {
+            const estH = Math.max(10, isFullHeight
+                ? (effectiveHeight + wrapBoxPadTop + wrapBoxPadBottom)
+                : (paragraphGridConfig._cachedWrapBoxH || (effectiveHeight * 0.7)));
+            const estY = isFullHeight
+                ? (paddingTop - wrapBoxPadTop)
+                : ((paragraphGridConfig._cachedWrapBoxY !== undefined ? paragraphGridConfig._cachedWrapBoxY : paddingTop) - wrapBoxPadTop);
+            const boxRadius = Math.max(0, Math.min(Math.min(wrapBoxW / 2, estH / 2), parseInt(wrapBox.borderRadius) !== undefined ? parseInt(wrapBox.borderRadius) : 20));
+            ctx.save();
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(wrapBoxX, estY, wrapBoxW, estH, boxRadius);
+            else ctx.rect(wrapBoxX, estY, wrapBoxW, estH);
+            ctx.fillStyle = wrapBox.bgColor;
+            ctx.fill();
+            ctx.restore();
+        }
     }
 
     let activeTopicList = getParagraphFilteredDatasets();
@@ -526,6 +597,10 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
                         const customR = Math.round(Math.max(4, (st.boxRadius !== undefined ? st.boxRadius : 20) * layerScaleFactor));
                         const customOp = st.opacity !== undefined ? st.opacity : 100;
                         drawRect916PhotoFrame(ctx, imgX, imgY, imgW, imgH, currentActiveImage, currentActiveFallbackWord, true, customR, customOp);
+                        if (isWrapBoxActive && targetColIdx >= wrapStartCol && targetColIdx <= wrapEndCol) {
+                            wrapMinY = Math.min(wrapMinY, imgY);
+                            wrapActualContentBottom = Math.max(wrapActualContentBottom, imgY + imgH);
+                        }
                         if (!isCleanMode) {
                             canvasFieldHitBoxes.push({
                                 x: imgX,
@@ -542,6 +617,10 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
                         const val = (rawVal !== undefined && rawVal !== null) ? String(rawVal).trim() : '';
                         if (val !== '') {
                             const renderedHeight = drawAutoFlowCardBox(ctx, originX, currentFieldY, groupW, val, st, layerScaleFactor);
+                            if (isWrapBoxActive && targetColIdx >= wrapStartCol && targetColIdx <= wrapEndCol) {
+                                wrapMinY = Math.min(wrapMinY, currentFieldY);
+                                wrapActualContentBottom = Math.max(wrapActualContentBottom, currentFieldY + renderedHeight);
+                            }
                             if (!isCleanMode) {
                                 canvasFieldHitBoxes.push({
                                     x: originX,
@@ -557,6 +636,10 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
                     }
                 } else if (itemType === 'custom_text') {
                     const renderedHeight = drawCustomTextCardBox(ctx, originX, currentFieldY, groupW, item, paragraphGridConfig.groups.indexOf(grp), fIdx, layerScaleFactor);
+                    if (isWrapBoxActive && targetColIdx >= wrapStartCol && targetColIdx <= wrapEndCol) {
+                        wrapMinY = Math.min(wrapMinY, currentFieldY);
+                        wrapActualContentBottom = Math.max(wrapActualContentBottom, currentFieldY + renderedHeight);
+                    }
                     if (!item.useCustomCoords) {
                         currentFieldY += renderedHeight + customSpacing;
                     }
@@ -589,6 +672,13 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
                     }
                 } else if (itemType === 'progress_tracker') {
                     drawProgressTrackerOverlay(ctx, width, height, item);
+                } else if (itemType === 'video') {
+                    const isPlaying = (isParagraphRunning || isTimelinePlaying);
+                    const curGroupIdx = paragraphGridConfig.groups.indexOf(grp);
+                    const isThisVideoSelected = (typeof selectedVideoTarget !== 'undefined' && selectedVideoTarget && selectedVideoTarget.gIdx === curGroupIdx && selectedVideoTarget.fIdx === fIdx);
+                    if (typeof drawVideoOverlay === 'function') {
+                        drawVideoOverlay(ctx, width, height, item, activeDataMap, isPlaying, isThisVideoSelected, isCleanMode, curGroupIdx, fIdx);
+                    }
                 }
             });
 
@@ -618,6 +708,10 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
             if (!isColLocked && grpMode !== 'single') {
                 colVerticalPositions[targetColIdx] = currentFieldY;
             }
+
+            if (isWrapBoxActive && targetColIdx >= wrapStartCol && targetColIdx <= wrapEndCol) {
+                wrapMaxY = Math.max(wrapMaxY, currentFieldY);
+            }
         });
 
         if (hasAnyStackLayer || hasAnyAllLayer) {
@@ -629,7 +723,49 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
                 }
             }
             totalLockedBlockBottom = nextRowStartY;
+            if (isWrapBoxActive && wrapStartCol <= 2 && wrapEndCol >= 1) {
+                wrapMaxY = Math.max(wrapMaxY, totalLockedBlockBottom - blockGap);
+            }
         }
+    }
+
+    // VẼ KHUNG VIỀN BAO GỘP CỘT (MODE 2 - COLUMN BOX WRAPPER)
+    if (isWrapBoxActive && wrapBoxW > 0) {
+        const isFullGrid = (wrapBox.heightMode === 'full' || wrapBox.heightMode === 'full_grid');
+        const isFullHeight = (isFullGrid || wrapBox.heightMode === 'full_cols');
+
+        const contentTop = (wrapMinY < height) ? wrapMinY : paddingTop;
+        const contentBottom = (wrapActualContentBottom > 0) ? wrapActualContentBottom : Math.max(contentTop + 40, wrapMaxY);
+
+        const finalBoxY = isFullHeight
+            ? (paddingTop - wrapBoxPadTop)
+            : (contentTop - wrapBoxPadTop);
+        const finalBoxBottom = isFullHeight
+            ? (paddingTop + effectiveHeight + wrapBoxPadBottom)
+            : (contentBottom + wrapBoxPadBottom);
+            
+        const finalBoxH = Math.max(10, finalBoxBottom - finalBoxY);
+        paragraphGridConfig._cachedWrapBoxH = finalBoxH;
+        paragraphGridConfig._cachedWrapBoxY = contentTop;
+
+        const boxRadius = Math.max(0, Math.min(Math.min(wrapBoxW / 2, finalBoxH / 2), parseInt(wrapBox.borderRadius) !== undefined ? parseInt(wrapBox.borderRadius) : 20));
+
+        ctx.save();
+        ctx.beginPath();
+        if (ctx.roundRect) {
+            ctx.roundRect(wrapBoxX, finalBoxY, wrapBoxW, finalBoxH, boxRadius);
+        } else {
+            ctx.rect(wrapBoxX, finalBoxY, wrapBoxW, finalBoxH);
+        }
+
+        const bWidth = Math.max(1, parseInt(wrapBox.borderWidth) || 3);
+        const bColor = wrapBox.borderColor || '#d99a14';
+        if (bColor && bColor !== 'transparent') {
+            ctx.strokeStyle = bColor;
+            ctx.lineWidth = bWidth;
+            ctx.stroke();
+        }
+        ctx.restore();
     }
 
     // BẢN SẠCH: KHÔNG VẼ LOGO / BADGE THƯƠNG HIỆU

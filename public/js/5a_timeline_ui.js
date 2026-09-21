@@ -576,6 +576,9 @@ function onTimelineRulerTouch(e) {
 
 function seekTimeline(sec) {
     currentTimelinePlayTime = Math.max(0, Math.min(masterTimelineDuration, sec));
+    if (typeof countdownTriggeredAudioTicks !== 'undefined' && countdownTriggeredAudioTicks) {
+        countdownTriggeredAudioTicks.clear();
+    }
     const timeDisplay = document.getElementById('timeline-current-time-display');
     if (timeDisplay) timeDisplay.innerText = `${currentTimelinePlayTime.toFixed(1)}s`;
     updatePlayheadNeedlePosition();

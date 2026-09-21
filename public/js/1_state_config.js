@@ -4,11 +4,64 @@
  */
 
 var APP_VERSION_INFO = {
-    version: "V15.6",
+    version: "V16.1",
     releaseDate: "21/09/2026",
     status: "Mới nhất & Ổn định",
-    summary: "Bản nâng cấp V15.6: Nâng cấp toàn diện tính năng 'Áp Dụng Tất Cả' trong thanh định dạng. Tự động sao chép và áp dụng trọn vẹn vị trí X-Y, kích thước Rộng-Cao, tọa độ tự do, bo góc, căn lề, viền, bóng, màu sắc và tiền tố/hậu tố cho tất cả đối tượng được tích chọn qua các kịch bản, đồng thời bảo toàn 100% nội dung văn bản gốc của từng đối tượng.",
+    summary: "Bản nâng cấp V16.1: Tích hợp Thẻ Video (Clip & Nền) độc lập và động nối cột Excel, hỗ trợ toàn diện định dạng kích thước, vị trí, căn vừa khung, âm lượng và lặp lại.",
     categories: [
+        {
+            title: "Tích Hợp Thẻ Video (Clip & Nền) Độc Lập & Động Nối Cột Excel (V16.1)",
+            icon: "video",
+            color: "text-sky-400 bg-sky-500/10 border-sky-500/30",
+            items: [
+                "Thẻ Video Clip & Nền độc lập: Thêm đối tượng video vào bất kỳ lớp nào trên Timeline, hỗ trợ định dạng vị trí X-Y, kích thước (Rộng - Cao), bo góc viền và đổ bóng.",
+                "2 Chế độ nguồn linh hoạt: Tải trực tiếp file video (.mp4, .webm, .mov) từ máy tính hoặc kết nối động theo tên cột trong file Excel (mỗi câu một clip minh họa khác nhau).",
+                "3 Chế độ vừa khung (Fit Mode): Tùy chọn 'Cắt vừa khung (Cover)', 'Thu trọn vẹn (Contain)' hoặc 'Kéo dãn (Stretch)' không lo vỡ khung hay biến dạng tỷ lệ.",
+                "Điều khiển âm thanh & phát lại mượt mà: Bật/tắt tiếng (Mute), thanh trượt âm lượng 0-100%, lặp lại (Loop) theo độ dài câu và điều chỉnh tốc độ phát lại."
+            ]
+        },
+        {
+            title: "Căn Chỉnh Đệm 4 Chiều Cho Khung Viền Toàn Lưới & 2 Chế Độ Chiều Cao (V16.0)",
+            icon: "maximize-2",
+            color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            items: [
+                "Linh hoạt 2 chế độ phủ toàn diện: Hỗ trợ 'Toàn lưới (Tất cả cột & Toàn chiều cao)' bao trọn toàn bộ ma trận lưới và 'Toàn chiều cao (Theo cột chọn)' phủ trọn chiều cao theo đúng các cột mong muốn.",
+                "Tinh chỉnh độc lập 4 chiều (Trên - Dưới - Trái - Phải): Cho phép tăng giảm số pixel (kể cả số âm từ -200 đến 200px) trên từng hướng của khung viền ở mọi chế độ, cập nhật tức thì trên Canvas.",
+                "Đồng bộ chuẩn xác tọa độ Nền & Nét viền: Khắc phục triệt để độ lệch mép trên khi chọn toàn lưới, đảm bảo nền màu và đường nét viền khớp khít 100%."
+            ]
+        },
+        {
+            title: "Tách Riêng 4 Hướng Đệm & Đo Đáy Ôm Sát Khít Nội Dung (V15.9)",
+            icon: "box-select",
+            color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+            items: [
+                "Tách riêng 4 hướng đệm độc lập: Cung cấp 4 ô điều chỉnh riêng biệt gồm Đệm Trái (Left), Đệm Phải (Right), Đệm Trên (Top), Đệm Dưới (Bottom) đều hỗ trợ số âm (-200 đến 200px).",
+                "Đo đáy thực tế chuẩn xác tuyệt đối: Thuật toán đo đáy loại bỏ hoàn toàn khoảng cách thừa ảo ở dòng cuối, viền dưới co ôm sát khít ngay chân câu cuối cùng.",
+                "Điều chỉnh độc lập không ảnh hưởng lẫn nhau: Kéo viền dưới co lên không làm tụt viền trên; chỉnh lề trái không làm xô lệch lề phải.",
+                "Tương thích ngược 100%: Tự động kế thừa từ các dự án và mẫu kịch bản cũ mà không làm sai lệch thiết kế đã lưu."
+            ]
+        },
+        {
+            title: "Hỗ Trợ Giá Trị Âm Cho Đệm Ngang & Dọc Khung Bao Cột (V15.8)",
+            icon: "sliders",
+            color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            items: [
+                "Cho phép nhập giá trị âm (ví dụ: -10, -20px): Đệm Ngang (X) và Đệm Dọc (Y) giờ đây hỗ trợ số âm, giúp thu hẹp khung viền ôm sát khít các cột bài tập hơn.",
+                "Cập nhật thời gian thực (Live Preview): Thao tác gõ phím hoặc chỉnh stepper lập tức vẽ lại trên Canvas và lưu tự động mà không cần chờ chuyển tiêu điểm.",
+                "Bảo vệ kích thước an toàn: Tự động giữ chiều rộng và chiều cao khung viền không bị âm hoặc méo góc bo khi dùng giá trị âm lớn."
+            ]
+        },
+        {
+            title: "Khung Viền Bao Gộp Cột Tự Động (V15.7)",
+            icon: "square",
+            color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/30",
+            items: [
+                "Khung bao gộp cột linh hoạt (Mode 2 Cue Words): Tự động bao trọn từ Cột 1 đến Cột 2 (hoặc tùy chọn các cột) tạo khung phân chia rõ ràng giữa cột gợi ý/mẫu câu và cột hình ảnh minh họa.",
+                "Tùy biến thẩm mỹ toàn diện: Bộ chọn màu viền HEX (mặc định vàng nghệ #d99a14), độ dày nét viền (1-20px), bo góc tròn mượt (0-80px) và khoảng đệm trong (Padding X/Y).",
+                "2 Chế độ chiều cao thông minh: Hỗ trợ 'Ôm sát nội dung bài tập' (tự động co giãn theo số lượng dòng chữ) hoặc 'Toàn lưới' (kéo dài hết chiều cao khả dụng).",
+                "Đồng bộ lưu trữ & Render Clean: Tự động lưu trữ trong kịch bản JSON, hiển thị trực tiếp trên Canvas Studio và bản xuất MP4 Clean chất lượng cao."
+            ]
+        },
         {
             title: "Đồng Bộ Vị Trí, Kích Thước & Toàn Diện Định Dạng (V15.6)",
             icon: "copy-check",
@@ -450,6 +503,7 @@ var batchGroupingMode = "topic"; // 'topic' (theo từng Chủ Đề) | 'genre' 
 var batchGenreFilter = "ALL";
 var localPCImageMap = {}; 
 var localPCImageBase64Map = {}; 
+var localPCVideoMap = {}; 
 var canvasBgImage = null;
 var canvasBgBase64 = null;
 var canvasBadgeImage = null;
@@ -661,7 +715,23 @@ var DEFAULT_TEMPLATES_JSON = {
             paddingRightPct: 4, 
             columnGapPct: 2, 
             showGridOverlay: false,
-            autoRowSync: true 
+            autoRowSync: true,
+            columnBoxWrapper: {
+                enabled: false,
+                startCol: 1,
+                endCol: 2,
+                borderColor: "#d99a14",
+                borderWidth: 3,
+                borderRadius: 20,
+                paddingX: 16,
+                paddingY: 16,
+                paddingLeft: 16,
+                paddingRight: 16,
+                paddingTop: 16,
+                paddingBottom: 16,
+                bgColor: "transparent",
+                heightMode: "auto"
+            }
         },
         groups: [
             {
@@ -751,7 +821,23 @@ var DEFAULT_TEMPLATES_JSON = {
             paddingRightPct: 3, 
             columnGapPct: 1.5, 
             showGridOverlay: false,
-            autoRowSync: true 
+            autoRowSync: true,
+            columnBoxWrapper: {
+                enabled: true,
+                startCol: 1,
+                endCol: 2,
+                borderColor: "#d99a14",
+                borderWidth: 3,
+                borderRadius: 20,
+                paddingX: 16,
+                paddingY: 16,
+                paddingLeft: 16,
+                paddingRight: 16,
+                paddingTop: 16,
+                paddingBottom: 16,
+                bgColor: "transparent",
+                heightMode: "auto"
+            }
         },
         groups: [
             {

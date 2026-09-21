@@ -1343,3 +1343,365 @@ function renderAudioSfxInspectorRibbon(item, gIdx, fIdx) {
     if (window.lucide && lucide.createIcons) lucide.createIcons();
 }
 
+/**
+ * =========================================================================
+ * BẢNG RIBBON ĐỊNH DẠNG: THẺ VIDEO (CLIP & NỀN ĐỘC LẬP / ĐỘNG NỐI CỘT EXCEL)
+ * =========================================================================
+ */
+function updateVideoLiveCoord(gIdx, fIdx, key, rawVal, isLive = false) {
+    const val = Math.max(0, parseInt(rawVal, 10) || 0);
+    const grp = paragraphGridConfig.groups && paragraphGridConfig.groups[gIdx];
+    if (!grp || !grp.fields || !grp.fields[fIdx]) return;
+    const item = grp.fields[fIdx];
+    item[key] = val;
+
+    const valBadge = document.getElementById(`vid-${key.toLowerCase()}-val`);
+    if (valBadge) valBadge.innerText = `${val}px`;
+
+    const otherInput = document.getElementById(`vid-${key.toLowerCase()}-input`);
+    const otherSlider = document.getElementById(`vid-${key.toLowerCase()}-slider`);
+    if (otherInput && !isLive) otherInput.value = val;
+    if (otherSlider && !isLive) otherSlider.value = val;
+
+    if (typeof drawParagraphCanvasFrame === 'function') drawParagraphCanvasFrame();
+
+    if (!isLive) {
+        if (typeof renderTimelineLayersListUI === 'function') renderTimelineLayersListUI();
+        if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
+    }
+}
+
+function updateVideoLiveSize(gIdx, fIdx, key, rawVal, isLive = false) {
+    const val = Math.max(20, parseInt(rawVal, 10) || 100);
+    const grp = paragraphGridConfig.groups && paragraphGridConfig.groups[gIdx];
+    if (!grp || !grp.fields || !grp.fields[fIdx]) return;
+    const item = grp.fields[fIdx];
+    item[key] = val;
+
+    const valBadge = document.getElementById(`vid-${key.toLowerCase()}-val`);
+    if (valBadge) valBadge.innerText = `${val}px`;
+
+    const otherInput = document.getElementById(`vid-${key.toLowerCase()}-input`);
+    const otherSlider = document.getElementById(`vid-${key.toLowerCase()}-slider`);
+    if (otherInput && !isLive) otherInput.value = val;
+    if (otherSlider && !isLive) otherSlider.value = val;
+
+    if (typeof drawParagraphCanvasFrame === 'function') drawParagraphCanvasFrame();
+
+    if (!isLive) {
+        if (typeof renderTimelineLayersListUI === 'function') renderTimelineLayersListUI();
+        if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
+    }
+}
+
+function renderVideoInspectorRibbon(item, gIdx, fIdx) {
+    const body = document.getElementById('inspector-panel-body');
+    const targetLabel = document.getElementById('inspector-target-label');
+    if (!body) return;
+
+    if (targetLabel) {
+        targetLabel.innerText = `Video Clip • Lớp ${gIdx + 1}`;
+        targetLabel.className = "text-[9px] font-extrabold bg-sky-950 text-sky-300 border border-sky-700/60 px-2 py-0.5 rounded shadow";
+    }
+
+    const sourceMode = item.sourceMode || 'file';
+    const excelCol = item.excelColumn || '';
+    const videoFileName = item.videoFileName || '';
+    const posX = item.posX !== undefined ? item.posX : 120;
+    const posY = item.posY !== undefined ? item.posY : 120;
+    const boxW = item.width !== undefined ? item.width : 640;
+    const boxH = item.height !== undefined ? item.height : 360;
+    const fitMode = item.fitMode || 'cover';
+    const borderRadius = item.borderRadius !== undefined ? item.borderRadius : 16;
+    const borderWidth = item.borderWidth !== undefined ? item.borderWidth : 0;
+    const borderColor = item.borderColor || '#38bdf8';
+    const opacity = item.opacity !== undefined ? item.opacity : 100;
+    const isShadow = item.shadow !== false;
+    const isMuted = item.isMuted !== false;
+    const volume = item.volume !== undefined ? item.volume : 0;
+    const isLoop = item.loop !== false;
+    const playbackRate = item.playbackRate || 1.0;
+
+    const localRepoCount = (typeof localPCVideoMap !== 'undefined') ? Object.keys(localPCVideoMap).length : 0;
+    const cols = (typeof excelColumnsList !== 'undefined' && Array.isArray(excelColumnsList)) ? excelColumnsList : [];
+
+    body.innerHTML = `
+        <div class="space-y-3 pb-8">
+            <!-- ACCORDION ĐỒNG BỘ ĐỊNH DẠNG MỌI KỊCH BẢN -->
+            ${typeof renderBatchStyleAccordionUI === 'function' ? renderBatchStyleAccordionUI('video') : ''}
+
+            <!-- KHỐI 1: NGUỒN VIDEO (FILE LOCAL HOẶC NỐI CỘT EXCEL) -->
+            <div class="bg-slate-900 border border-sky-800/60 rounded-xl p-3 space-y-2.5 shadow">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                    <span class="text-[10px] font-extrabold text-sky-400 uppercase tracking-wider flex items-center space-x-1.5">
+                        <i data-lucide="folder-video" class="w-3.5 h-3.5 text-sky-400"></i>
+                        <span>1. Nguồn Video Clip</span>
+                    </span>
+                    <span class="text-[9px] text-slate-400 font-mono">Lớp ${gIdx + 1}</span>
+                </div>
+
+                <!-- Chế độ nguồn: Tải file hoặc Nối cột Excel -->
+                <div class="grid grid-cols-2 gap-1.5 p-1 bg-slate-950 rounded-lg border border-slate-800">
+                    <button type="button" onclick="updateVideoProp(${gIdx}, ${fIdx}, 'sourceMode', 'file')" class="py-1 px-2 rounded text-[10px] font-bold flex items-center justify-center space-x-1 transition ${sourceMode === 'file' ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-white'}">
+                        <i data-lucide="hard-drive" class="w-3 h-3"></i>
+                        <span>Tải file máy tính</span>
+                    </button>
+                    <button type="button" onclick="updateVideoProp(${gIdx}, ${fIdx}, 'sourceMode', 'excel')" class="py-1 px-2 rounded text-[10px] font-bold flex items-center justify-center space-x-1 transition ${sourceMode === 'excel' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}">
+                        <i data-lucide="file-spreadsheet" class="w-3 h-3"></i>
+                        <span>Nối cột Excel</span>
+                    </button>
+                </div>
+
+                ${sourceMode === 'file' ? `
+                    <!-- Chọn file trực tiếp -->
+                    <div class="space-y-1.5">
+                        <label class="block text-[9px] font-bold text-slate-300">Chọn file Video từ máy tính (.mp4, .webm, .mov):</label>
+                        <div class="flex items-center space-x-2">
+                            <label class="flex-1 cursor-pointer py-2 px-3 bg-sky-950/70 hover:bg-sky-900 border border-sky-700/80 rounded-lg text-sky-200 text-xs font-bold flex items-center justify-center space-x-1.5 transition active:scale-95 shadow">
+                                <i data-lucide="upload" class="w-3.5 h-3.5 text-sky-400"></i>
+                                <span>${videoFileName ? 'Đổi video khác...' : 'Tải Video (.mp4, .webm)'}</span>
+                                <input type="file" accept="video/mp4,video/webm,video/quicktime,video/*" class="hidden" onchange="handleVideoFileUpload(${gIdx}, ${fIdx}, this)">
+                            </label>
+                        </div>
+                        ${videoFileName ? `
+                            <div class="p-2 bg-slate-950 border border-sky-900/60 rounded-lg flex items-center justify-between">
+                                <div class="flex items-center space-x-2 min-w-0">
+                                    <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400 shrink-0"></i>
+                                    <span class="text-[10px] font-mono text-slate-200 truncate" title="${videoFileName}">${videoFileName}</span>
+                                </div>
+                                <button type="button" onclick="updateVideoProp(${gIdx}, ${fIdx}, 'videoFileName', ''); updateVideoProp(${gIdx}, ${fIdx}, 'videoUrl', '');" class="text-[10px] text-rose-400 hover:text-white px-1 font-bold" title="Hủy file này">✕</button>
+                            </div>
+                        ` : `
+                            <p class="text-[8.5px] text-slate-400 italic">Chưa chọn video. Khung placeholder sẽ hiển thị trên Canvas cho đến khi bạn nạp clip.</p>
+                        `}
+                    </div>
+                ` : `
+                    <!-- Nối động theo cột Excel -->
+                    <div class="space-y-2">
+                        <div>
+                            <label class="block text-[9px] font-bold text-indigo-300 mb-1">Chọn cột Excel chứa tên file video:</label>
+                            <select onchange="updateVideoProp(${gIdx}, ${fIdx}, 'excelColumn', this.value)" class="w-full py-1 px-2 bg-slate-950 border border-indigo-700/80 rounded-lg text-xs font-bold text-indigo-200 focus:outline-none focus:border-indigo-400">
+                                <option value="">-- Chọn cột Excel --</option>
+                                ${cols.map(c => `<option value="${c}" ${excelCol === c ? 'selected' : ''}>{{${c}}}</option>`).join('')}
+                            </select>
+                            <span class="block text-[8.5px] text-slate-400 mt-1">Mỗi câu sẽ tự động lấy clip theo tên ghi trong cột này (vd: clip01.mp4, run.mp4).</span>
+                        </div>
+
+                        <!-- Kho video cục bộ phục vụ Excel -->
+                        <div class="p-2 bg-slate-950 border border-slate-800 rounded-lg space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[9px] font-bold text-slate-300 flex items-center space-x-1">
+                                    <i data-lucide="database" class="w-3 h-3 text-sky-400"></i>
+                                    <span>Kho Video Cho Excel</span>
+                                </span>
+                                <span class="text-[9px] font-bold bg-sky-950 border border-sky-700/60 text-sky-300 px-1.5 py-0.2 rounded font-mono">${localRepoCount} file đã nạp</span>
+                            </div>
+                            <label class="block cursor-pointer py-1.5 px-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 rounded text-[10px] font-bold text-center transition">
+                                <span>📁 Nạp thư mục hoặc nhiều video (.mp4)...</span>
+                                <input type="file" multiple accept="video/*" class="hidden" onchange="handleBatchVideoFilesUpload(this)">
+                            </label>
+                        </div>
+                    </div>
+                `}
+            </div>
+
+            <!-- KHỐI 2: VỊ TRÍ & KÍCH THƯỚC (GEOMETRY & PRESETS) -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2.5 shadow">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                    <span class="text-[10px] font-extrabold text-amber-400 uppercase tracking-wider flex items-center space-x-1.5">
+                        <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-amber-400"></i>
+                        <span>2. Vị Trí & Kích Thước</span>
+                    </span>
+                    <span class="text-[9px] text-slate-400 font-mono">${boxW}x${boxH} px</span>
+                </div>
+
+                <!-- Nút Preset nhanh -->
+                <div>
+                    <span class="block text-[8.5px] font-bold text-slate-400 mb-1">Mẫu kích thước chuẩn (1 click):</span>
+                    <div class="grid grid-cols-4 gap-1">
+                        <button type="button" onclick="setVideoQuickPreset(${gIdx}, ${fIdx}, '16_9_medium')" class="py-1 px-1.5 bg-slate-950 hover:bg-amber-950/60 border border-slate-800 text-[9px] font-bold text-slate-300 hover:text-amber-200 rounded text-center transition">
+                            📺 16:9 Lỡ
+                        </button>
+                        <button type="button" onclick="setVideoQuickPreset(${gIdx}, ${fIdx}, '16_9_large')" class="py-1 px-1.5 bg-slate-950 hover:bg-amber-950/60 border border-slate-800 text-[9px] font-bold text-slate-300 hover:text-amber-200 rounded text-center transition">
+                            🖥️ 16:9 Lớn
+                        </button>
+                        <button type="button" onclick="setVideoQuickPreset(${gIdx}, ${fIdx}, '9_16_phone')" class="py-1 px-1.5 bg-slate-950 hover:bg-amber-950/60 border border-slate-800 text-[9px] font-bold text-slate-300 hover:text-amber-200 rounded text-center transition">
+                            📱 9:16 Dọc
+                        </button>
+                        <button type="button" onclick="setVideoQuickPreset(${gIdx}, ${fIdx}, 'full')" class="py-1 px-1.5 bg-slate-950 hover:bg-amber-950/60 border border-slate-800 text-[9px] font-bold text-slate-300 hover:text-amber-200 rounded text-center transition">
+                            ⏹️ Toàn Màn
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tọa độ X, Y -->
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <div class="flex justify-between items-center mb-0.5">
+                            <label class="text-[9px] font-bold text-slate-400">Tọa độ X (Ngang):</label>
+                            <span id="vid-posx-val" class="text-[10px] font-mono text-amber-300 font-bold">${posX}px</span>
+                        </div>
+                        <input type="range" min="0" max="1920" step="5" value="${posX}" id="vid-posx-slider" oninput="updateVideoLiveCoord(${gIdx}, ${fIdx}, 'posX', this.value, true)" onchange="updateVideoLiveCoord(${gIdx}, ${fIdx}, 'posX', this.value, false)" class="w-full accent-amber-500 cursor-pointer">
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center mb-0.5">
+                            <label class="text-[9px] font-bold text-slate-400">Tọa độ Y (Dọc):</label>
+                            <span id="vid-posy-val" class="text-[10px] font-mono text-amber-300 font-bold">${posY}px</span>
+                        </div>
+                        <input type="range" min="0" max="1080" step="5" value="${posY}" id="vid-posy-slider" oninput="updateVideoLiveCoord(${gIdx}, ${fIdx}, 'posY', this.value, true)" onchange="updateVideoLiveCoord(${gIdx}, ${fIdx}, 'posY', this.value, false)" class="w-full accent-amber-500 cursor-pointer">
+                    </div>
+                </div>
+
+                <!-- Chiều Rộng, Cao -->
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <div class="flex justify-between items-center mb-0.5">
+                            <label class="text-[9px] font-bold text-slate-400">Chiều Rộng (W):</label>
+                            <span id="vid-width-val" class="text-[10px] font-mono text-amber-300 font-bold">${boxW}px</span>
+                        </div>
+                        <input type="range" min="100" max="1920" step="10" value="${boxW}" id="vid-width-slider" oninput="updateVideoLiveSize(${gIdx}, ${fIdx}, 'width', this.value, true)" onchange="updateVideoLiveSize(${gIdx}, ${fIdx}, 'width', this.value, false)" class="w-full accent-amber-500 cursor-pointer">
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center mb-0.5">
+                            <label class="text-[9px] font-bold text-slate-400">Chiều Cao (H):</label>
+                            <span id="vid-height-val" class="text-[10px] font-mono text-amber-300 font-bold">${boxH}px</span>
+                        </div>
+                        <input type="range" min="100" max="1080" step="10" value="${boxH}" id="vid-height-slider" oninput="updateVideoLiveSize(${gIdx}, ${fIdx}, 'height', this.value, true)" onchange="updateVideoLiveSize(${gIdx}, ${fIdx}, 'height', this.value, false)" class="w-full accent-amber-500 cursor-pointer">
+                    </div>
+                </div>
+            </div>
+
+            <!-- KHỐI 3: ĐỊNH DẠNG & THẨM MỸ (FIT MODE, BO GÓC, VIỀN, ĐỔ BÓNG) -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2.5 shadow">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                    <span class="text-[10px] font-extrabold text-teal-400 uppercase tracking-wider flex items-center space-x-1.5">
+                        <i data-lucide="palette" class="w-3.5 h-3.5 text-teal-400"></i>
+                        <span>3. Định Dạng & Thẩm Mỹ</span>
+                    </span>
+                    <span class="text-[9px] text-slate-400 font-mono">${fitMode}</span>
+                </div>
+
+                <!-- Chế độ vừa khung (Fit Mode) -->
+                <div>
+                    <label class="block text-[9px] font-bold text-slate-300 mb-1">Chế độ vừa khung (Fit Mode):</label>
+                    <div class="grid grid-cols-3 gap-1 p-1 bg-slate-950 rounded-lg border border-slate-800">
+                        <button type="button" onclick="updateVideoProp(${gIdx}, ${fIdx}, 'fitMode', 'cover')" class="py-1 px-1 rounded text-[9px] font-bold transition text-center ${fitMode === 'cover' ? 'bg-teal-600 text-white' : 'text-slate-400 hover:text-white'}" title="Cắt vừa khung, không méo hình">
+                            Cover (Phủ kín)
+                        </button>
+                        <button type="button" onclick="updateVideoProp(${gIdx}, ${fIdx}, 'fitMode', 'contain')" class="py-1 px-1 rounded text-[9px] font-bold transition text-center ${fitMode === 'contain' ? 'bg-teal-600 text-white' : 'text-slate-400 hover:text-white'}" title="Thu trọn vẹn, không mất góc">
+                            Contain (Trọn vẹn)
+                        </button>
+                        <button type="button" onclick="updateVideoProp(${gIdx}, ${fIdx}, 'fitMode', 'stretch')" class="py-1 px-1 rounded text-[9px] font-bold transition text-center ${fitMode === 'stretch' ? 'bg-teal-600 text-white' : 'text-slate-400 hover:text-white'}" title="Kéo dãn vừa khít">
+                            Stretch (Kéo dãn)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Bo góc & Độ mờ đục -->
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <div class="flex justify-between items-center mb-0.5">
+                            <label class="text-[9px] font-bold text-slate-400">Bo góc viền:</label>
+                            <span class="text-[10px] font-mono text-teal-300 font-bold">${borderRadius}px</span>
+                        </div>
+                        <input type="range" min="0" max="80" value="${borderRadius}" oninput="updateVideoProp(${gIdx}, ${fIdx}, 'borderRadius', parseInt(this.value, 10), true)" onchange="updateVideoProp(${gIdx}, ${fIdx}, 'borderRadius', parseInt(this.value, 10), false)" class="w-full accent-teal-500 cursor-pointer">
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center mb-0.5">
+                            <label class="text-[9px] font-bold text-slate-400">Độ mờ đục:</label>
+                            <span class="text-[10px] font-mono text-teal-300 font-bold">${opacity}%</span>
+                        </div>
+                        <input type="range" min="10" max="100" value="${opacity}" oninput="updateVideoProp(${gIdx}, ${fIdx}, 'opacity', parseInt(this.value, 10), true)" onchange="updateVideoProp(${gIdx}, ${fIdx}, 'opacity', parseInt(this.value, 10), false)" class="w-full accent-teal-500 cursor-pointer">
+                    </div>
+                </div>
+
+                <!-- Đường viền & Màu viền -->
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <div class="flex justify-between items-center mb-0.5">
+                            <label class="text-[9px] font-bold text-slate-400">Độ dày nét viền:</label>
+                            <span class="text-[10px] font-mono text-teal-300 font-bold">${borderWidth}px</span>
+                        </div>
+                        <input type="range" min="0" max="16" value="${borderWidth}" oninput="updateVideoProp(${gIdx}, ${fIdx}, 'borderWidth', parseInt(this.value, 10), true)" onchange="updateVideoProp(${gIdx}, ${fIdx}, 'borderWidth', parseInt(this.value, 10), false)" class="w-full accent-teal-500 cursor-pointer">
+                    </div>
+                    <div>
+                        <label class="block text-[9px] font-bold text-slate-400 mb-0.5">Màu đường viền:</label>
+                        <div class="flex items-center space-x-1.5">
+                            <input type="color" value="${borderColor}" onchange="updateVideoProp(${gIdx}, ${fIdx}, 'borderColor', this.value)" class="w-7 h-7 rounded border border-slate-700 cursor-pointer bg-slate-950">
+                            <input type="text" value="${borderColor}" onchange="updateVideoProp(${gIdx}, ${fIdx}, 'borderColor', this.value)" class="flex-1 py-1 px-1.5 bg-slate-950 border border-slate-800 rounded text-[10px] font-mono text-slate-200">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Đổ bóng 3D -->
+                <div class="p-2 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-between">
+                    <label for="vid-shadow-cb" class="text-[10px] font-bold text-slate-300 cursor-pointer flex items-center space-x-1.5">
+                        <i data-lucide="layers" class="w-3.5 h-3.5 text-teal-400"></i>
+                        <span>Đổ bóng viền 3D nổi bật</span>
+                    </label>
+                    <input type="checkbox" id="vid-shadow-cb" ${isShadow ? 'checked' : ''} onchange="updateVideoProp(${gIdx}, ${fIdx}, 'shadow', this.checked, false)" class="rounded bg-slate-900 border-slate-700 text-teal-600 cursor-pointer">
+                </div>
+            </div>
+
+            <!-- KHỐI 4: ÂM THANH & PHÁT LẠI (PLAYBACK & AUDIO) -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2.5 shadow">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                    <span class="text-[10px] font-extrabold text-purple-400 uppercase tracking-wider flex items-center space-x-1.5">
+                        <i data-lucide="volume-2" class="w-3.5 h-3.5 text-purple-400"></i>
+                        <span>4. Âm Thanh & Phát Lại</span>
+                    </span>
+                    <span class="text-[9px] text-slate-400 font-mono">${isMuted ? 'Tắt tiếng' : `${volume}%`}</span>
+                </div>
+
+                <!-- Tắt tiếng (Muted) -->
+                <div class="p-2 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold text-purple-300 block">Tắt tiếng video (Muted)</span>
+                        <span class="text-[8.5px] text-slate-400">Khuyên dùng BẬT để âm thanh video không át giọng đọc AI (TTS).</span>
+                    </div>
+                    <input type="checkbox" id="vid-muted-cb" ${isMuted ? 'checked' : ''} onchange="updateVideoProp(${gIdx}, ${fIdx}, 'isMuted', this.checked, false)" class="rounded bg-slate-900 border-slate-700 text-purple-600 cursor-pointer">
+                </div>
+
+                ${!isMuted ? `
+                    <!-- Âm lượng video -->
+                    <div>
+                        <div class="flex justify-between items-center mb-0.5">
+                            <label class="text-[9px] font-bold text-slate-400">Âm lượng video:</label>
+                            <span class="text-[10px] font-mono text-purple-300 font-bold">${volume}%</span>
+                        </div>
+                        <input type="range" min="0" max="100" value="${volume}" oninput="updateVideoProp(${gIdx}, ${fIdx}, 'volume', parseInt(this.value, 10), true)" onchange="updateVideoProp(${gIdx}, ${fIdx}, 'volume', parseInt(this.value, 10), false)" class="w-full accent-purple-500 cursor-pointer">
+                    </div>
+                ` : ''}
+
+                <!-- Lặp lại & Tốc độ phát -->
+                <div class="grid grid-cols-2 gap-2 pt-1">
+                    <div class="p-2 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-between">
+                        <label for="vid-loop-cb" class="text-[9.5px] font-bold text-slate-300 cursor-pointer">Lặp lại (Loop):</label>
+                        <input type="checkbox" id="vid-loop-cb" ${isLoop ? 'checked' : ''} onchange="updateVideoProp(${gIdx}, ${fIdx}, 'loop', this.checked, false)" class="rounded bg-slate-900 border-slate-700 text-purple-600 cursor-pointer">
+                    </div>
+                    <div class="p-1.5 bg-slate-950 rounded-lg border border-slate-800 flex items-center space-x-1.5">
+                        <label class="text-[9.5px] font-bold text-slate-300 shrink-0">Tốc độ:</label>
+                        <select onchange="updateVideoProp(${gIdx}, ${fIdx}, 'playbackRate', parseFloat(this.value))" class="w-full py-0.5 px-1 bg-slate-900 border border-slate-700 rounded text-[10px] font-bold text-purple-300">
+                            <option value="0.5" ${playbackRate === 0.5 ? 'selected' : ''}>0.5x</option>
+                            <option value="0.75" ${playbackRate === 0.75 ? 'selected' : ''}>0.75x</option>
+                            <option value="1.0" ${playbackRate === 1.0 ? 'selected' : ''}>1.0x (Chuẩn)</option>
+                            <option value="1.25" ${playbackRate === 1.25 ? 'selected' : ''}>1.25x</option>
+                            <option value="1.5" ${playbackRate === 1.5 ? 'selected' : ''}>1.5x</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Xóa thẻ video -->
+                <div class="pt-2 border-t border-slate-800 flex items-center justify-between text-[10px]">
+                    <span class="text-[9px] text-slate-400 italic">Tự động phát đồng bộ theo Timeline của Lớp ${gIdx + 1}.</span>
+                    <button type="button" onclick="removeFieldItemFromGroup(${gIdx}, ${fIdx}); selectedVideoTarget = null; renderInspectorRibbon(); renderTimelineLayersListUI();" class="py-1 px-2.5 text-rose-400 hover:text-white hover:bg-rose-950/60 rounded font-bold transition">
+                        ✕ Xóa thẻ video này
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    if (window.lucide && lucide.createIcons) lucide.createIcons();
+}
+

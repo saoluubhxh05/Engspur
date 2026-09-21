@@ -190,6 +190,8 @@ function getGroupPrimaryMeta(grp) {
             return { icon: 'sliders', label: 'Tiến độ', colorClass: 'text-emerald-400', badgeClass: 'bg-emerald-950 text-emerald-300 border-emerald-800' };
         } else if (type === 'custom_text') {
             return { icon: 'type', label: 'Chữ tự do', colorClass: 'text-teal-400', badgeClass: 'bg-teal-950 text-teal-300 border-teal-800' };
+        } else if (type === 'video') {
+            return { icon: 'video', label: 'Video Clip', colorClass: 'text-sky-400', badgeClass: 'bg-sky-950 text-sky-300 border-sky-800' };
         } else {
             const k = (typeof f === 'string' ? f : f.key) || '';
             if (k.toLowerCase().includes('anh') || k.toLowerCase().includes('dinh_kem')) {
@@ -409,6 +411,19 @@ function renderLayerFieldChipsHtml(grp, gIdx) {
                     <span class="text-[9px] font-bold text-purple-200 flex items-center space-x-1 cursor-pointer">
                         <i data-lucide="music" class="w-2.5 h-2.5 text-purple-400"></i>
                         <span>SFX: ${sLabel}</span>
+                    </span>
+                    <button onclick="event.stopPropagation(); removeFieldItemFromGroup(${gIdx}, ${fIdx})" class="text-rose-400 hover:text-white text-[10px] font-bold ml-1" title="Xóa thẻ">✕</button>
+                </div>
+            `;
+        } else if (itemType === 'video') {
+            const isVidSel = (typeof selectedVideoTarget !== 'undefined' && selectedVideoTarget && selectedVideoTarget.gIdx === gIdx && selectedVideoTarget.fIdx === fIdx);
+            const selClass = isVidSel ? 'bg-sky-900 border-2 border-sky-400 ring-2 ring-sky-400/50 shadow-md text-white' : 'bg-sky-950/80 border border-sky-700/80 hover:border-sky-500';
+            const vLabel = item.sourceMode === 'excel' ? (item.excelColumn ? `Excel: {{${item.excelColumn}}}` : 'Excel Video') : (item.videoFileName || 'Video Clip');
+            return `
+                <div class="flex items-center space-x-1 p-0.5 px-1.5 rounded-md transition cursor-pointer ${selClass}" onclick="event.stopPropagation(); selectVideoItem(${gIdx}, ${fIdx})" title="Nhấp để cấu hình Video">
+                    <span class="text-[9px] font-bold text-sky-200 flex items-center space-x-1 cursor-pointer">
+                        <i data-lucide="video" class="w-2.5 h-2.5 text-sky-400"></i>
+                        <span class="truncate max-w-[95px]">${vLabel}</span>
                     </span>
                     <button onclick="event.stopPropagation(); removeFieldItemFromGroup(${gIdx}, ${fIdx})" class="text-rose-400 hover:text-white text-[10px] font-bold ml-1" title="Xóa thẻ">✕</button>
                 </div>
@@ -749,6 +764,10 @@ function renderTimelineLayersListUI() {
                                 <button onclick="toggleActiveLayerAddFieldMenu(); addSpecialObjectComponent('audio_sfx');" class="w-full text-left p-1.5 rounded-lg hover:bg-fuchsia-950 text-fuchsia-300 text-[10px] font-bold flex items-center space-x-2">
                                     <i data-lucide="music" class="w-3 h-3 text-fuchsia-400"></i>
                                     <span>+ Hiệu Ứng Âm Thanh SFX</span>
+                                </button>
+                                <button onclick="toggleActiveLayerAddFieldMenu(); addSpecialObjectComponent('video');" class="w-full text-left p-1.5 rounded-lg hover:bg-sky-950 text-sky-300 text-[10px] font-bold flex items-center space-x-2">
+                                    <i data-lucide="video" class="w-3 h-3 text-sky-400"></i>
+                                    <span>+ Thẻ Video (Clip & Nền)</span>
                                 </button>
                                 ${typeof excelColumnsList !== 'undefined' && excelColumnsList.length > 0 ? `
                                     <div class="border-t border-slate-800 pt-1 mt-1 text-[9px] font-bold text-slate-400 px-2 uppercase tracking-wider">Cột Dữ Liệu Excel</div>
@@ -1208,6 +1227,34 @@ function addSpecialObjectComponent(type) {
             selectAudioSfxItem(paragraphSelectedGroupIdx, newIdx);
         }
         showToast("Đã thêm Thẻ Âm Thanh (Hiệu Ứng SFX & Nhạc)!");
+    } else if (type === 'video') {
+        grp.fields.push({
+            type: "video",
+            sourceMode: "file",
+            excelColumn: "",
+            videoFileName: "",
+            videoUrl: "",
+            posX: 120,
+            posY: 120,
+            width: 640,
+            height: 360,
+            fitMode: "cover",
+            borderRadius: 16,
+            borderWidth: 0,
+            borderColor: "#38bdf8",
+            opacity: 100,
+            shadow: true,
+            volume: 0,
+            isMuted: true,
+            loop: true,
+            playbackRate: 1.0,
+            autoFitTimeline: true
+        });
+        grp.trackColor = "#0284c7";
+        if (typeof selectVideoItem === 'function') {
+            selectVideoItem(paragraphSelectedGroupIdx, newIdx);
+        }
+        showToast("Đã thêm Thẻ Video (Clip & Nền)!");
     }
 
     renderTimelineLayersListUI();

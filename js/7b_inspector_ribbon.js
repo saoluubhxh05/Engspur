@@ -8,6 +8,7 @@ var selectedTtsTarget = null;
 var selectedCountdownTarget = null;
 var selectedProgressTrackerTarget = null;
 var selectedAudioSfxTarget = null;
+var selectedVideoTarget = null;
 
 function toggleSelectFieldMulti(fKey, e) {
     selectedCustomTextTarget = null;
@@ -15,6 +16,7 @@ function toggleSelectFieldMulti(fKey, e) {
     selectedCountdownTarget = null;
     selectedProgressTrackerTarget = null;
     selectedAudioSfxTarget = null;
+    selectedVideoTarget = null;
     if (e && (e.ctrlKey || e.metaKey)) {
         if (selectedFieldKeysList.includes(fKey)) {
             if (selectedFieldKeysList.length > 1) selectedFieldKeysList = selectedFieldKeysList.filter(k => k !== fKey);
@@ -38,6 +40,7 @@ function selectLayerFieldItem(gIdx, fKey, e) {
     selectedCountdownTarget = null;
     selectedProgressTrackerTarget = null;
     selectedAudioSfxTarget = null;
+    selectedVideoTarget = null;
     toggleSelectFieldMulti(fKey, e);
     showToast(`Đang định dạng {{${fKey}}} (Lớp ${gIdx + 1})!`);
 }
@@ -51,6 +54,7 @@ function selectCustomTextItem(gIdx, fIdx) {
     selectedCountdownTarget = null;
     selectedProgressTrackerTarget = null;
     selectedAudioSfxTarget = null;
+    selectedVideoTarget = null;
     paragraphSelectedFieldKey = '__CUSTOM_TEXT__';
     getCustomTextDefaults(grp.fields[fIdx]);
     if (typeof switchLeftSubTab === 'function') switchLeftSubTab(4);
@@ -69,6 +73,7 @@ function selectTtsItem(gIdx, fIdx) {
     selectedCountdownTarget = null;
     selectedProgressTrackerTarget = null;
     selectedAudioSfxTarget = null;
+    selectedVideoTarget = null;
     paragraphSelectedFieldKey = '__TTS__';
     if (typeof switchLeftSubTab === 'function') switchLeftSubTab(4);
     renderTimelineLayersListUI();
@@ -86,6 +91,7 @@ function selectCountdownItem(gIdx, fIdx) {
     selectedTtsTarget = null;
     selectedProgressTrackerTarget = null;
     selectedAudioSfxTarget = null;
+    selectedVideoTarget = null;
     paragraphSelectedFieldKey = '__COUNTDOWN__';
     if (typeof switchLeftSubTab === 'function') switchLeftSubTab(4);
     renderTimelineLayersListUI();
@@ -103,6 +109,7 @@ function selectProgressTrackerItem(gIdx, fIdx) {
     selectedTtsTarget = null;
     selectedCountdownTarget = null;
     selectedAudioSfxTarget = null;
+    selectedVideoTarget = null;
     paragraphSelectedFieldKey = '__PROGRESS_TRACKER__';
     if (typeof switchLeftSubTab === 'function') switchLeftSubTab(4);
     renderTimelineLayersListUI();
@@ -120,12 +127,119 @@ function selectAudioSfxItem(gIdx, fIdx) {
     selectedTtsTarget = null;
     selectedCountdownTarget = null;
     selectedProgressTrackerTarget = null;
+    selectedVideoTarget = null;
     paragraphSelectedFieldKey = '__AUDIO_SFX__';
     if (typeof switchLeftSubTab === 'function') switchLeftSubTab(4);
     renderTimelineLayersListUI();
     renderInspectorRibbon();
     drawParagraphCanvasFrame();
     showToast(`Đang cấu hình Thẻ Âm Thanh SFX trong Lớp ${gIdx + 1}!`);
+}
+
+function selectVideoItem(gIdx, fIdx) {
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (!grp || !grp.fields[fIdx]) return;
+    paragraphSelectedGroupIdx = gIdx;
+    selectedVideoTarget = { gIdx, fIdx };
+    selectedCustomTextTarget = null;
+    selectedTtsTarget = null;
+    selectedCountdownTarget = null;
+    selectedProgressTrackerTarget = null;
+    selectedAudioSfxTarget = null;
+    paragraphSelectedFieldKey = '__VIDEO__';
+    if (typeof switchLeftSubTab === 'function') switchLeftSubTab(4);
+    renderTimelineLayersListUI();
+    renderInspectorRibbon();
+    drawParagraphCanvasFrame();
+    showToast(`Đang cấu hình Thẻ Video Clip trong Lớp ${gIdx + 1}!`);
+}
+
+function updateVideoProp(gIdx, fIdx, prop, val, skipRibbonRerender = false) {
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (!grp || !grp.fields[fIdx]) return;
+    grp.fields[fIdx][prop] = val;
+
+    if (!skipRibbonRerender) {
+        renderInspectorRibbon();
+    }
+    renderTimelineLayersListUI();
+    drawParagraphCanvasFrame();
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
+}
+
+function setVideoQuickPreset(gIdx, fIdx, presetKey) {
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (!grp || !grp.fields[fIdx]) return;
+    const v = grp.fields[fIdx];
+    if (presetKey === 'full') {
+        v.posX = 0; v.posY = 0; v.width = 1920; v.height = 1080; v.borderRadius = 0; v.fitMode = 'cover';
+    } else if (presetKey === '16_9_medium') {
+        v.posX = 120; v.posY = 140; v.width = 800; v.height = 450; v.borderRadius = 16;
+    } else if (presetKey === '16_9_large') {
+        v.posX = 120; v.posY = 100; v.width = 1120; v.height = 630; v.borderRadius = 20;
+    } else if (presetKey === '9_16_phone') {
+        v.posX = 1320; v.posY = 80; v.width = 520; v.height = 920; v.borderRadius = 24;
+    } else if (presetKey === 'square_center') {
+        v.posX = 700; v.posY = 280; v.width = 520; v.height = 520; v.borderRadius = 20;
+    }
+    renderInspectorRibbon();
+    drawParagraphCanvasFrame();
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
+}
+
+function handleVideoFileUpload(gIdx, fIdx, input) {
+    if (!input || !input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (!grp || !grp.fields[fIdx]) return;
+
+    const vItem = grp.fields[fIdx];
+    const url = URL.createObjectURL(file);
+    vItem.videoUrl = url;
+    vItem.videoFileName = file.name;
+    vItem.sourceMode = 'file';
+
+    const videoEl = document.createElement('video');
+    videoEl.src = url;
+    videoEl.preload = 'auto';
+    videoEl.crossOrigin = 'anonymous';
+    videoEl.playsInline = true;
+    videoEl.muted = (vItem.isMuted !== false);
+    videoEl.volume = Math.max(0, Math.min(1, (vItem.volume !== undefined ? vItem.volume : 0) / 100));
+    videoEl.loop = (vItem.loop !== false);
+    vItem._videoEl = videoEl;
+
+    if (typeof localPCVideoMap !== 'undefined') {
+        localPCVideoMap[file.name.toLowerCase()] = videoEl;
+    }
+
+    renderInspectorRibbon();
+    drawParagraphCanvasFrame();
+    showToast(`Đã nạp video: ${file.name}`);
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
+}
+
+function handleBatchVideoFilesUpload(input) {
+    if (!input || !input.files || input.files.length === 0) return;
+    const files = Array.from(input.files);
+    let count = 0;
+    files.forEach(f => {
+        if (f.type.startsWith('video/') || f.name.endsWith('.mp4') || f.name.endsWith('.webm') || f.name.endsWith('.mov')) {
+            const url = URL.createObjectURL(f);
+            const vEl = document.createElement('video');
+            vEl.src = url;
+            vEl.preload = 'auto';
+            vEl.playsInline = true;
+            vEl.muted = true;
+            if (typeof localPCVideoMap !== 'undefined') {
+                localPCVideoMap[f.name.toLowerCase()] = vEl;
+            }
+            count++;
+        }
+    });
+    renderInspectorRibbon();
+    drawParagraphCanvasFrame();
+    showToast(`Đã nạp ${count} file video vào kho cục bộ!`);
 }
 
 function updateProgressTrackerProp(gIdx, fIdx, prop, val, skipRibbonRerender = false) {
@@ -1010,6 +1124,25 @@ function getEligibleObjectsInProfile(prof, type) {
                 }
             });
         }
+    } else if (type === 'video') {
+        if (Array.isArray(prof.groups)) {
+            prof.groups.forEach((g, gi) => {
+                if (Array.isArray(g.fields)) {
+                    g.fields.forEach((f, fi) => {
+                        if (f.type === 'video') {
+                            list.push({
+                                targetKey: `vid_${gi}_${fi}`,
+                                gIdx: gi,
+                                fIdx: fi,
+                                label: `Video: ${f.sourceMode === 'excel' ? (f.excelColumn ? '{{' + f.excelColumn + '}}' : 'Excel') : (f.videoFileName || 'Clip')}`,
+                                subLabel: `Lớp ${gi + 1} • ${f.width || 640}x${f.height || 360}`,
+                                type: 'video'
+                            });
+                        }
+                    });
+                }
+            });
+        }
     }
     return list;
 }
@@ -1271,6 +1404,38 @@ function applyCurrentStylesToSpecificTarget(type, profileId, targetKey, gIdx, fI
                 }
             });
         }
+    } else if (type === 'video') {
+        if (!selectedVideoTarget) return;
+        const srcGrp = paragraphGridConfig.groups && paragraphGridConfig.groups[selectedVideoTarget.gIdx];
+        const srcItem = (srcGrp && srcGrp.fields) ? srcGrp.fields[selectedVideoTarget.fIdx] : null;
+        if (!srcItem) return;
+
+        const videoProps = [
+            'sourceMode', 'excelColumn', 'posX', 'posY', 'width', 'height', 'fitMode',
+            'borderRadius', 'borderWidth', 'borderColor', 'opacity', 'shadow',
+            'volume', 'isMuted', 'loop', 'playbackRate', 'autoFitTimeline'
+        ];
+
+        const targetGrp = prof.groups && prof.groups[gIdx];
+        const targetItem = (targetGrp && targetGrp.fields) ? targetGrp.fields[fIdx] : null;
+        if (targetItem && targetItem.type === 'video') {
+            videoProps.forEach(p => {
+                if (srcItem[p] !== undefined) {
+                    targetItem[p] = srcItem[p];
+                }
+            });
+        }
+
+        if (activeParagraphProfileId === profileId && paragraphGridConfig && paragraphGridConfig.groups && paragraphGridConfig.groups[gIdx]) {
+            const activeTargetItem = paragraphGridConfig.groups[gIdx].fields && paragraphGridConfig.groups[gIdx].fields[fIdx];
+            if (activeTargetItem && activeTargetItem.type === 'video') {
+                videoProps.forEach(p => {
+                    if (srcItem[p] !== undefined) {
+                        activeTargetItem[p] = srcItem[p];
+                    }
+                });
+            }
+        }
     }
 }
 
@@ -1285,7 +1450,8 @@ function renderBatchStyleAccordionUI(type) {
         custom_text: { title: 'Thẻ Chữ Tự Do', color: 'teal', border: 'border-teal-500/50', bg: 'from-teal-950/80 to-emerald-950/80', text: 'text-teal-300', btn: 'bg-teal-600 hover:bg-teal-500' },
         countdown: { title: 'Thẻ Đồng Hồ', color: 'rose', border: 'border-rose-500/50', bg: 'from-rose-950/80 to-amber-950/80', text: 'text-rose-300', btn: 'bg-rose-600 hover:bg-rose-500' },
         progress_tracker: { title: 'Thẻ Tiến Độ', color: 'teal', border: 'border-emerald-500/50', bg: 'from-emerald-950/80 to-teal-950/80', text: 'text-emerald-300', btn: 'bg-emerald-600 hover:bg-emerald-500' },
-        audio_sfx: { title: 'Thẻ Âm Thanh SFX', color: 'purple', border: 'border-purple-500/50', bg: 'from-purple-950/80 to-indigo-950/80', text: 'text-purple-300', btn: 'bg-purple-600 hover:bg-purple-500' }
+        audio_sfx: { title: 'Thẻ Âm Thanh SFX', color: 'purple', border: 'border-purple-500/50', bg: 'from-purple-950/80 to-indigo-950/80', text: 'text-purple-300', btn: 'bg-purple-600 hover:bg-purple-500' },
+        video: { title: 'Thẻ Video Clip', color: 'sky', border: 'border-sky-500/50', bg: 'from-sky-950/80 to-blue-950/80', text: 'text-sky-300', btn: 'bg-sky-600 hover:bg-sky-500' }
     };
     const tConfig = typeNames[type] || typeNames.excel_text;
 
@@ -1615,6 +1781,40 @@ function applyCurrentStylesToAllSameType(type) {
             }
 
             showToast(`Đã áp dụng âm lượng & cài đặt cho toàn bộ ${appliedCount + 1} thẻ Âm Thanh SFX!`, "success");
+        } else if (type === 'video') {
+            if (!selectedVideoTarget) {
+                showToast("Vui lòng chọn một Thẻ Video để làm mẫu!", "error");
+                return;
+            }
+            const { gIdx, fIdx } = selectedVideoTarget;
+            const grp = paragraphGridConfig.groups && paragraphGridConfig.groups[gIdx];
+            const srcItem = (grp && grp.fields) ? grp.fields[fIdx] : null;
+            if (!srcItem) return;
+
+            const videoProps = [
+                'sourceMode', 'excelColumn', 'posX', 'posY', 'width', 'height', 'fitMode',
+                'borderRadius', 'borderWidth', 'borderColor', 'opacity', 'shadow',
+                'volume', 'isMuted', 'loop', 'playbackRate', 'autoFitTimeline'
+            ];
+
+            if (Array.isArray(paragraphGridConfig.groups)) {
+                paragraphGridConfig.groups.forEach((g, gi) => {
+                    if (Array.isArray(g.fields)) {
+                        g.fields.forEach((f, fi) => {
+                            if (f.type === 'video' && (gi !== gIdx || fi !== fIdx)) {
+                                videoProps.forEach(p => {
+                                    if (srcItem[p] !== undefined) {
+                                        f[p] = srcItem[p];
+                                    }
+                                });
+                                appliedCount++;
+                            }
+                        });
+                    }
+                });
+            }
+
+            showToast(`Đã áp dụng vị trí, kích thước & định dạng cho toàn bộ ${appliedCount + 1} thẻ Video Clip!`, "success");
         }
     }
 
@@ -1695,6 +1895,21 @@ function renderInspectorRibbon() {
             return;
         } else {
             selectedAudioSfxTarget = null;
+        }
+    }
+
+    // KIỂM TRA NẾU ĐANG CHỌN THẺ VIDEO
+    if (selectedVideoTarget) {
+        const { gIdx, fIdx } = selectedVideoTarget;
+        const grp = paragraphGridConfig.groups[gIdx];
+        const item = (grp && grp.fields) ? grp.fields[fIdx] : null;
+        if (item && item.type === 'video') {
+            if (typeof renderVideoInspectorRibbon === 'function') {
+                renderVideoInspectorRibbon(item, gIdx, fIdx);
+                return;
+            }
+        } else {
+            selectedVideoTarget = null;
         }
     }
 

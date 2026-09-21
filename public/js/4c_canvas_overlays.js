@@ -772,3 +772,236 @@ function syncToMiniBatchCanvas(isClean = false) {
         mCtx.drawImage(sourceCanvas, 0, 0, miniCanvas.width, miniCanvas.height);
     }
 }
+
+/**
+ * =========================================================================
+ * RENDER OVERLAY: THẺ VIDEO CLIP & NỀN (ĐỘC LẬP / ĐỘNG THEO CỘT EXCEL)
+ * =========================================================================
+ */
+function drawVideoOverlay(ctx, cWidth, cHeight, item, activeDataMap, isPlaying, isSelected, isCleanMode, gIdx, fIdx) {
+    if (!item) return;
+
+    const x = item.posX !== undefined ? item.posX : 120;
+    const y = item.posY !== undefined ? item.posY : 120;
+    const w = item.width !== undefined ? item.width : 640;
+    const h = item.height !== undefined ? item.height : 360;
+    const radius = Math.max(0, Math.min(Math.min(w / 2, h / 2), (item.borderRadius !== undefined ? item.borderRadius : 16)));
+    const fitMode = item.fitMode || 'cover';
+    const opacity = (item.opacity !== undefined ? item.opacity : 100) / 100;
+    const isShadow = item.shadow !== false;
+    const borderWidth = item.borderWidth || 0;
+    const borderColor = item.borderColor || '#38bdf8';
+
+    // Đăng ký Hit-Box để chọn thẻ khi click vào Canvas
+    if (!isCleanMode && typeof canvasVideoHitBoxes !== 'undefined') {
+        canvasVideoHitBoxes.push({ x, y, w, h, gIdx, fIdx });
+    }
+
+    // Xác định phần tử video mục tiêu
+    let videoEl = null;
+    let displayName = '';
+
+    if (item.sourceMode === 'excel') {
+        const col = item.excelColumn;
+        displayName = col ? `{{${col}}}` : 'Excel';
+        if (col && activeDataMap && activeDataMap[col]) {
+            const rawFileName = String(activeDataMap[col]).trim();
+            if (rawFileName) {
+                displayName += `: ${rawFileName}`;
+                // Tra cứu trong kho video cục bộ
+                if (typeof localPCVideoMap !== 'undefined') {
+                    videoEl = localPCVideoMap[rawFileName.toLowerCase()] || localPCVideoMap[rawFileName];
+                    if (!videoEl) {
+                        const baseName = rawFileName.replace(/\.[^/.]+$/, "").toLowerCase();
+                        videoEl = localPCVideoMap[`${baseName}.mp4`] || localPCVideoMap[`${baseName}.webm`] || localPCVideoMap[baseName];
+                    }
+                }
+            }
+        }
+    } else {
+        // Chế độ file
+        displayName = item.videoFileName || 'Video Clip';
+        if (item._videoEl) {
+            videoEl = item._videoEl;
+        } else if (item.videoFileName && typeof localPCVideoMap !== 'undefined' && localPCVideoMap[item.videoFileName.toLowerCase()]) {
+            videoEl = localPCVideoMap[item.videoFileName.toLowerCase()];
+            item._videoEl = videoEl;
+        } else if (item.videoUrl) {
+            videoEl = document.createElement('video');
+            videoEl.src = item.videoUrl;
+            videoEl.preload = 'auto';
+            videoEl.crossOrigin = 'anonymous';
+            videoEl.playsInline = true;
+            item._videoEl = videoEl;
+        }
+    }
+
+    // Điều khiển trạng thái phát lại & âm thanh video đồng bộ
+    if (videoEl) {
+        videoEl.muted = (item.isMuted !== false);
+        videoEl.volume = Math.max(0, Math.min(1, (item.volume !== undefined ? item.volume : 0) / 100));
+        videoEl.loop = (item.loop !== false);
+        if (item.playbackRate && item.playbackRate > 0) {
+            videoEl.playbackRate = item.playbackRate;
+        }
+
+        if (isPlaying) {
+            if (videoEl.paused && videoEl.readyState >= 2) {
+                videoEl.play().catch(() => {});
+            }
+        } else {
+            if (!videoEl.paused) {
+                videoEl.pause();
+            }
+        }
+    }
+
+    ctx.save();
+    ctx.globalAlpha = (ctx.globalAlpha || 1) * opacity;
+
+    // Đổ bóng 3D
+    if (isShadow) {
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+        ctx.shadowBlur = 18;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 8;
+    }
+
+    // Vẽ nền container bo góc
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y, w, h, radius);
+    else ctx.rect(x, y, w, h);
+    ctx.fillStyle = '#090d16';
+    ctx.fill();
+
+    // Hủy bóng trước khi vẽ nội dung clip và viền
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+
+    // Cắt mặt nạ bo góc (Clip mask)
+    ctx.save();
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y, w, h, radius);
+    else ctx.rect(x, y, w, h);
+    ctx.clip();
+
+    const hasVideoData = (videoEl && videoEl.videoWidth > 0 && videoEl.videoHeight > 0);
+
+    if (hasVideoData) {
+        const vw = videoEl.videoWidth;
+        const vh = videoEl.videoHeight;
+
+        if (fitMode === 'stretch') {
+            ctx.drawImage(videoEl, x, y, w, h);
+        } else if (fitMode === 'contain') {
+            // Đổ nền đen trước
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(x, y, w, h);
+
+            const scale = Math.min(w / vw, h / vh);
+            const dw = vw * scale;
+            const dh = vh * scale;
+            const dx = x + (w - dw) / 2;
+            const dy = y + (h - dh) / 2;
+            ctx.drawImage(videoEl, dx, dy, dw, dh);
+        } else {
+            // 'cover' (mặc định): scale up and center crop
+            const scale = Math.max(w / vw, h / vh);
+            const dw = vw * scale;
+            const dh = vh * scale;
+            const dx = x + (w - dw) / 2;
+            const dy = y + (h - dh) / 2;
+            ctx.drawImage(videoEl, dx, dy, dw, dh);
+        }
+    } else {
+        // Vẽ khung placeholder trang nhã hiện đại khi chưa có video hoặc đang nạp
+        const grad = ctx.createLinearGradient(x, y, x, y + h);
+        grad.addColorStop(0, '#0f172a');
+        grad.addColorStop(1, '#1e293b');
+        ctx.fillStyle = grad;
+        ctx.fillRect(x, y, w, h);
+
+        // Biểu tượng video play vector
+        const cx = x + w / 2;
+        const cy = y + h / 2 - 14;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 32, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.15)';
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#38bdf8';
+        ctx.stroke();
+
+        // Tam giác Play
+        ctx.beginPath();
+        ctx.moveTo(cx - 7, cy - 12);
+        ctx.lineTo(cx + 12, cy);
+        ctx.lineTo(cx - 7, cy + 12);
+        ctx.closePath();
+        ctx.fillStyle = '#38bdf8';
+        ctx.fill();
+
+        // Chữ thông báo
+        ctx.fillStyle = '#f1f5f9';
+        ctx.font = 'bold 16px "Plus Jakarta Sans", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const titleText = item.sourceMode === 'excel' 
+            ? (item.excelColumn ? `Video động: {{${item.excelColumn}}}` : 'Chưa chọn cột Excel cho video') 
+            : (item.videoFileName || 'Chưa tải file video');
+        ctx.fillText(titleText, cx, cy + 50);
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '500 12px "Plus Jakarta Sans", sans-serif';
+        const hintText = item.sourceMode === 'excel'
+            ? (typeof localPCVideoMap !== 'undefined' && Object.keys(localPCVideoMap).length === 0 ? 'Hãy nạp file video vào Kho Video Cục Bộ' : 'Đang chờ khớp tên file video từ Excel...')
+            : 'Bấm vào thẻ này để tải file .mp4 từ máy tính';
+        ctx.fillText(hintText, cx, cy + 72);
+    }
+
+    ctx.restore(); // Hết vùng clip
+
+    // Vẽ viền ngoài nếu có
+    if (borderWidth > 0) {
+        ctx.lineWidth = borderWidth;
+        ctx.strokeStyle = borderColor;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x, y, w, h, radius);
+        else ctx.rect(x, y, w, h);
+        ctx.stroke();
+    }
+
+    // Hiển thị khung viền chọn trong màn hình Studio (không vẽ vào bản MP4 Clean)
+    if (isSelected && !isCleanMode) {
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = '#38bdf8';
+        ctx.setLineDash([8, 5]);
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x - 2, y - 2, w + 4, h + 4, radius + 2);
+        else ctx.rect(x - 2, y - 2, w + 4, h + 4);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Badge góc hiển thị tên thẻ
+        const badgeText = `VIDEO: ${displayName}`;
+        ctx.font = 'bold 11px sans-serif';
+        const bW = ctx.measureText(badgeText).width + 16;
+        const bH = 20;
+        const bX = x;
+        const bY = Math.max(4, y - bH - 4);
+
+        ctx.fillStyle = '#0284c7';
+        if (ctx.roundRect) ctx.roundRect(bX, bY, bW, bH, 5);
+        else ctx.rect(bX, bY, bW, bH);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(badgeText, bX + 8, bY + bH / 2);
+    }
+
+    ctx.restore();
+}

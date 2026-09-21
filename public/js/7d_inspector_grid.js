@@ -47,6 +47,7 @@ function syncInlineGridSettingsInputs() {
 
     renderGridInlineWidthInputs();
     renderColumnLockControls();
+    syncColumnBoxWrapperUI();
 }
 
 function updateLoopBlockGap(val) {
@@ -127,6 +128,7 @@ function onGridColumnCountChange(colCount) {
 
     renderGridInlineWidthInputs();
     renderTimelineLayersListUI();
+    renderColumnBoxWrapperColOptions();
     drawParagraphCanvasFrame();
 }
 
@@ -198,3 +200,235 @@ function toggleSection(contentId, iconId) {
         if (icon) icon.style.transform = 'rotate(0deg)';
     }
 }
+
+/**
+ * =========================================================================
+ * KHUNG VIỀN BAO GỘP CỘT (COLUMN BOX WRAPPER - MODE 2)
+ * =========================================================================
+ */
+
+function getColumnBoxWrapperConfig() {
+    if (!paragraphGridConfig.gridMatrix) {
+        paragraphGridConfig.gridMatrix = { columnCount: 3, columnWidths: [36, 40, 20] };
+    }
+    if (!paragraphGridConfig.gridMatrix.columnBoxWrapper) {
+        paragraphGridConfig.gridMatrix.columnBoxWrapper = {
+            enabled: false,
+            startCol: 1,
+            endCol: 2,
+            borderColor: "#d99a14",
+            borderWidth: 3,
+            borderRadius: 20,
+            paddingX: 16,
+            paddingY: 16,
+            bgColor: "transparent",
+            heightMode: "auto"
+        };
+    }
+    return paragraphGridConfig.gridMatrix.columnBoxWrapper;
+}
+
+function renderColumnBoxWrapperColOptions() {
+    const count = (paragraphGridConfig.gridMatrix && paragraphGridConfig.gridMatrix.columnCount) || 3;
+    const startSelect = document.getElementById('grid-wrap-box-start-col');
+    const endSelect = document.getElementById('grid-wrap-box-end-col');
+    const wrapBox = getColumnBoxWrapperConfig();
+
+    if (startSelect) {
+        const curVal = parseInt(startSelect.value) || wrapBox.startCol || 1;
+        startSelect.innerHTML = '';
+        for (let i = 1; i <= count; i++) {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.innerText = `Cột ${i}`;
+            if (i === curVal) opt.selected = true;
+            startSelect.appendChild(opt);
+        }
+    }
+
+    if (endSelect) {
+        const curVal = parseInt(endSelect.value) || wrapBox.endCol || Math.min(count, 2);
+        endSelect.innerHTML = '';
+        for (let i = 1; i <= count; i++) {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.innerText = `Cột ${i}`;
+            if (i === curVal) opt.selected = true;
+            endSelect.appendChild(opt);
+        }
+    }
+}
+
+function syncColumnBoxWrapperUI() {
+    const wrapBox = getColumnBoxWrapperConfig();
+
+    renderColumnBoxWrapperColOptions();
+
+    const enabledCheck = document.getElementById('grid-wrap-box-enabled');
+    const statusBadge = document.getElementById('grid-wrap-box-status-badge');
+    const controlsContainer = document.getElementById('grid-wrap-box-controls');
+
+    if (enabledCheck) enabledCheck.checked = !!wrapBox.enabled;
+    if (statusBadge) {
+        statusBadge.innerText = wrapBox.enabled ? "Đang Bật" : "Tắt";
+        statusBadge.className = wrapBox.enabled ? "text-[9px] text-amber-400 font-bold font-mono px-1 rounded bg-amber-950/80 border border-amber-800/60" : "text-[9px] text-slate-500 font-mono";
+    }
+
+    if (controlsContainer) {
+        if (wrapBox.enabled) {
+            controlsContainer.classList.remove('opacity-40', 'pointer-events-none');
+        } else {
+            controlsContainer.classList.add('opacity-40', 'pointer-events-none');
+        }
+    }
+
+    const startSelect = document.getElementById('grid-wrap-box-start-col');
+    const endSelect = document.getElementById('grid-wrap-box-end-col');
+    if (startSelect) startSelect.value = wrapBox.startCol || 1;
+    if (endSelect) endSelect.value = wrapBox.endCol || 2;
+
+    const colorPicker = document.getElementById('grid-wrap-box-color');
+    const colorHex = document.getElementById('grid-wrap-box-color-hex');
+    const bColor = wrapBox.borderColor || "#d99a14";
+    if (colorPicker) colorPicker.value = bColor.startsWith('#') ? bColor : "#d99a14";
+    if (colorHex) colorHex.value = bColor;
+
+    const widthInput = document.getElementById('grid-wrap-box-width');
+    if (widthInput) widthInput.value = wrapBox.borderWidth !== undefined ? wrapBox.borderWidth : 3;
+
+    const radiusInput = document.getElementById('grid-wrap-box-radius');
+    if (radiusInput) radiusInput.value = wrapBox.borderRadius !== undefined ? wrapBox.borderRadius : 20;
+
+    const padLeftInput = document.getElementById('grid-wrap-box-pad-left');
+    if (padLeftInput) padLeftInput.value = wrapBox.paddingLeft !== undefined ? wrapBox.paddingLeft : (wrapBox.paddingX !== undefined ? wrapBox.paddingX : 16);
+
+    const padRightInput = document.getElementById('grid-wrap-box-pad-right');
+    if (padRightInput) padRightInput.value = wrapBox.paddingRight !== undefined ? wrapBox.paddingRight : (wrapBox.paddingX !== undefined ? wrapBox.paddingX : 16);
+
+    const padTopInput = document.getElementById('grid-wrap-box-pad-top');
+    if (padTopInput) padTopInput.value = wrapBox.paddingTop !== undefined ? wrapBox.paddingTop : (wrapBox.paddingY !== undefined ? wrapBox.paddingY : 16);
+
+    const padBottomInput = document.getElementById('grid-wrap-box-pad-bottom');
+    if (padBottomInput) padBottomInput.value = wrapBox.paddingBottom !== undefined ? wrapBox.paddingBottom : (wrapBox.paddingY !== undefined ? wrapBox.paddingY : 16);
+
+    const heightModeSelect = document.getElementById('grid-wrap-box-height-mode');
+    if (heightModeSelect) {
+        let curMode = wrapBox.heightMode || "auto";
+        if (curMode === 'full_grid') curMode = 'full';
+        heightModeSelect.value = curMode;
+    }
+
+    const isFullGrid = (wrapBox.heightMode === 'full' || wrapBox.heightMode === 'full_grid');
+    const colRangeRow = document.getElementById('grid-wrap-box-col-range-row');
+    if (colRangeRow) {
+        if (isFullGrid) {
+            colRangeRow.classList.add('opacity-40', 'pointer-events-none');
+        } else {
+            colRangeRow.classList.remove('opacity-40', 'pointer-events-none');
+        }
+    }
+
+    const bgColorPicker = document.getElementById('grid-wrap-box-bg-color');
+    if (bgColorPicker && wrapBox.bgColor && wrapBox.bgColor.startsWith('#')) {
+        bgColorPicker.value = wrapBox.bgColor;
+    }
+}
+
+function toggleColumnBoxWrapper(isChecked) {
+    const wrapBox = getColumnBoxWrapperConfig();
+    wrapBox.enabled = isChecked;
+
+    syncColumnBoxWrapperUI();
+    drawParagraphCanvasFrame();
+
+    showToast(isChecked ? "Đã BẬT Khung Viền Bao Cột (Mode 2)!" : "Đã TẮT Khung Viền Bao Cột!");
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
+}
+
+function updateColumnBoxWrapperConfig() {
+    const wrapBox = getColumnBoxWrapperConfig();
+
+    const startSelect = document.getElementById('grid-wrap-box-start-col');
+    const endSelect = document.getElementById('grid-wrap-box-end-col');
+    const colorHex = document.getElementById('grid-wrap-box-color-hex');
+    const widthInput = document.getElementById('grid-wrap-box-width');
+    const radiusInput = document.getElementById('grid-wrap-box-radius');
+    const padLeftInput = document.getElementById('grid-wrap-box-pad-left');
+    const padRightInput = document.getElementById('grid-wrap-box-pad-right');
+    const padTopInput = document.getElementById('grid-wrap-box-pad-top');
+    const padBottomInput = document.getElementById('grid-wrap-box-pad-bottom');
+    const heightModeSelect = document.getElementById('grid-wrap-box-height-mode');
+
+    let sCol = startSelect ? parseInt(startSelect.value) : 1;
+    let eCol = endSelect ? parseInt(endSelect.value) : 2;
+    if (sCol > eCol) {
+        const temp = sCol;
+        sCol = eCol;
+        eCol = temp;
+        if (startSelect) startSelect.value = sCol;
+        if (endSelect) endSelect.value = eCol;
+    }
+
+    wrapBox.startCol = sCol;
+    wrapBox.endCol = eCol;
+    if (colorHex) wrapBox.borderColor = colorHex.value.trim() || "#d99a14";
+    if (widthInput) wrapBox.borderWidth = Math.max(1, parseInt(widthInput.value) || 3);
+    if (radiusInput) wrapBox.borderRadius = Math.max(0, parseInt(radiusInput.value) || 0);
+
+    const padL = padLeftInput ? (isNaN(parseInt(padLeftInput.value)) ? 0 : parseInt(padLeftInput.value)) : 16;
+    const padR = padRightInput ? (isNaN(parseInt(padRightInput.value)) ? 0 : parseInt(padRightInput.value)) : 16;
+    const padT = padTopInput ? (isNaN(parseInt(padTopInput.value)) ? 0 : parseInt(padTopInput.value)) : 16;
+    const padB = padBottomInput ? (isNaN(parseInt(padBottomInput.value)) ? 0 : parseInt(padBottomInput.value)) : 16;
+
+    wrapBox.paddingLeft = padL;
+    wrapBox.paddingRight = padR;
+    wrapBox.paddingTop = padT;
+    wrapBox.paddingBottom = padB;
+    // Đồng bộ tương thích ngược
+    wrapBox.paddingX = padL;
+    wrapBox.paddingY = padT;
+
+    if (heightModeSelect) wrapBox.heightMode = heightModeSelect.value;
+
+    const isFullGrid = (wrapBox.heightMode === 'full' || wrapBox.heightMode === 'full_grid');
+    const colRangeRow = document.getElementById('grid-wrap-box-col-range-row');
+    if (colRangeRow) {
+        if (isFullGrid) {
+            colRangeRow.classList.add('opacity-40', 'pointer-events-none');
+        } else {
+            colRangeRow.classList.remove('opacity-40', 'pointer-events-none');
+        }
+    }
+
+    drawParagraphCanvasFrame();
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
+}
+
+function onWrapBoxColorPickerChange(val) {
+    const colorHex = document.getElementById('grid-wrap-box-color-hex');
+    if (colorHex) colorHex.value = val;
+    updateColumnBoxWrapperConfig();
+}
+
+function onWrapBoxHexChange(val) {
+    let cleanHex = val.trim();
+    if (!cleanHex.startsWith('#') && cleanHex.length >= 3) {
+        cleanHex = '#' + cleanHex;
+    }
+    const colorPicker = document.getElementById('grid-wrap-box-color');
+    if (colorPicker && /^#[0-9A-Fa-f]{6}$/.test(cleanHex)) {
+        colorPicker.value = cleanHex;
+    }
+    const colorHex = document.getElementById('grid-wrap-box-color-hex');
+    if (colorHex) colorHex.value = cleanHex;
+    updateColumnBoxWrapperConfig();
+}
+
+function setColumnBoxWrapperBg(colorVal) {
+    const wrapBox = getColumnBoxWrapperConfig();
+    wrapBox.bgColor = colorVal;
+    drawParagraphCanvasFrame();
+    showToast(`Nền khung viền: ${colorVal === 'transparent' ? 'Trong suốt' : colorVal}`);
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
+}
+
