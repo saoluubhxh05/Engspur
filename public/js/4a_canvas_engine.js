@@ -635,20 +635,78 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
     // BẢN SẠCH: KHÔNG VẼ LOGO / BADGE THƯƠNG HIỆU
     if (!isCleanMode && canvasBadgeImage) {
         ctx.save();
-        const bdSt = videoConfig.badgeStyle || { widthPct: 15, heightPct: 10, posX: 82, posY: 4, opacity: 100, borderRadius: 20 };
+        const bdSt = videoConfig.badgeStyle || { widthPct: 15, heightPct: 10, posX: 82, posY: 4, opacity: 100, borderRadius: 20, isCircle: true, removeWhiteBg: false, maskInsetPct: 5 };
         ctx.globalAlpha = (bdSt.opacity !== undefined ? bdSt.opacity : 100) / 100;
         const bdW = (width * (bdSt.widthPct || 15)) / 100;
         const aspect = canvasBadgeImage.height / canvasBadgeImage.width;
         const bdH = bdW * aspect;
         const bdX = (width * (bdSt.posX !== undefined ? bdSt.posX : 82)) / 100;
         const bdY = (height * (bdSt.posY !== undefined ? bdSt.posY : 4)) / 100;
+        const isCircle = bdSt.isCircle !== false; // Mặc định cắt tròn hoàn hảo
         const radius = bdSt.borderRadius !== undefined ? bdSt.borderRadius : 20;
+        const maskInsetPct = (bdSt.maskInsetPct !== undefined && !isNaN(bdSt.maskInsetPct)) ? bdSt.maskInsetPct : 5;
 
         ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(bdX, bdY, bdW, bdH, radius);
-        else ctx.rect(bdX, bdY, bdW, bdH);
+        if (isCircle) {
+            // Cắt mặt nạ hình tròn theo tâm của logo, áp dụng tỷ lệ thu gọn vào trong (maskInsetPct) để ôm sát khít
+            const centerX = bdX + bdW / 2;
+            const centerY = bdY + bdH / 2;
+            const insetFactor = Math.max(0, (100 - maskInsetPct) / 100);
+            const rX = (bdW / 2) * insetFactor;
+            const rY = (bdH / 2) * insetFactor;
+            if (ctx.ellipse) {
+                ctx.ellipse(centerX, centerY, rX, rY, 0, 0, Math.PI * 2);
+            } else {
+                ctx.arc(centerX, centerY, Math.min(rX, rY), 0, Math.PI * 2);
+            }
+        } else {
+            // Chế độ chữ nhật bo góc truyền thống (có thể thu viền nhẹ nếu có inset)
+            if (maskInsetPct > 0) {
+                const insetX = (bdW * maskInsetPct) / 200;
+                const insetY = (bdH * maskInsetPct) / 200;
+                const innerW = bdW - insetX * 2;
+                const innerH = bdH - insetY * 2;
+                if (ctx.roundRect) ctx.roundRect(bdX + insetX, bdY + insetY, innerW, innerH, radius);
+                else ctx.rect(bdX + insetX, bdY + insetY, innerW, innerH);
+            } else {
+                if (ctx.roundRect) ctx.roundRect(bdX, bdY, bdW, bdH, radius);
+                else ctx.rect(bdX, bdY, bdW, bdH);
+            }
+        }
         ctx.clip();
-        ctx.drawImage(canvasBadgeImage, bdX, bdY, bdW, bdH);
+
+        // Xử lý khử nền trắng nếu bật tùy chọn removeWhiteBg
+        if (bdSt.removeWhiteBg) {
+            if (!window._cachedFilteredBadgeImg || window._cachedFilteredBadgeSrc !== canvasBadgeBase64) {
+                try {
+                    const offCanvas = document.createElement('canvas');
+                    offCanvas.width = canvasBadgeImage.naturalWidth || canvasBadgeImage.width;
+                    offCanvas.height = canvasBadgeImage.naturalHeight || canvasBadgeImage.height;
+                    const offCtx = offCanvas.getContext('2d');
+                    offCtx.drawImage(canvasBadgeImage, 0, 0);
+                    const imgData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
+                    const d = imgData.data;
+                    const threshold = 230; // Ngưỡng nhận diện màu trắng hoặc gần trắng
+                    for (let i = 0; i < d.length; i += 4) {
+                        const r = d[i], g = d[i + 1], b = d[i + 2];
+                        if (r > threshold && g > threshold && b > threshold) {
+                            // Làm trong suốt điểm ảnh trắng
+                            d[i + 3] = 0;
+                        }
+                    }
+                    offCtx.putImageData(imgData, 0, 0);
+                    window._cachedFilteredBadgeImg = offCanvas;
+                    window._cachedFilteredBadgeSrc = canvasBadgeBase64;
+                } catch (e) {
+                    window._cachedFilteredBadgeImg = null;
+                }
+            }
+            const renderImg = window._cachedFilteredBadgeImg || canvasBadgeImage;
+            ctx.drawImage(renderImg, bdX, bdY, bdW, bdH);
+        } else {
+            ctx.drawImage(canvasBadgeImage, bdX, bdY, bdW, bdH);
+        }
+
         ctx.restore();
     }
 }

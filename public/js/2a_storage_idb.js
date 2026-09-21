@@ -42,18 +42,320 @@ async function idbGet(key) {
 var autoSaveTimer = null;
 var isAutoSaving = false;
 
+// ==========================================
+// HỆ THỐNG LỊCH SỬ THAO TÁC & HOÀN TÁC (UNDO / REDO) - TỐI ƯU V15.5
+// ==========================================
+var studioHistoryStack = [];
+var studioHistoryIndex = -1;
+var isExecutingHistory = false;
+var MAX_HISTORY_STEPS = 20; // Chuẩn hóa 20 bước hoàn tác mượt mà, tiết kiệm 50% RAM
+
+/**
+ * Loại bỏ triệt để các chuỗi âm thanh và dữ liệu Base64 kích thước lớn trước khi lưu vào History
+ */
+function stripHeavyDataForHistory(obj) {
+    if (!obj || typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) {
+        return obj.map(item => stripHeavyDataForHistory(item));
+    }
+    const cleanObj = {};
+    for (const key of Object.keys(obj)) {
+        const val = obj[key];
+        // Loại bỏ các chuỗi âm thanh Base64 nặng ẩn trong các field
+        if (key === 'customAudioData' || key === 'customAudioBase64' || key === 'audioData' || key === 'audioBase64' || key === 'audioBufferData') {
+            continue;
+        }
+        // Loại bỏ bất kỳ chuỗi Data URI Base64 ẩn nào quá dài (> 250 ký tự)
+        if (typeof val === 'string' && val.startsWith('data:') && val.length > 250) {
+            continue;
+        }
+        if (val !== null && typeof val === 'object') {
+            cleanObj[key] = stripHeavyDataForHistory(val);
+        } else {
+            cleanObj[key] = val;
+        }
+    }
+    return cleanObj;
+}
+
+function getStudioHistorySnapshot() {
+    try {
+        const rawSnap = {
+            videoConfig: JSON.parse(JSON.stringify(videoConfig)),
+            paragraphGridConfig: JSON.parse(JSON.stringify(paragraphGridConfig)),
+            paragraphFieldStyles: JSON.parse(JSON.stringify(paragraphFieldStyles)),
+            masterTimelineDuration: masterTimelineDuration,
+            activeParagraphProfileId: activeParagraphProfileId,
+            paragraphSelectedTopic: paragraphSelectedTopic,
+            paragraphFilterMode: paragraphFilterMode || 'topic',
+            paragraphSelectedGenre: paragraphSelectedGenre || 'ALL',
+            importedDatasets: (typeof importedDatasets !== 'undefined' && Array.isArray(importedDatasets)) ? JSON.parse(JSON.stringify(importedDatasets)) : [],
+            excelColumnsList: (typeof excelColumnsList !== 'undefined' && Array.isArray(excelColumnsList)) ? JSON.parse(JSON.stringify(excelColumnsList)) : [],
+            savedParagraphProfiles: (typeof savedParagraphProfiles !== 'undefined' && Array.isArray(savedParagraphProfiles)) ? JSON.parse(JSON.stringify(savedParagraphProfiles)) : []
+        };
+        // Làm sạch dữ liệu nặng trước khi đưa vào History Stack
+        return stripHeavyDataForHistory(cleanStateForStorage(rawSnap));
+    } catch (e) {
+        console.warn("History snapshot error:", e);
+        return null;
+    }
+}
+
+function pushStudioHistoryState(force = false) {
+    if (isExecutingHistory) return;
+    const snap = getStudioHistorySnapshot();
+    if (!snap) return;
+
+    const snapStr = JSON.stringify(snap);
+    
+    // Kiểm tra nếu giống trạng thái hiện tại thì bỏ qua
+    if (!force && studioHistoryIndex >= 0 && studioHistoryIndex < studioHistoryStack.length) {
+        if (studioHistoryStack[studioHistoryIndex].hash === snapStr) {
+            return;
+        }
+    }
+
+    // Cắt bỏ các nhánh Redo phía sau nếu người dùng đang ở giữa lịch sử và thực hiện thao tác mới
+    if (studioHistoryIndex < studioHistoryStack.length - 1) {
+        studioHistoryStack = studioHistoryStack.slice(0, studioHistoryIndex + 1);
+    }
+
+    // Đẩy snapshot mới vào ngăn xếp
+    studioHistoryStack.push({
+        data: snap,
+        hash: snapStr,
+        timestamp: Date.now()
+    });
+
+    if (studioHistoryStack.length > MAX_HISTORY_STEPS) {
+        studioHistoryStack.shift();
+    }
+
+    studioHistoryIndex = studioHistoryStack.length - 1;
+    updateUndoRedoButtonsUI();
+}
+
+/**
+ * Thu hồi bớt ngăn xếp lịch sử cũ để trả lại RAM cho trình duyệt (đặc biệt trước khi Batch Render)
+ */
+function releaseStudioHistoryMemory() {
+    if (studioHistoryStack.length > 5) {
+        const startIndex = Math.max(0, studioHistoryIndex - 2);
+        studioHistoryStack = studioHistoryStack.slice(startIndex, startIndex + 5);
+        studioHistoryIndex = Math.min(studioHistoryStack.length - 1, 2);
+        updateUndoRedoButtonsUI();
+    }
+}
+
+async function applyStudioHistorySnapshot(snap) {
+    if (!snap) return;
+    isExecutingHistory = true;
+    try {
+        // Lưu giữ ánh xạ customAudioData đang có trong bộ nhớ để không bị mất khi Hoàn tác
+        const activeAudioCache = {};
+        if (paragraphGridConfig && Array.isArray(paragraphGridConfig.groups)) {
+            paragraphGridConfig.groups.forEach(g => {
+                if (Array.isArray(g.fields)) {
+                    g.fields.forEach(f => {
+                        if (f.customAudioName && f.customAudioData) {
+                            activeAudioCache[f.customAudioName] = f.customAudioData;
+                        }
+                    });
+                }
+            });
+        }
+        if (Array.isArray(savedParagraphProfiles)) {
+            savedParagraphProfiles.forEach(prof => {
+                if (prof && Array.isArray(prof.groups)) {
+                    prof.groups.forEach(g => {
+                        if (Array.isArray(g.fields)) {
+                            g.fields.forEach(f => {
+                                if (f.customAudioName && f.customAudioData) {
+                                    activeAudioCache[f.customAudioName] = f.customAudioData;
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        if (snap.videoConfig) {
+            videoConfig = JSON.parse(JSON.stringify(snap.videoConfig));
+        }
+        if (snap.paragraphGridConfig) {
+            paragraphGridConfig = JSON.parse(JSON.stringify(snap.paragraphGridConfig));
+            // Tái liên kết âm thanh custom nếu có
+            if (paragraphGridConfig && Array.isArray(paragraphGridConfig.groups)) {
+                paragraphGridConfig.groups.forEach(g => {
+                    if (Array.isArray(g.fields)) {
+                        g.fields.forEach(f => {
+                            if (f.customAudioName && !f.customAudioData && activeAudioCache[f.customAudioName]) {
+                                f.customAudioData = activeAudioCache[f.customAudioName];
+                            }
+                        });
+                    }
+                });
+            }
+        }
+        if (snap.paragraphFieldStyles) {
+            paragraphFieldStyles = JSON.parse(JSON.stringify(snap.paragraphFieldStyles));
+        }
+        if (typeof snap.masterTimelineDuration === 'number') {
+            masterTimelineDuration = snap.masterTimelineDuration;
+            const durInput = document.getElementById('master-loop-duration-input');
+            if (durInput) durInput.value = masterTimelineDuration;
+        }
+        if (snap.activeParagraphProfileId) {
+            activeParagraphProfileId = snap.activeParagraphProfileId;
+        }
+        if (snap.paragraphSelectedTopic) {
+            paragraphSelectedTopic = snap.paragraphSelectedTopic;
+        }
+        if (snap.paragraphFilterMode) {
+            paragraphFilterMode = snap.paragraphFilterMode;
+        }
+        if (snap.paragraphSelectedGenre) {
+            paragraphSelectedGenre = snap.paragraphSelectedGenre;
+        }
+        if (snap.importedDatasets && Array.isArray(snap.importedDatasets) && snap.importedDatasets.length > 0) {
+            importedDatasets = JSON.parse(JSON.stringify(snap.importedDatasets));
+        }
+        if (snap.excelColumnsList && Array.isArray(snap.excelColumnsList)) {
+            excelColumnsList = JSON.parse(JSON.stringify(snap.excelColumnsList));
+        }
+        if (snap.savedParagraphProfiles && Array.isArray(snap.savedParagraphProfiles)) {
+            savedParagraphProfiles = JSON.parse(JSON.stringify(snap.savedParagraphProfiles));
+            savedParagraphProfiles.forEach(prof => {
+                if (prof && Array.isArray(prof.groups)) {
+                    prof.groups.forEach(g => {
+                        if (Array.isArray(g.fields)) {
+                            g.fields.forEach(f => {
+                                if (f.customAudioName && !f.customAudioData && activeAudioCache[f.customAudioName]) {
+                                    f.customAudioData = activeAudioCache[f.customAudioName];
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        // Đồng bộ toàn diện các giao diện
+        if (typeof syncMediaInputsFromConfig === 'function') syncMediaInputsFromConfig();
+        if (typeof renderSavedParagraphProfilesDropdown === 'function') renderSavedParagraphProfilesDropdown();
+        if (typeof renderMailMergeFieldChips === 'function') renderMailMergeFieldChips();
+        if (typeof renderTimelineLayersListUI === 'function') renderTimelineLayersListUI();
+        if (typeof renderTimelineTracksUI === 'function') renderTimelineTracksUI();
+        if (typeof renderInspectorRibbon === 'function') renderInspectorRibbon();
+        if (typeof updateTopicDropdown === 'function') updateTopicDropdown();
+        if (typeof renderDatasetTable === 'function') renderDatasetTable();
+        if (typeof refreshBatchTopicsTable === 'function') refreshBatchTopicsTable();
+        if (typeof syncInlineGridSettingsInputs === 'function') syncInlineGridSettingsInputs();
+        if (typeof drawParagraphCanvasFrame === 'function') drawParagraphCanvasFrame();
+
+        // Tự động lưu ngầm xuống IndexedDB (không đẩy history mới)
+        await saveFullSystemState(false);
+    } catch (err) {
+        console.error("Error applying history snapshot:", err);
+    } finally {
+        isExecutingHistory = false;
+        updateUndoRedoButtonsUI();
+    }
+}
+
+async function executeStudioUndo() {
+    if (isExecutingHistory) return;
+    if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = null;
+    }
+
+    if (studioHistoryIndex <= 0) {
+        showToast("Không còn thao tác trước đó để Hoàn tác (Undo)");
+        return;
+    }
+
+    studioHistoryIndex--;
+    const targetState = studioHistoryStack[studioHistoryIndex];
+    if (targetState && targetState.data) {
+        await applyStudioHistorySnapshot(targetState.data);
+        showToast("Đã hoàn tác (Undo) thành công!");
+    }
+}
+
+async function executeStudioRedo() {
+    if (isExecutingHistory) return;
+    if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = null;
+    }
+
+    if (studioHistoryIndex >= studioHistoryStack.length - 1) {
+        showToast("Không có thao tác nào để Làm lại (Redo)");
+        return;
+    }
+
+    studioHistoryIndex++;
+    const targetState = studioHistoryStack[studioHistoryIndex];
+    if (targetState && targetState.data) {
+        await applyStudioHistorySnapshot(targetState.data);
+        showToast("Đã làm lại (Redo) thành công!");
+    }
+}
+
+function updateUndoRedoButtonsUI() {
+    const canUndo = studioHistoryIndex > 0;
+    const canRedo = studioHistoryIndex >= 0 && studioHistoryIndex < studioHistoryStack.length - 1;
+
+    const btnUndo = document.getElementById('btn-studio-undo');
+    const btnRedo = document.getElementById('btn-studio-redo');
+    const btnUndoMob = document.getElementById('btn-studio-undo-mob');
+    const btnRedoMob = document.getElementById('btn-studio-redo-mob');
+
+    [btnUndo, btnUndoMob].forEach(btn => {
+        if (!btn) return;
+        btn.disabled = !canUndo;
+        if (canUndo) {
+            btn.classList.remove('opacity-40', 'cursor-not-allowed', 'text-slate-400');
+            btn.classList.add('text-slate-200', 'hover:text-white', 'cursor-pointer');
+        } else {
+            btn.classList.add('opacity-40', 'cursor-not-allowed', 'text-slate-400');
+            btn.classList.remove('text-slate-200', 'hover:text-white', 'cursor-pointer');
+        }
+    });
+
+    [btnRedo, btnRedoMob].forEach(btn => {
+        if (!btn) return;
+        btn.disabled = !canRedo;
+        if (canRedo) {
+            btn.classList.remove('opacity-40', 'cursor-not-allowed', 'text-slate-400');
+            btn.classList.add('text-slate-200', 'hover:text-white', 'cursor-pointer');
+        } else {
+            btn.classList.add('opacity-40', 'cursor-not-allowed', 'text-slate-400');
+            btn.classList.remove('text-slate-200', 'hover:text-white', 'cursor-pointer');
+        }
+    });
+}
+
+var hasPendingAutoSave = false;
+
 function triggerAutoSave(immediate = false) {
+    if (isExecutingHistory) return;
     if (autoSaveTimer) {
         clearTimeout(autoSaveTimer);
         autoSaveTimer = null;
     }
     if (immediate) {
+        pushStudioHistoryState();
         saveFullSystemState(false);
     } else {
         updateAutoSaveStatusBadge("Đang lưu...");
+        // Tối ưu V15.5: Nâng debounce lên 1000ms giúp gom nhóm các thao tác kéo trượt/gõ chữ liên tục, chống giật khựng Canvas
         autoSaveTimer = setTimeout(() => {
+            pushStudioHistoryState();
             saveFullSystemState(false);
-        }, 700);
+        }, 1000);
     }
 }
 
@@ -62,9 +364,9 @@ function updateAutoSaveStatusBadge(text) {
     if (badge) {
         badge.innerText = text;
         badge.classList.remove('opacity-0');
-        if (text === "Đã tự động lưu") {
+        if (text === "Đã tự động lưu" || text === "Đã lưu an toàn") {
             setTimeout(() => {
-                if (badge.innerText === "Đã tự động lưu") {
+                if (badge.innerText === "Đã tự động lưu" || badge.innerText === "Đã lưu an toàn") {
                     badge.classList.add('opacity-0');
                 }
             }, 2500);
@@ -89,7 +391,10 @@ function cleanStateForStorage(obj) {
 }
 
 async function saveFullSystemState(showToastMsg = true) {
-    if (isAutoSaving) return;
+    if (isAutoSaving) {
+        hasPendingAutoSave = true;
+        return;
+    }
     isAutoSaving = true;
     try {
         const targetPracticeMode = document.getElementById('batch-target-practice-mode')?.value || 'mode3';
@@ -121,16 +426,44 @@ async function saveFullSystemState(showToastMsg = true) {
             batchDirectoryName: batchDirectoryName || ''
         };
         const state = cleanStateForStorage(rawState);
-        await idbSet("saved_state", state);
-        updateAutoSaveStatusBadge("Đã tự động lưu");
-        if (showToastMsg) {
-            showToast("Đã lưu toàn bộ dữ liệu & cấu hình vào máy!");
+        
+        try {
+            await idbSet("saved_state", state);
+            updateAutoSaveStatusBadge("Đã tự động lưu");
+            if (showToastMsg) {
+                showToast("Đã lưu toàn bộ dữ liệu & cấu hình vào máy!");
+            }
+        } catch (idbErr) {
+            console.warn("Lưu đầy đủ gặp lỗi quota, kích hoạt chế độ Lưu An Toàn Cứu Hộ (Emergency Safe Save):", idbErr);
+            // Tối ưu V15.5: Khi IndexedDB chạm ngưỡng giới hạn dung lượng do nhiều ảnh Base64,
+            // tự động tách bỏ ảnh Base64 để bảo toàn 100% kịch bản, lưới cột, timeline và Excel chữ!
+            const emergencyState = { ...state };
+            emergencyState.localPCImageBase64Map = {};
+            emergencyState.canvasBgBase64 = "";
+            emergencyState.canvasBadgeBase64 = "";
+            emergencyState._isEmergencySafeSave = true;
+            try {
+                await idbSet("saved_state", emergencyState);
+                updateAutoSaveStatusBadge("Đã lưu an toàn");
+                if (showToastMsg) {
+                    showToast("Bộ nhớ trình duyệt gần đầy: Đã ưu tiên lưu an toàn 100% kịch bản & dữ liệu!", "info");
+                }
+            } catch (innerErr) {
+                console.error("Emergency save error:", innerErr);
+                updateAutoSaveStatusBadge("Lỗi lưu");
+            }
         }
     } catch (err) {
         console.error("AutoSave Error:", err);
         updateAutoSaveStatusBadge("Lỗi lưu");
     } finally {
         isAutoSaving = false;
+        if (hasPendingAutoSave) {
+            hasPendingAutoSave = false;
+            setTimeout(() => {
+                saveFullSystemState(false);
+            }, 300);
+        }
     }
 }
 
@@ -266,14 +599,25 @@ async function loadFullSystemState(isManual = false) {
             syncInlineGridSettingsInputs();
             drawParagraphCanvasFrame();
 
-            if (isManual) showToast("Đã khôi phục dữ liệu hoàn chỉnh!");
+            pushStudioHistoryState(true);
+            updateUndoRedoButtonsUI();
+
+            if (saved._isEmergencySafeSave) {
+                showToast("Đã khôi phục toàn bộ kịch bản & dữ liệu an toàn!", "info");
+            } else if (isManual) {
+                showToast("Đã khôi phục dữ liệu hoàn chỉnh!");
+            }
         } else {
             // Chưa có dữ liệu hoặc bộ nhớ trống -> Nạp bộ dữ liệu mẫu đầy đủ để dùng thử ngay
             await loadRichDemoDataset(false);
+            pushStudioHistoryState(true);
+            updateUndoRedoButtonsUI();
         }
     } catch(e) {
         console.error("Load state error", e);
         await loadRichDemoDataset(false);
+        pushStudioHistoryState(true);
+        updateUndoRedoButtonsUI();
     }
 }
 

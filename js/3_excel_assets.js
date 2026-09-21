@@ -395,10 +395,63 @@ function updateCanvasBgProp(prop, val) {
 }
 
 function updateCanvasBadgeProp(prop, val) {
-    if (!videoConfig.badgeStyle) videoConfig.badgeStyle = { widthPct: 15, heightPct: 10, posX: 82, posY: 4, opacity: 100, borderRadius: 20 };
+    if (!videoConfig.badgeStyle) videoConfig.badgeStyle = { widthPct: 15, heightPct: 10, posX: 82, posY: 4, opacity: 100, borderRadius: 20, isCircle: true, removeWhiteBg: false };
     videoConfig.badgeStyle[prop] = isNaN(val) ? 0 : val;
     drawParagraphCanvasFrame();
     if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
+}
+
+function setLogoShapeMode(isCircle) {
+    if (!videoConfig.badgeStyle) videoConfig.badgeStyle = { widthPct: 15, heightPct: 10, posX: 82, posY: 4, opacity: 100, borderRadius: 20, isCircle: true, removeWhiteBg: false };
+    videoConfig.badgeStyle.isCircle = !!isCircle;
+
+    const btnCircle = document.getElementById('btn-logo-shape-circle');
+    const btnRect = document.getElementById('btn-logo-shape-rect');
+    const rContainer = document.getElementById('cfg-bd-r-container');
+
+    if (btnCircle && btnRect) {
+        if (isCircle) {
+            btnCircle.className = "p-1.5 bg-amber-600 border border-amber-500 rounded text-white flex items-center justify-center space-x-1 shadow-sm transition";
+            btnRect.className = "p-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-slate-300 flex items-center justify-center space-x-1 transition";
+        } else {
+            btnCircle.className = "p-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-slate-300 flex items-center justify-center space-x-1 transition";
+            btnRect.className = "p-1.5 bg-amber-600 border border-amber-500 rounded text-white flex items-center justify-center space-x-1 shadow-sm transition";
+        }
+    }
+
+    if (rContainer) {
+        if (isCircle) {
+            rContainer.classList.add('opacity-40', 'pointer-events-none');
+        } else {
+            rContainer.classList.remove('opacity-40', 'pointer-events-none');
+        }
+    }
+
+    drawParagraphCanvasFrame();
+    showToast(isCircle ? "Đã chuyển sang dạng Logo Hình Tròn (Ẩn khối vuông)!" : "Đã chuyển sang dạng Logo Chữ Nhật Bo Góc!");
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(true);
+}
+
+function updateLogoMaskInset(val) {
+    if (!videoConfig.badgeStyle) videoConfig.badgeStyle = { widthPct: 15, heightPct: 10, posX: 82, posY: 4, opacity: 100, borderRadius: 20, isCircle: true, removeWhiteBg: false, maskInsetPct: 5 };
+    videoConfig.badgeStyle.maskInsetPct = isNaN(val) ? 0 : val;
+    const valSpan = document.getElementById('cfg-bd-inset-val');
+    if (valSpan) valSpan.innerText = `${videoConfig.badgeStyle.maskInsetPct}%`;
+    drawParagraphCanvasFrame();
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
+}
+
+function toggleLogoRemoveWhiteBg(enabled) {
+    if (!videoConfig.badgeStyle) videoConfig.badgeStyle = { widthPct: 15, heightPct: 10, posX: 82, posY: 4, opacity: 100, borderRadius: 20, isCircle: true, removeWhiteBg: false };
+    videoConfig.badgeStyle.removeWhiteBg = !!enabled;
+
+    // Reset cache xử lý ảnh
+    window._cachedFilteredBadgeImg = null;
+    window._cachedFilteredBadgeSrc = null;
+
+    drawParagraphCanvasFrame();
+    showToast(enabled ? "Đã bật tự động khử nền trắng cho Logo!" : "Đã tắt khử nền trắng cho Logo!");
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(true);
 }
 
 function switchParagraphFrameSubTab(subKey) {

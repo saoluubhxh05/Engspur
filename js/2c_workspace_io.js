@@ -26,7 +26,7 @@ function setQuickPosition(target, x, y, w, h) {
 
 function syncMediaInputsFromConfig() {
     const bgSt = videoConfig.bgImageStyle || { widthPct: 100, heightPct: 100, posX: 0, posY: 0, opacity: 100 };
-    const bdSt = videoConfig.badgeStyle || { widthPct: 15, heightPct: 10, posX: 82, posY: 4, opacity: 100, borderRadius: 20 };
+    const bdSt = videoConfig.badgeStyle || { widthPct: 15, heightPct: 10, posX: 82, posY: 4, opacity: 100, borderRadius: 20, isCircle: true, removeWhiteBg: false };
 
     if (document.getElementById('cfg-bg-w')) document.getElementById('cfg-bg-w').value = bgSt.widthPct || 100;
     if (document.getElementById('cfg-bg-h')) document.getElementById('cfg-bg-h').value = bgSt.heightPct || 100;
@@ -39,6 +39,34 @@ function syncMediaInputsFromConfig() {
     if (document.getElementById('cfg-bd-x')) document.getElementById('cfg-bd-x').value = bdSt.posX || 82;
     if (document.getElementById('cfg-bd-y')) document.getElementById('cfg-bd-y').value = bdSt.posY || 4;
     if (document.getElementById('cfg-bd-op')) document.getElementById('cfg-bd-op').value = bdSt.opacity !== undefined ? bdSt.opacity : 100;
+
+    // Đồng bộ nút hình tròn / chữ nhật và khử nền trắng
+    const isCircle = bdSt.isCircle !== false;
+    const btnCircle = document.getElementById('btn-logo-shape-circle');
+    const btnRect = document.getElementById('btn-logo-shape-rect');
+    const rContainer = document.getElementById('cfg-bd-r-container');
+    if (btnCircle && btnRect) {
+        if (isCircle) {
+            btnCircle.className = "p-1.5 bg-amber-600 border border-amber-500 rounded text-white flex items-center justify-center space-x-1 shadow-sm transition";
+            btnRect.className = "p-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-slate-300 flex items-center justify-center space-x-1 transition";
+        } else {
+            btnCircle.className = "p-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-slate-300 flex items-center justify-center space-x-1 transition";
+            btnRect.className = "p-1.5 bg-amber-600 border border-amber-500 rounded text-white flex items-center justify-center space-x-1 shadow-sm transition";
+        }
+    }
+    if (rContainer) {
+        if (isCircle) {
+            rContainer.classList.add('opacity-40', 'pointer-events-none');
+        } else {
+            rContainer.classList.remove('opacity-40', 'pointer-events-none');
+        }
+    }
+    const chkRemoveWhite = document.getElementById('cfg-bd-remove-white');
+    if (chkRemoveWhite) chkRemoveWhite.checked = !!bdSt.removeWhiteBg;
+
+    const maskInset = bdSt.maskInsetPct !== undefined ? bdSt.maskInsetPct : 5;
+    if (document.getElementById('cfg-bd-inset')) document.getElementById('cfg-bd-inset').value = maskInset;
+    if (document.getElementById('cfg-bd-inset-val')) document.getElementById('cfg-bd-inset-val').innerText = `${maskInset}%`;
 }
 
 /**
@@ -228,10 +256,107 @@ async function loadRichDemoDataset(showToastMsg = true) {
 }
 
 /**
- * Xuất toàn bộ không gian làm việc (Toàn bộ Excel, Ảnh Base64, Kịch bản, Thông số Studio & Tab 3 Render Hàng Loạt) ra 1 file JSON duy nhất
+ * Mở hộp thoại tùy chọn xuất file JSON (Siêu nhẹ / Nén tối ưu / Đầy đủ)
  */
-function exportFullWorkspaceToJSON() {
-    // 1. Thu thập các thông số & tùy chọn cấu hình của Tab 3. Render Hàng Loạt
+function openExportWorkspaceModal() {
+    const modal = document.getElementById('export-workspace-options-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        if (window.lucide && lucide.createIcons) lucide.createIcons();
+    }
+}
+
+/**
+ * Đóng hộp thoại tùy chọn xuất file JSON
+ */
+function closeExportWorkspaceModal() {
+    const modal = document.getElementById('export-workspace-options-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+/**
+ * Hàm nén hình ảnh Base64 bằng HTML5 Canvas API (thu nhỏ kích thước và nén JPEG)
+ */
+function compressBase64Image(dataUrl, maxWidth = 720, maxHeight = 1280, quality = 0.7) {
+    return new Promise((resolve) => {
+        if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image')) {
+            return resolve(dataUrl);
+        }
+        const img = new Image();
+        img.onload = () => {
+            try {
+                let w = img.width;
+                let h = img.height;
+                if (w > maxWidth || h > maxHeight) {
+                    const ratio = Math.min(maxWidth / w, maxHeight / h);
+                    w = Math.max(1, Math.round(w * ratio));
+                    h = Math.max(1, Math.round(h * ratio));
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                const compressed = canvas.toDataURL('image/jpeg', quality);
+                // Giữ lại bản có kích thước chuỗi nhỏ hơn
+                resolve(compressed.length < dataUrl.length ? compressed : dataUrl);
+            } catch (err) {
+                resolve(dataUrl);
+            }
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+    });
+}
+
+/**
+ * Quét đệ quy và loại bỏ toàn bộ chuỗi Base64 âm thanh và ảnh nặng ẩn trong đối tượng kịch bản
+ */
+function stripHeavyBase64Data(obj) {
+    if (!obj || typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) {
+        return obj.map(item => stripHeavyBase64Data(item));
+    }
+    const cleanObj = {};
+    for (const key of Object.keys(obj)) {
+        const val = obj[key];
+        // Loại bỏ hoàn toàn các chuỗi dữ liệu âm thanh Base64 nặng (thường 5MB - 20MB mỗi tệp)
+        if (key === 'customAudioData' || key === 'customAudioBase64' || key === 'audioData' || key === 'audioBase64' || key === 'audioBufferData') {
+            continue;
+        }
+        // Loại bỏ bất kỳ chuỗi Data URI Base64 ẩn nào quá dài (> 200 ký tự)
+        if (typeof val === 'string' && val.startsWith('data:') && val.length > 200) {
+            continue;
+        }
+        if (val !== null && typeof val === 'object') {
+            cleanObj[key] = stripHeavyBase64Data(val);
+        } else {
+            cleanObj[key] = val;
+        }
+    }
+    return cleanObj;
+}
+
+/**
+ * Điểm vào hàm xuất: Nếu không truyền mode thì mở Modal tùy chọn, nếu có mode thì xuất trực tiếp
+ */
+function exportFullWorkspaceToJSON(mode) {
+    if (mode && (mode === 'light' || mode === 'optimized' || mode === 'full')) {
+        executeExportWorkspaceByMode(mode);
+    } else {
+        openExportWorkspaceModal();
+    }
+}
+
+/**
+ * Thực thi xuất không gian làm việc theo chế độ được chọn
+ * @param {'light' | 'optimized' | 'full'} mode
+ */
+async function executeExportWorkspaceByMode(mode = 'light') {
+    const overlay = document.getElementById('export-compress-loading-overlay');
+    const progressText = document.getElementById('export-compress-progress-text');
+
+    // 1. Thu thập các thông số cấu hình Tab 3: Render Hàng Loạt
     const targetPracticeMode = document.getElementById('batch-target-practice-mode')?.value || 'mode3';
     const namingPattern = document.getElementById('batch-naming-pattern-input')?.value || '{stt}-[{script}]-[{topic}]';
     const groupingMode = document.getElementById('batch-grouping-mode-select')?.value || (typeof batchGroupingMode !== 'undefined' ? batchGroupingMode : 'topic');
@@ -239,25 +364,78 @@ function exportFullWorkspaceToJSON() {
     const selectedChainProfiles = (typeof batchSelectedChainProfiles !== 'undefined' && Array.isArray(batchSelectedChainProfiles)) ? [...batchSelectedChainProfiles] : [];
     const customScriptNamingMap = (typeof batchCustomScriptNamingMap !== 'undefined' && batchCustomScriptNamingMap) ? { ...batchCustomScriptNamingMap } : {};
     
-    // Thu thập trạng thái chọn trong hàng đợi batch
     const queueSelections = (typeof batchRenderQueue !== 'undefined' && Array.isArray(batchRenderQueue))
         ? batchRenderQueue.map(item => ({ queueId: item.queueId, stt: item.stt, topic: item.topic, selected: item.selected !== false }))
         : [];
 
+    let exportImagesMap = {};
+    let exportCanvasBg = "";
+    let exportCanvasBadge = "";
+    let isMinified = false;
+
+    // Chuẩn bị dữ liệu kịch bản: Nếu là Bản Siêu Nhẹ, quét sạch mọi âm thanh và ảnh Base64 ẩn
+    let exportGridConfig = paragraphGridConfig;
+    let exportSavedProfiles = savedParagraphProfiles;
+    let exportDatasets = importedDatasets;
+    let exportFieldStyles = paragraphFieldStyles;
+
+    if (mode === 'light') {
+        // Chế độ Siêu Nhẹ: Loại bỏ hoàn toàn ảnh Base64 VÀ âm thanh Base64 ẩn trong kịch bản
+        exportImagesMap = {};
+        exportCanvasBg = "";
+        exportCanvasBadge = "";
+        isMinified = true; // Thu gọn JSON loại bỏ khoảng trắng thừa
+
+        exportGridConfig = stripHeavyBase64Data(paragraphGridConfig);
+        exportSavedProfiles = (savedParagraphProfiles || []).map(prof => stripHeavyBase64Data(prof));
+        exportDatasets = stripHeavyBase64Data(importedDatasets);
+        exportFieldStyles = stripHeavyBase64Data(paragraphFieldStyles);
+    } else if (mode === 'optimized') {
+        // Chế độ Nén Tối Ưu: Nén từng ảnh Base64 bằng Canvas
+        if (overlay) overlay.classList.remove('hidden');
+        if (progressText) progressText.innerText = "Đang tối ưu ảnh minh họa...";
+
+        const totalKeys = Object.keys(localPCImageBase64Map || {});
+        let count = 0;
+        for (const key of totalKeys) {
+            count++;
+            if (progressText) progressText.innerText = `Đang nén ảnh ${count} / ${totalKeys.length} (${key})...`;
+            const originalUrl = localPCImageBase64Map[key];
+            exportImagesMap[key] = await compressBase64Image(originalUrl, 720, 1280, 0.7);
+        }
+
+        if (canvasBgBase64) {
+            if (progressText) progressText.innerText = "Đang nén ảnh nền video...";
+            exportCanvasBg = await compressBase64Image(canvasBgBase64, 720, 1280, 0.7);
+        }
+        if (canvasBadgeBase64) {
+            if (progressText) progressText.innerText = "Đang nén logo badge...";
+            exportCanvasBadge = await compressBase64Image(canvasBadgeBase64, 400, 400, 0.75);
+        }
+        isMinified = true;
+    } else {
+        // Chế độ Đầy Đủ: Giữ nguyên 100% bản gốc
+        exportImagesMap = localPCImageBase64Map ? { ...localPCImageBase64Map } : {};
+        exportCanvasBg = canvasBgBase64 || "";
+        exportCanvasBadge = canvasBadgeBase64 || "";
+        isMinified = false;
+    }
+
     const backupData = {
         app: "EngSpur Auto Video Studio",
-        version: (typeof APP_VERSION_INFO !== 'undefined' && APP_VERSION_INFO.version) ? APP_VERSION_INFO.version : "V13.2",
+        version: (typeof APP_VERSION_INFO !== 'undefined' && APP_VERSION_INFO.version) ? APP_VERSION_INFO.version : "V15.3",
+        exportMode: mode,
         exportDate: new Date().toISOString(),
-        importedDatasets,
+        importedDatasets: exportDatasets,
         excelColumnsList,
         videoConfig,
-        savedParagraphProfiles,
+        savedParagraphProfiles: exportSavedProfiles,
         activeParagraphProfileId,
-        paragraphGridConfig,
-        paragraphFieldStyles,
-        localPCImageBase64Map,
-        canvasBgBase64,
-        canvasBadgeBase64,
+        paragraphGridConfig: exportGridConfig,
+        paragraphFieldStyles: exportFieldStyles,
+        localPCImageBase64Map: exportImagesMap,
+        canvasBgBase64: exportCanvasBg,
+        canvasBadgeBase64: exportCanvasBadge,
         paragraphSelectedTopic,
         paragraphFilterMode: (typeof paragraphFilterMode !== 'undefined') ? paragraphFilterMode : 'topic',
         paragraphSelectedGenre: (typeof paragraphSelectedGenre !== 'undefined') ? paragraphSelectedGenre : 'ALL',
@@ -273,7 +451,6 @@ function exportFullWorkspaceToJSON() {
             queueSelections,
             directoryName: (typeof batchDirectoryName !== 'undefined') ? batchDirectoryName : ''
         },
-        // Các trường phẳng dự phòng để tương thích tối đa
         batchTargetPracticeMode: targetPracticeMode,
         batchNamingPattern: namingPattern,
         batchGroupingMode: groupingMode,
@@ -282,12 +459,34 @@ function exportFullWorkspaceToJSON() {
         batchCustomScriptNamingMap: customScriptNamingMap,
         batchDirectoryName: (typeof batchDirectoryName !== 'undefined') ? batchDirectoryName : ''
     };
-    const jsonStr = JSON.stringify(backupData, null, 2);
+
+    const jsonStr = isMinified ? JSON.stringify(backupData) : JSON.stringify(backupData, null, 2);
     const blob = new Blob([jsonStr], { type: 'application/json' });
     const nowStr = new Date().toISOString().slice(0, 10);
-    const filename = `EngSpur_Full_Workspace_Backup_${nowStr}.json`;
+    
+    let filename = `EngSpur_Workspace_Backup_${nowStr}.json`;
+    if (mode === 'light') filename = `EngSpur_Workspace_Light_${nowStr}.json`;
+    else if (mode === 'optimized') filename = `EngSpur_Workspace_Optimized_${nowStr}.json`;
+    else filename = `EngSpur_Workspace_FullBackup_${nowStr}.json`;
+
+    // Tính kích thước file hiển thị thân thiện
+    const sizeInKB = (blob.size / 1024);
+    const formattedSize = sizeInKB > 1024 
+        ? `${(sizeInKB / 1024).toFixed(2)} MB` 
+        : `${Math.round(sizeInKB)} KB`;
+
     downloadBlobFallback(blob, filename);
-    showToast("Đã xuất gói dự án hoàn chỉnh (.JSON) kèm toàn bộ thông số Tab 3 Render Hàng Loạt!");
+
+    if (overlay) overlay.classList.add('hidden');
+    closeExportWorkspaceModal();
+
+    if (mode === 'light') {
+        showToast(`⚡ Đã xuất Bản Siêu Nhẹ thành công (${formattedSize})!`);
+    } else if (mode === 'optimized') {
+        showToast(`📦 Đã xuất Bản Nén Tối Ưu thành công (${formattedSize})!`);
+    } else {
+        showToast(`💾 Đã xuất Bản Gốc Đầy Đủ thành công (${formattedSize})!`);
+    }
 }
 
 /**
@@ -302,6 +501,20 @@ function handleImportFullWorkspaceJSON(e) {
         try {
             const data = JSON.parse(evt.target.result);
             if (data && (data.importedDatasets || data.savedParagraphProfiles || data.paragraphGridConfig)) {
+                // Ghi nhớ các âm thanh Base64 hiện có trên máy người dùng để bảo lưu nếu file nhập là bản siêu nhẹ
+                const localAudioCache = {};
+                if (paragraphGridConfig && Array.isArray(paragraphGridConfig.groups)) {
+                    paragraphGridConfig.groups.forEach(g => {
+                        if (Array.isArray(g.fields)) {
+                            g.fields.forEach(f => {
+                                if (f.customAudioName && f.customAudioData) {
+                                    localAudioCache[f.customAudioName] = f.customAudioData;
+                                }
+                            });
+                        }
+                    });
+                }
+
                 if (data.importedDatasets) importedDatasets = data.importedDatasets;
                 if (data.excelColumnsList) excelColumnsList = data.excelColumnsList;
                 if (data.videoConfig) videoConfig = { ...videoConfig, ...data.videoConfig };
@@ -313,6 +526,34 @@ function handleImportFullWorkspaceJSON(e) {
                 if (data.paragraphFilterMode && typeof paragraphFilterMode !== 'undefined') paragraphFilterMode = data.paragraphFilterMode;
                 if (data.paragraphSelectedGenre && typeof paragraphSelectedGenre !== 'undefined') paragraphSelectedGenre = data.paragraphSelectedGenre;
                 if (data.masterTimelineDuration) masterTimelineDuration = data.masterTimelineDuration;
+
+                // Khôi phục lại customAudioData nếu file nhập là bản siêu nhẹ và máy có sẵn âm thanh
+                if (paragraphGridConfig && Array.isArray(paragraphGridConfig.groups)) {
+                    paragraphGridConfig.groups.forEach(g => {
+                        if (Array.isArray(g.fields)) {
+                            g.fields.forEach(f => {
+                                if (f.customAudioName && !f.customAudioData && localAudioCache[f.customAudioName]) {
+                                    f.customAudioData = localAudioCache[f.customAudioName];
+                                }
+                            });
+                        }
+                    });
+                }
+                if (Array.isArray(savedParagraphProfiles)) {
+                    savedParagraphProfiles.forEach(prof => {
+                        if (prof && Array.isArray(prof.groups)) {
+                            prof.groups.forEach(g => {
+                                if (Array.isArray(g.fields)) {
+                                    g.fields.forEach(f => {
+                                        if (f.customAudioName && !f.customAudioData && localAudioCache[f.customAudioName]) {
+                                            f.customAudioData = localAudioCache[f.customAudioName];
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
 
                 // Khôi phục các thông số và tùy chọn cấu hình Tab 3: Render Hàng Loạt
                 const batchCfg = data.batchRenderConfig || {};
@@ -382,15 +623,21 @@ function handleImportFullWorkspaceJSON(e) {
                     }
                 }
 
-                localPCImageBase64Map = data.localPCImageBase64Map || {};
-                localPCImageMap = {};
-                Object.keys(localPCImageBase64Map).forEach(k => {
-                    const img = new Image();
-                    img.src = localPCImageBase64Map[k];
-                    localPCImageMap[k] = img;
-                });
+                const hasImagesInFile = data.localPCImageBase64Map && Object.keys(data.localPCImageBase64Map).length > 0;
+                if (hasImagesInFile) {
+                    localPCImageBase64Map = data.localPCImageBase64Map;
+                    localPCImageMap = {};
+                    Object.keys(localPCImageBase64Map).forEach(k => {
+                        const img = new Image();
+                        img.src = localPCImageBase64Map[k];
+                        localPCImageMap[k] = img;
+                    });
+                } else if (!localPCImageBase64Map) {
+                    localPCImageBase64Map = {};
+                    localPCImageMap = {};
+                }
                 if (document.getElementById('pc-image-badge')) {
-                    document.getElementById('pc-image-badge').innerText = `${Object.keys(localPCImageMap).length} Ảnh Local`;
+                    document.getElementById('pc-image-badge').innerText = `${Object.keys(localPCImageMap || {}).length} Ảnh Local`;
                 }
 
                 if (data.canvasBgBase64) {
@@ -441,7 +688,11 @@ function handleImportFullWorkspaceJSON(e) {
                 }
 
                 await saveFullSystemState(false);
-                showToast("Đã khôi phục toàn bộ không gian làm việc & thông số Tab 3 Render Hàng Loạt thành công!");
+                if (data.exportMode === 'light' || !hasImagesInFile) {
+                    showToast("Đã khôi phục kịch bản & thông số dự án thành công (Bản siêu nhẹ)! Giữ nguyên ảnh nếu đã có sẵn.");
+                } else {
+                    showToast("Đã khôi phục toàn bộ không gian làm việc & ảnh minh họa thành công!");
+                }
             } else {
                 showToast("File JSON không hợp lệ hoặc thiếu dữ liệu!", "error");
             }

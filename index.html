@@ -74,9 +74,9 @@
                     <div>
                         <div class="flex items-center space-x-2">
                             <h2 class="text-sm font-black text-white">Phiên Bản & Nhật Ký Cập Nhật</h2>
-                            <span id="modal-version-tag" class="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[10px] font-black text-emerald-300">V14.8</span>
+                            <span id="modal-version-tag" class="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[10px] font-black text-emerald-300">V15.6</span>
                         </div>
-                        <p id="modal-version-date" class="text-[11px] text-slate-400">Cập nhật: 19/09/2026 • Trạng thái: Mới nhất & Ổn định</p>
+                        <p id="modal-version-date" class="text-[11px] text-slate-400">Cập nhật: 21/09/2026 • Trạng thái: Mới nhất & Ổn định</p>
                     </div>
                 </div>
                 <button onclick="closeVersionChangelogModal()" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition font-bold text-sm active:scale-95" title="Đóng (Esc)">✕</button>
@@ -100,6 +100,131 @@
         </div>
     </div>
 
+    <!-- MODAL TÙY CHỌN XUẤT FILE JSON (GIẢM DUNG LƯỢNG & TỐI ƯU HÓA) -->
+    <div id="export-workspace-options-modal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 hidden" onclick="if(event.target === this) closeExportWorkspaceModal()">
+        <div class="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-lg w-full shadow-2xl relative overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+            <!-- Modal Header -->
+            <div class="p-4 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between shrink-0">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-9 h-9 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 rounded-xl flex items-center justify-center text-indigo-400 shadow-inner">
+                        <i data-lucide="download" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-black text-white flex items-center space-x-2">
+                            <span>Tùy Chọn Xuất File JSON</span>
+                            <span class="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-[10px] font-bold text-emerald-300">Tối ưu dung lượng</span>
+                        </h2>
+                        <p class="text-[11px] text-slate-400">Chọn định dạng sao lưu phù hợp với nhu cầu lưu trữ hoặc chia sẻ của bạn</p>
+                    </div>
+                </div>
+                <button onclick="closeExportWorkspaceModal()" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition font-bold text-sm active:scale-95" title="Đóng (Esc)">✕</button>
+            </div>
+
+            <!-- Modal Body: 3 Lựa Chọn Xuất File -->
+            <div class="p-4 space-y-3">
+                <!-- LỰA CHỌN 1: BẢN SIÊU NHẸ (KHUYÊN DÙNG) -->
+                <div onclick="executeExportWorkspaceByMode('light')" class="group p-3.5 bg-gradient-to-r from-slate-950 to-indigo-950/40 hover:from-slate-950 hover:to-indigo-900/60 border border-indigo-500/40 hover:border-indigo-400 rounded-2xl cursor-pointer transition shadow-md hover:shadow-indigo-500/10 active:scale-[0.99]">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-start space-x-3">
+                            <div class="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/40 text-indigo-300 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                                <i data-lucide="zap" class="w-5 h-5 text-indigo-400"></i>
+                            </div>
+                            <div class="space-y-1">
+                                <div class="flex items-center space-x-2">
+                                    <h3 class="text-xs font-black text-white group-hover:text-indigo-300 transition-colors">1. Bản Siêu Nhẹ (Khuyên dùng)</h3>
+                                    <span class="px-1.5 py-0.2 rounded bg-indigo-500/30 border border-indigo-400/40 text-[9px] font-bold text-indigo-200">Giảm ~98%</span>
+                                </div>
+                                <p class="text-[11px] text-slate-300 leading-relaxed">
+                                    Chỉ lưu <strong>Kịch bản, Lưới cột, Timeline, Cài đặt Render</strong> và toàn bộ dữ liệu chữ <strong>Excel</strong>. Lọc sạch mọi chuỗi ảnh và âm thanh Base64 ẩn giúp file chỉ còn vài chục KB (giảm từ 58MB xuống dưới 100 KB).
+                                </p>
+                                <div class="flex items-center space-x-3 text-[10px] text-slate-400 pt-0.5">
+                                    <span class="flex items-center space-x-1 text-emerald-400"><i data-lucide="check" class="w-3 h-3"></i><span>Dung lượng: ~30 - 150 KB</span></span>
+                                    <span class="text-slate-500">•</span>
+                                    <span>Gửi Zalo/Email siêu nhanh</span>
+                                </div>
+                            </div>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-500 group-hover:text-indigo-300 group-hover:translate-x-0.5 transition-all mt-1"></i>
+                    </div>
+                </div>
+
+                <!-- LỰA CHỌN 2: BẢN NÉN TỐI ƯU CÓ ẢNH -->
+                <div onclick="executeExportWorkspaceByMode('optimized')" class="group p-3.5 bg-gradient-to-r from-slate-950 to-teal-950/40 hover:from-slate-950 hover:to-teal-900/60 border border-teal-500/30 hover:border-teal-400 rounded-2xl cursor-pointer transition shadow-md hover:shadow-teal-500/10 active:scale-[0.99]">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-start space-x-3">
+                            <div class="w-10 h-10 rounded-xl bg-teal-600/20 border border-teal-500/40 text-teal-300 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                                <i data-lucide="minimize-2" class="w-5 h-5 text-teal-400"></i>
+                            </div>
+                            <div class="space-y-1">
+                                <div class="flex items-center space-x-2">
+                                    <h3 class="text-xs font-black text-white group-hover:text-teal-300 transition-colors">2. Bản Nén Tối Ưu (Có đủ ảnh)</h3>
+                                    <span class="px-1.5 py-0.2 rounded bg-teal-500/30 border border-teal-400/40 text-[9px] font-bold text-teal-200">Giảm ~80%</span>
+                                </div>
+                                <p class="text-[11px] text-slate-300 leading-relaxed">
+                                    Giữ <strong>toàn bộ hình ảnh</strong>, tự động nén kích thước ảnh JPEG chuẩn 720p và thu gọn JSON. Chuyển sang máy khác dùng được ngay mà không cần nạp lại ảnh.
+                                </p>
+                                <div class="flex items-center space-x-3 text-[10px] text-slate-400 pt-0.5">
+                                    <span class="flex items-center space-x-1 text-teal-400"><i data-lucide="check" class="w-3 h-3"></i><span>Dung lượng: ~2 - 8 MB</span></span>
+                                    <span class="text-slate-500">•</span>
+                                    <span>Tự động tối ưu ảnh</span>
+                                </div>
+                            </div>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-500 group-hover:text-teal-300 group-hover:translate-x-0.5 transition-all mt-1"></i>
+                    </div>
+                </div>
+
+                <!-- LỰA CHỌN 3: BẢN GỐC ĐẦY ĐỦ -->
+                <div onclick="executeExportWorkspaceByMode('full')" class="group p-3.5 bg-gradient-to-r from-slate-950 to-slate-900 hover:to-slate-800/80 border border-slate-800 hover:border-slate-700 rounded-2xl cursor-pointer transition shadow-md active:scale-[0.99]">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-start space-x-3">
+                            <div class="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                                <i data-lucide="hard-drive" class="w-5 h-5 text-amber-400"></i>
+                            </div>
+                            <div class="space-y-1">
+                                <div class="flex items-center space-x-2">
+                                    <h3 class="text-xs font-bold text-white group-hover:text-amber-300 transition-colors">3. Bản Gốc Đầy Đủ (Nguyên bản 100%)</h3>
+                                    <span class="px-1.5 py-0.2 rounded bg-amber-500/20 border border-amber-400/30 text-[9px] font-bold text-amber-300">File Nặng</span>
+                                </div>
+                                <p class="text-[11px] text-slate-400 leading-relaxed">
+                                    Giữ nguyên 100% độ phân giải ảnh gốc Base64 và định dạng JSON nguyên thủy không nén.
+                                </p>
+                                <div class="flex items-center space-x-3 text-[10px] text-slate-500 pt-0.5">
+                                    <span>Dung lượng gốc: 30 - 100+ MB</span>
+                                    <span>•</span>
+                                    <span>Phù hợp lưu trữ cục bộ</span>
+                                </div>
+                            </div>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-600 group-hover:text-amber-300 group-hover:translate-x-0.5 transition-all mt-1"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading overlay khi đang nén -->
+            <div id="export-compress-loading-overlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center space-y-3 p-6 text-center hidden z-20">
+                <div class="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 animate-spin">
+                    <i data-lucide="loader" class="w-6 h-6"></i>
+                </div>
+                <div class="space-y-1">
+                    <h4 class="text-xs font-black text-white">Đang tối ưu & nén hình ảnh...</h4>
+                    <p id="export-compress-progress-text" class="text-[11px] text-slate-400">Vui lòng đợi trong giây lát</p>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-3 bg-slate-950/90 border-t border-slate-800 flex items-center justify-between shrink-0">
+                <span class="text-[10px] text-slate-500 flex items-center space-x-1">
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5 text-indigo-400"></i>
+                    <span>Tất cả file JSON đều nhập lại an toàn 100% qua nút "Nhập File"</span>
+                </span>
+                <button onclick="closeExportWorkspaceModal()" class="py-1 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs transition">
+                    Đóng
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- HEADER CỐ ĐỊNH (TƯƠNG THÍCH MỌI KÍCH THƯỚC MÀN HÌNH) -->
     <header class="bg-slate-900/95 border-b border-slate-800 px-2.5 sm:px-3 py-2 flex items-center justify-between gap-2 shadow-xl shrink-0 z-30">
         <!-- GIAO DIỆN HEADER DI ĐỘNG (< 1024px) -->
@@ -113,7 +238,7 @@
                         <span class="font-black text-xs text-white tracking-wide truncate">EngSpur Studio</span>
                         <button onclick="openVersionChangelogModal()" class="px-1.5 py-0.5 rounded-full bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-400/40 text-[9px] font-black text-indigo-300 flex items-center space-x-1 shrink-0">
                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                            <span>V14.6</span>
+                            <span>V15.1</span>
                         </button>
                     </div>
                     <p class="text-[9px] text-indigo-400 font-medium truncate">Studio Video AI</p>
@@ -122,12 +247,11 @@
 
             <div class="flex items-center space-x-1 shrink-0">
                 <span id="hdr-autosave-status-mob" class="text-[9px] text-emerald-400 font-bold px-1.5 py-0.5 rounded bg-emerald-950/80 border border-emerald-800/60 transition-opacity duration-300 opacity-0 whitespace-nowrap">Đã lưu</span>
-                <button onclick="loadRichDemoDataset(true)" class="px-2 py-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 rounded-lg text-[10px] font-black transition flex items-center space-x-1 shadow active:scale-95" title="Nạp sẵn mẫu bài học 9:16">
-                    <i data-lucide="zap" class="w-3 h-3 fill-slate-950"></i>
-                    <span>Mẫu Thử</span>
+                <button id="btn-studio-undo-mob" onclick="executeStudioUndo()" disabled class="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-lg text-xs font-bold transition flex items-center justify-center shadow active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed" title="Hoàn tác (Ctrl+Z)">
+                    <i data-lucide="undo-2" class="w-3.5 h-3.5 text-amber-400"></i>
                 </button>
-                <button onclick="saveFullSystemState()" class="p-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center shadow active:scale-95" title="Lưu toàn bộ vào bộ nhớ">
-                    <i data-lucide="save" class="w-3.5 h-3.5"></i>
+                <button id="btn-studio-redo-mob" onclick="executeStudioRedo()" disabled class="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-lg text-xs font-bold transition flex items-center justify-center shadow active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed" title="Làm lại (Ctrl+Y)">
+                    <i data-lucide="redo-2" class="w-3.5 h-3.5 text-cyan-400"></i>
                 </button>
                 <button onclick="openMobileQuickActionsSheet()" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-bold transition flex items-center justify-center shadow active:scale-95" title="Menu Tiện Ích & Sao Lưu">
                     <i data-lucide="more-horizontal" class="w-3.5 h-3.5"></i>
@@ -145,7 +269,7 @@
                     <h1 class="font-black text-sm text-white tracking-wide leading-tight">EngSpur Studio</h1>
                     <button id="btn-header-version" onclick="openVersionChangelogModal()" class="px-2 py-0.5 rounded-full bg-gradient-to-r from-indigo-500/20 to-purple-500/20 hover:from-indigo-500/35 hover:to-purple-500/35 border border-indigo-400/40 hover:border-indigo-300 text-[10px] font-black text-indigo-300 hover:text-white transition flex items-center space-x-1 shadow-sm active:scale-95 cursor-pointer" title="Nhấn để xem phiên bản hiện tại & nội dung cập nhật mới">
                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span id="app-header-version-tag">V14.6</span>
+                        <span id="app-header-version-tag">V15.3</span>
                         <i data-lucide="info" class="w-3 h-3 text-indigo-400"></i>
                     </button>
                 </div>
@@ -191,17 +315,19 @@
         <div class="hidden lg:flex items-center space-x-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 shadow-lg shrink-0">
             <span id="hdr-autosave-status" class="text-[10px] text-emerald-400 font-semibold px-2 py-1 rounded bg-emerald-950/80 border border-emerald-800/60 transition-opacity duration-300 opacity-0 whitespace-nowrap">Đã tự động lưu</span>
             
-            <button onclick="loadRichDemoDataset(true)" class="px-2.5 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 rounded-lg text-xs font-black transition flex items-center space-x-1.5 shadow-md active:scale-95" title="Nạp sẵn 3 chủ đề tiếng Anh và 6 ảnh mẫu 9:16 để chạy thử ngay lập tức">
-                <i data-lucide="zap" class="w-3.5 h-3.5 fill-slate-950"></i>
-                <span>Nạp Mẫu Thử</span>
+            <button id="btn-studio-undo" onclick="executeStudioUndo()" disabled class="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700/80 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 shadow-sm active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-900 disabled:hover:text-slate-400 cursor-pointer" title="Hoàn tác thao tác trước (Ctrl+Z)">
+                <i data-lucide="undo-2" class="w-3.5 h-3.5 text-amber-400"></i>
+                <span>Undo</span>
+                <span class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 hidden xl:inline">Ctrl+Z</span>
             </button>
 
-            <button onclick="saveFullSystemState()" class="px-2.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-xs font-black transition flex items-center space-x-1.5 shadow-md active:scale-95" title="Lưu thủ công toàn bộ dữ liệu & cấu hình vào máy">
-                <i data-lucide="save" class="w-3.5 h-3.5"></i>
-                <span>Lưu Máy</span>
+            <button id="btn-studio-redo" onclick="executeStudioRedo()" disabled class="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700/80 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 shadow-sm active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-900 disabled:hover:text-slate-400 cursor-pointer" title="Làm lại thao tác vừa hoàn tác (Ctrl+Y hoặc Ctrl+Shift+Z)">
+                <i data-lucide="redo-2" class="w-3.5 h-3.5 text-cyan-400"></i>
+                <span>Redo</span>
+                <span class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 hidden xl:inline">Ctrl+Y</span>
             </button>
 
-            <button onclick="exportFullWorkspaceToJSON()" class="px-2 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/80 rounded-lg text-xs font-bold transition flex items-center space-x-1" title="Xuất toàn bộ Excel, ảnh local và kịch bản ra 1 file JSON duy nhất để lưu trữ">
+            <button onclick="exportFullWorkspaceToJSON()" class="px-2 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/80 rounded-lg text-xs font-bold transition flex items-center space-x-1 cursor-pointer" title="Xuất toàn bộ Excel, kịch bản ra file JSON với 3 chế độ tối ưu dung lượng (Siêu nhẹ / Nén / Đầy đủ)">
                 <i data-lucide="download" class="w-3.5 h-3.5 text-indigo-400"></i>
                 <span>Xuất File</span>
             </button>
@@ -522,12 +648,48 @@
                                     </div>
                                 </div>
 
+                                <div class="space-y-1.5 pt-1 border-t border-slate-800/80">
+                                    <span class="text-[9px] font-bold text-amber-300 block">Hình Dạng & Khử Nền Logo:</span>
+                                    <div class="grid grid-cols-2 gap-1 text-[8px] font-bold">
+                                        <button type="button" id="btn-logo-shape-circle" onclick="setLogoShapeMode(true)" class="p-1.5 bg-amber-600 border border-amber-500 rounded text-white flex items-center justify-center space-x-1 shadow-sm transition">
+                                            <i data-lucide="circle" class="w-3 h-3"></i>
+                                            <span>Khung Tròn (Ẩn vuông)</span>
+                                        </button>
+                                        <button type="button" id="btn-logo-shape-rect" onclick="setLogoShapeMode(false)" class="p-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-slate-300 flex items-center justify-center space-x-1 transition">
+                                            <i data-lucide="square" class="w-3 h-3"></i>
+                                            <span>Chữ Nhật Bo Góc</span>
+                                        </button>
+                                    </div>
+                                    <div class="space-y-1 bg-slate-950 p-1.5 rounded border border-slate-800">
+                                        <div class="flex items-center justify-between">
+                                            <label class="text-[9px] font-bold text-amber-200 flex items-center space-x-1">
+                                                <i data-lucide="crop" class="w-3 h-3 text-amber-400"></i>
+                                                <span>Gọt Sát Viền Mép (Trim/Inset):</span>
+                                            </label>
+                                            <span id="cfg-bd-inset-val" class="text-[9px] font-mono font-black text-amber-400">5%</span>
+                                        </div>
+                                        <input type="range" id="cfg-bd-inset" min="0" max="25" value="5" step="0.5" oninput="updateLogoMaskInset(parseFloat(this.value))" class="w-full accent-amber-500 cursor-pointer h-1.5 bg-slate-800 rounded">
+                                        <div class="flex items-center justify-between text-[7.5px] text-slate-400 font-semibold px-0.5">
+                                            <span>0% (Nguyên bản)</span>
+                                            <span>5% (Khuyên dùng)</span>
+                                            <span>25% (Thu sâu)</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center justify-between bg-slate-950 p-1.5 rounded border border-slate-800">
+                                        <label for="cfg-bd-remove-white" class="text-[9px] font-bold text-slate-300 flex items-center space-x-1 cursor-pointer">
+                                            <i data-lucide="wand-2" class="w-3 h-3 text-amber-400"></i>
+                                            <span>Tự động khử nền trắng</span>
+                                        </label>
+                                        <input type="checkbox" id="cfg-bd-remove-white" onchange="toggleLogoRemoveWhiteBg(this.checked)" class="w-3.5 h-3.5 rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-0 cursor-pointer">
+                                    </div>
+                                </div>
+
                                 <div class="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-800/80">
                                     <div>
                                         <label class="text-slate-400 block">Rộng Logo (%):</label>
                                         <input type="number" id="cfg-bd-w" value="15" onchange="updateCanvasBadgeProp('widthPct', parseInt(this.value))" class="w-full bg-slate-950 border border-slate-700 rounded p-1 font-bold text-slate-200">
                                     </div>
-                                    <div>
+                                    <div id="cfg-bd-r-container" class="opacity-40 pointer-events-none">
                                         <label class="text-slate-400 block">Bo Góc (px):</label>
                                         <input type="number" id="cfg-bd-r" value="20" onchange="updateCanvasBadgeProp('borderRadius', parseInt(this.value))" class="w-full bg-slate-950 border border-slate-700 rounded p-1 font-bold text-slate-200">
                                     </div>
@@ -1187,7 +1349,7 @@
 
     <!-- FOOTER NHỎ GỌN -->
     <footer class="bg-slate-900/95 text-slate-400 text-[10px] py-1.5 px-3 border-t border-slate-800 flex items-center justify-between shrink-0">
-        <span>EngSpur Studio v14.5 • Đĩa chống lóa & Chữ số siêu sáng nổi bật cho Đồng hồ đếm ngược</span>
+        <span>EngSpur Studio v15.3 • Lọc Sạch Âm Thanh Base64 Ẩn Cho Bản Siêu Nhẹ (Từ 58MB Xuống Dưới 100 KB)</span>
         <span>Kiến trúc Web Đa Tệp Hoàn Chỉnh (ARCHITECTURE.md)</span>
     </footer>
 
@@ -1275,7 +1437,7 @@
                 <button onclick="openVersionChangelogModal(); closeMobileQuickActionsSheet();" class="p-3 bg-slate-800/80 hover:bg-slate-800 border border-slate-700 rounded-xl flex flex-col items-center justify-center text-center space-y-1.5 transition active:scale-95">
                     <i data-lucide="info" class="w-5 h-5 text-indigo-400"></i>
                     <span class="font-bold text-slate-200 text-[11px]">Nhật Ký Phiên Bản</span>
-                    <span class="text-[9px] text-slate-400">V14.8 Tinh Giản Giao Diện</span>
+                    <span class="text-[9px] text-slate-400">V15.6 Đồng Bộ Định Dạng Toàn Diện</span>
                 </button>
             </div>
 

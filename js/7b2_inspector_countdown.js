@@ -88,6 +88,9 @@ function renderCountdownInspectorRibbon(item, gIdx, fIdx) {
 
     body.innerHTML = `
         <div class="space-y-3 text-xs">
+            <!-- NÚT ÁP DỤNG CHUNG CHO TOÀN BỘ ĐỒNG HỒ (ACCORDION MỌI KỊCH BẢN) -->
+            ${(typeof renderBatchStyleAccordionUI === 'function') ? renderBatchStyleAccordionUI('countdown') : ''}
+
             <!-- 1. BỘ PRESETS ĐỒNG HỒ ĐẾM NGƯỢC -->
             <div class="space-y-2 bg-slate-900 p-2.5 rounded-xl border border-rose-500/40 shadow">
                 <div class="flex items-center justify-between">
@@ -973,6 +976,9 @@ function renderProgressTrackerInspectorRibbon(item, gIdx, fIdx) {
 
     body.innerHTML = `
         <div class="space-y-3 text-xs">
+            <!-- NÚT ÁP DỤNG CHUNG CHO TOÀN BỘ THẺ TIẾN ĐỘ (ACCORDION MỌI KỊCH BẢN) -->
+            ${(typeof renderBatchStyleAccordionUI === 'function') ? renderBatchStyleAccordionUI('progress_tracker') : ''}
+
             <div class="space-y-2.5 bg-slate-900 p-2.5 rounded-xl border border-emerald-500/50 shadow">
                 <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
                     <span class="text-[10px] font-extrabold text-emerald-300 uppercase tracking-wider flex items-center space-x-1.5">
@@ -1260,6 +1266,9 @@ function renderAudioSfxInspectorRibbon(item, gIdx, fIdx) {
 
     body.innerHTML = `
         <div class="space-y-3 text-xs">
+            <!-- NÚT ÁP DỤNG CHUNG CHO TOÀN BỘ THẺ SFX (ACCORDION MỌI KỊCH BẢN) -->
+            ${(typeof renderBatchStyleAccordionUI === 'function') ? renderBatchStyleAccordionUI('audio_sfx') : ''}
+
             <div class="space-y-2.5 bg-slate-900 p-2.5 rounded-xl border border-purple-500/50 shadow">
                 <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
                     <span class="text-[10px] font-extrabold text-purple-300 uppercase tracking-wider flex items-center space-x-1.5">

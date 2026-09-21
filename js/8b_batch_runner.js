@@ -58,6 +58,11 @@ async function startBatchRenderPipeline(mode = 'combined') {
     batchCurrentTopicPcmChunks = [];
     batchTopicScheduledAudioList = [];
 
+    // Giải phóng bộ nhớ Undo/Redo cũ để nhường RAM tối đa cho tiến trình Render
+    if (typeof releaseStudioHistoryMemory === 'function') {
+        releaseStudioHistoryMemory();
+    }
+
     // Khởi tạo luồng âm thanh phòng thu nội bộ
     try {
         const audioCtx = (typeof getSharedAudioContext === 'function') ? getSharedAudioContext() : new (window.AudioContext || window.webkitAudioContext)();

@@ -407,6 +407,9 @@ function renderCustomTextInspectorRibbon(item, gIdx, fIdx) {
                 </div>
             </div>
 
+            <!-- NÚT ÁP DỤNG CHUNG CHO TOÀN BỘ THẺ CHỮ TỰ DO (ACCORDION MỌI KỊCH BẢN) -->
+            ${renderBatchStyleAccordionUI('custom_text')}
+
             <!-- NHÓM 1: PHÔNG CHỮ & KIỂU DÁNG HIỂN THỊ -->
             <div class="space-y-2 bg-slate-900 p-2.5 rounded-xl border border-slate-800 shadow">
                 <span class="text-[10px] font-extrabold text-indigo-400 uppercase tracking-wider flex items-center space-x-1.5">
@@ -805,6 +808,826 @@ function renderTtsInspectorRibbon(item, gIdx, fIdx) {
     if (window.lucide && lucide.createIcons) lucide.createIcons();
 }
 
+/**
+ * Quản lý trạng thái Accordion & Danh sách tích chọn đối tượng trong các kịch bản
+ */
+var batchStyleAccordionOpen = false;
+var batchStyleSelectedTargets = new Set(); // chứa chuỗi "profileId:::targetKey"
+
+function toggleBatchStyleAccordion() {
+    batchStyleAccordionOpen = !batchStyleAccordionOpen;
+    const content = document.getElementById('batch-style-accordion-content');
+    const chevron = document.getElementById('batch-style-chevron-icon');
+    if (content) {
+        if (batchStyleAccordionOpen) {
+            content.classList.remove('hidden');
+        } else {
+            content.classList.add('hidden');
+        }
+    }
+    if (chevron) {
+        chevron.style.transform = batchStyleAccordionOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+}
+
+/**
+ * Trả về danh sách kịch bản hợp lệ hiện có
+ */
+function getBatchStyleProfilesList() {
+    if (typeof syncCurrentActiveProfileState === 'function') {
+        syncCurrentActiveProfileState();
+    }
+    if (!Array.isArray(savedParagraphProfiles) || savedParagraphProfiles.length === 0) {
+        if (typeof paragraphGridConfig !== 'undefined' && paragraphGridConfig) {
+            return [paragraphGridConfig];
+        }
+        return [];
+    }
+    return savedParagraphProfiles;
+}
+
+/**
+ * Đồng bộ trạng thái kịch bản đang mở vào mảng savedParagraphProfiles
+ */
+function syncCurrentActiveProfileState() {
+    if (typeof activeParagraphProfileId !== 'undefined' && activeParagraphProfileId && Array.isArray(savedParagraphProfiles)) {
+        const curProf = savedParagraphProfiles.find(p => p.id === activeParagraphProfileId);
+        if (curProf) {
+            if (typeof paragraphFieldStyles !== 'undefined') {
+                curProf.fieldStyles = JSON.parse(JSON.stringify(paragraphFieldStyles));
+            }
+            if (typeof paragraphGridConfig !== 'undefined' && paragraphGridConfig.groups) {
+                curProf.groups = JSON.parse(JSON.stringify(paragraphGridConfig.groups));
+                curProf.gridMatrix = JSON.parse(JSON.stringify(paragraphGridConfig.gridMatrix || []));
+                curProf.presentationMode = paragraphGridConfig.presentationMode;
+                curProf.loopBlockGap = paragraphGridConfig.loopBlockGap;
+            }
+            if (typeof masterTimelineDuration !== 'undefined') {
+                curProf.masterDuration = masterTimelineDuration;
+            }
+        }
+    }
+}
+
+/**
+ * Lấy danh sách các đối tượng có thể định dạng trong một kịch bản theo loại type
+ */
+function getEligibleObjectsInProfile(prof, type) {
+    const list = [];
+    if (!prof) return list;
+
+    if (type === 'excel_text') {
+        // Thu thập các trường text từ fieldStyles và groups
+        const keysSet = new Set();
+        if (prof.fieldStyles) {
+            Object.keys(prof.fieldStyles).forEach(k => {
+                const isImg = k.toLowerCase().includes('anh') || k.toLowerCase().includes('dinh_kem') || (prof.fieldStyles[k] && prof.fieldStyles[k].type === 'image');
+                if (!isImg) keysSet.add(k);
+            });
+        }
+        if (Array.isArray(prof.groups)) {
+            prof.groups.forEach(g => {
+                if (Array.isArray(g.fields)) {
+                    g.fields.forEach(f => {
+                        if (f.type === 'field' && f.key) {
+                            const isImg = f.key.toLowerCase().includes('anh') || f.key.toLowerCase().includes('dinh_kem');
+                            if (!isImg) keysSet.add(f.key);
+                        }
+                    });
+                }
+            });
+        }
+        keysSet.forEach(k => {
+            list.push({
+                targetKey: k,
+                label: `{{${k}}}`,
+                subLabel: 'Trường văn bản',
+                type: 'excel_text'
+            });
+        });
+    } else if (type === 'excel_image') {
+        const keysSet = new Set();
+        if (prof.fieldStyles) {
+            Object.keys(prof.fieldStyles).forEach(k => {
+                const isImg = k.toLowerCase().includes('anh') || k.toLowerCase().includes('dinh_kem') || (prof.fieldStyles[k] && prof.fieldStyles[k].type === 'image');
+                if (isImg) keysSet.add(k);
+            });
+        }
+        if (Array.isArray(prof.groups)) {
+            prof.groups.forEach(g => {
+                if (Array.isArray(g.fields)) {
+                    g.fields.forEach(f => {
+                        if (f.type === 'field' && f.key) {
+                            const isImg = f.key.toLowerCase().includes('anh') || f.key.toLowerCase().includes('dinh_kem');
+                            if (isImg) keysSet.add(f.key);
+                        }
+                    });
+                }
+            });
+        }
+        keysSet.forEach(k => {
+            list.push({
+                targetKey: k,
+                label: `{{${k}}}`,
+                subLabel: 'Khung hình ảnh',
+                type: 'excel_image'
+            });
+        });
+    } else if (type === 'custom_text') {
+        if (Array.isArray(prof.groups)) {
+            prof.groups.forEach((g, gi) => {
+                if (Array.isArray(g.fields)) {
+                    g.fields.forEach((f, fi) => {
+                        if (f.type === 'custom_text') {
+                            const snippet = (f.text || 'Chữ Tự Do').substring(0, 20);
+                            list.push({
+                                targetKey: `ct_${gi}_${fi}`,
+                                gIdx: gi,
+                                fIdx: fi,
+                                label: `"${snippet}"`,
+                                subLabel: `Lớp ${gi + 1} • Chữ tự do`,
+                                type: 'custom_text'
+                            });
+                        }
+                    });
+                }
+            });
+        }
+    } else if (type === 'countdown') {
+        if (Array.isArray(prof.groups)) {
+            prof.groups.forEach((g, gi) => {
+                if (Array.isArray(g.fields)) {
+                    g.fields.forEach((f, fi) => {
+                        if (f.type === 'countdown') {
+                            list.push({
+                                targetKey: `cd_${gi}_${fi}`,
+                                gIdx: gi,
+                                fIdx: fi,
+                                label: `Đồng hồ (${f.seconds || 3}s)`,
+                                subLabel: `Lớp ${gi + 1} • Preset: ${f.preset || 'green_to_red'}`,
+                                type: 'countdown'
+                            });
+                        }
+                    });
+                }
+            });
+        }
+    } else if (type === 'progress_tracker') {
+        if (Array.isArray(prof.groups)) {
+            prof.groups.forEach((g, gi) => {
+                if (Array.isArray(g.fields)) {
+                    g.fields.forEach((f, fi) => {
+                        if (f.type === 'progress_tracker') {
+                            list.push({
+                                targetKey: `pt_${gi}_${fi}`,
+                                gIdx: gi,
+                                fIdx: fi,
+                                label: `Tiến độ (${f.textTemplate || 'Câu {STT}/{Tổng_câu}'})`,
+                                subLabel: `Lớp ${gi + 1} • Kiểu: ${f.displayMode || 'both'}`,
+                                type: 'progress_tracker'
+                            });
+                        }
+                    });
+                }
+            });
+        }
+    } else if (type === 'audio_sfx') {
+        if (Array.isArray(prof.groups)) {
+            prof.groups.forEach((g, gi) => {
+                if (Array.isArray(g.fields)) {
+                    g.fields.forEach((f, fi) => {
+                        if (f.type === 'audio_sfx') {
+                            list.push({
+                                targetKey: `sfx_${gi}_${fi}`,
+                                gIdx: gi,
+                                fIdx: fi,
+                                label: `SFX: ${f.soundType || 'ding'}`,
+                                subLabel: `Lớp ${gi + 1} • Âm lượng: ${f.volume !== undefined ? f.volume : 80}%`,
+                                type: 'audio_sfx'
+                            });
+                        }
+                    });
+                }
+            });
+        }
+    }
+    return list;
+}
+
+/**
+ * Xử lý khi người dùng click vào một mục đối tượng trong accordion:
+ * 1. Chuyển sang kịch bản đó (loadSelectedParagraphProfile) để xem trước ngay trên khung review
+ * 2. Tạm thời áp dụng định dạng nguồn vào đối tượng đó để xem trước trực tiếp trên Canvas
+ */
+function previewBatchStyleTarget(profileId, type, targetKey, gIdx, fIdx) {
+    syncCurrentActiveProfileState();
+
+    // 1. Chuyển kịch bản đang hiển thị nếu khác kịch bản hiện tại
+    if (activeParagraphProfileId !== profileId && typeof loadSelectedParagraphProfile === 'function') {
+        loadSelectedParagraphProfile(profileId);
+    }
+
+    // 2. Tạm thời nạp định dạng từ đối tượng mẫu sang đối tượng này trong kịch bản để xem trước ngay
+    applyCurrentStylesToSpecificTarget(type, profileId, targetKey, gIdx, fIdx);
+
+    // 3. Render lại Canvas và timeline
+    if (typeof drawParagraphCanvasFrame === 'function') drawParagraphCanvasFrame();
+    if (typeof renderTimelineLayersListUI === 'function') renderTimelineLayersListUI();
+    if (typeof renderTimelineTracksUI === 'function') renderTimelineTracksUI();
+
+    // Cập nhật nhãn thông báo
+    if (typeof showToast === 'function') {
+        const prof = (savedParagraphProfiles || []).find(p => p.id === profileId) || paragraphGridConfig;
+        showToast(`Đang xem trước định dạng trên: "${prof ? prof.name : 'Kịch bản'}"`, 'info');
+    }
+}
+
+/**
+ * Bật/tắt checkbox của 1 đối tượng cụ thể
+ */
+function toggleBatchTargetCheckbox(profileId, targetKey, isChecked) {
+    const itemKey = `${profileId}:::${targetKey}`;
+    if (isChecked) {
+        batchStyleSelectedTargets.add(itemKey);
+    } else {
+        batchStyleSelectedTargets.delete(itemKey);
+    }
+    updateBatchStyleCountBadge();
+}
+
+/**
+ * Chọn tất cả / Bỏ chọn tất cả đối tượng trong toàn bộ kịch bản
+ */
+function toggleBatchSelectAllTargets(type, selectAll) {
+    const profiles = getBatchStyleProfilesList();
+    profiles.forEach(prof => {
+        const items = getEligibleObjectsInProfile(prof, type);
+        items.forEach(item => {
+            const itemKey = `${prof.id}:::${item.targetKey}`;
+            if (selectAll) {
+                batchStyleSelectedTargets.add(itemKey);
+            } else {
+                batchStyleSelectedTargets.delete(itemKey);
+            }
+        });
+    });
+
+    // Cập nhật lại các checkbox trên UI
+    document.querySelectorAll('.batch-target-checkbox').forEach(cb => {
+        cb.checked = selectAll;
+    });
+    updateBatchStyleCountBadge();
+}
+
+function updateBatchStyleCountBadge() {
+    const badge = document.getElementById('batch-style-count-badge');
+    if (badge) {
+        badge.innerText = `${batchStyleSelectedTargets.size} đã chọn`;
+    }
+}
+
+/**
+ * Áp dụng kiểu dáng hiện tại sang 1 đối tượng cụ thể trong kịch bản chỉ định
+ */
+function applyCurrentStylesToSpecificTarget(type, profileId, targetKey, gIdx, fIdx) {
+    const prof = (savedParagraphProfiles || []).find(p => p.id === profileId) || (activeParagraphProfileId === profileId ? paragraphGridConfig : null);
+    if (!prof) return;
+
+    if (type === 'excel_text') {
+        const activeKey = paragraphSelectedFieldKey || (selectedFieldKeysList && selectedFieldKeysList[0]) || "Substitution words";
+        const srcSt = paragraphFieldStyles[activeKey] || paragraphFieldStyles["Substitution words"];
+        if (!srcSt) return;
+
+        const textProps = [
+            'font', 'style', 'size', 'color', 'highlightColor', 'highlightPaddingX', 'highlightPaddingY',
+            'hAlign', 'vAlign', 'lineSpacing', 'underline', 'indentLeft', 'indentRight', 'spaceBefore',
+            'spaceAfter', 'boxBgColor', 'boxRadius', 'boxPadding', 'textWrap', 'shrinkToFit'
+        ];
+
+        if (!prof.fieldStyles) prof.fieldStyles = {};
+        if (!prof.fieldStyles[targetKey]) prof.fieldStyles[targetKey] = {};
+
+        textProps.forEach(p => {
+            if (srcSt[p] !== undefined) {
+                prof.fieldStyles[targetKey][p] = srcSt[p];
+            }
+        });
+
+        // Nếu kịch bản này đang là kịch bản hiện hành, đồng bộ luôn paragraphFieldStyles
+        if (activeParagraphProfileId === profileId && typeof paragraphFieldStyles !== 'undefined') {
+            if (!paragraphFieldStyles[targetKey]) paragraphFieldStyles[targetKey] = {};
+            textProps.forEach(p => {
+                if (srcSt[p] !== undefined) {
+                    paragraphFieldStyles[targetKey][p] = srcSt[p];
+                }
+            });
+        }
+    } else if (type === 'excel_image') {
+        const activeKey = paragraphSelectedFieldKey || "ten_file_dinh_kem";
+        const srcSt = paragraphFieldStyles[activeKey] || {};
+        const imgProps = ['width', 'height', 'posX', 'posY', 'boxRadius', 'opacity'];
+
+        if (!prof.fieldStyles) prof.fieldStyles = {};
+        if (!prof.fieldStyles[targetKey]) prof.fieldStyles[targetKey] = {};
+
+        imgProps.forEach(p => {
+            if (srcSt[p] !== undefined) {
+                prof.fieldStyles[targetKey][p] = srcSt[p];
+            }
+        });
+
+        if (activeParagraphProfileId === profileId && typeof paragraphFieldStyles !== 'undefined') {
+            if (!paragraphFieldStyles[targetKey]) paragraphFieldStyles[targetKey] = {};
+            imgProps.forEach(p => {
+                if (srcSt[p] !== undefined) {
+                    paragraphFieldStyles[targetKey][p] = srcSt[p];
+                }
+            });
+        }
+    } else if (type === 'custom_text') {
+        if (!selectedCustomTextTarget) return;
+        const srcGrp = paragraphGridConfig.groups && paragraphGridConfig.groups[selectedCustomTextTarget.gIdx];
+        const srcItem = (srcGrp && srcGrp.fields) ? srcGrp.fields[selectedCustomTextTarget.fIdx] : null;
+        if (!srcItem) return;
+
+        const targetGrp = prof.groups && prof.groups[gIdx];
+        const targetItem = (targetGrp && targetGrp.fields) ? targetGrp.fields[fIdx] : null;
+        if (targetItem && targetItem.type === 'custom_text') {
+            // Áp dụng toàn bộ định dạng: vị trí, kích thước, tọa độ tự do, phông chữ, màu sắc, viền nét, đổ bóng, hộp nền, bo góc, căn lề, tiền tố/hậu tố...
+            // TUYỆT ĐỐI KHÔNG ghi đè nội dung văn bản (targetItem.text), id, type
+            Object.keys(srcItem).forEach(p => {
+                if (p !== 'id' && p !== 'type' && p !== 'text') {
+                    targetItem[p] = srcItem[p];
+                }
+            });
+            if (srcItem.useCustomCoords !== undefined) targetItem.useCustomCoords = srcItem.useCustomCoords;
+            if (srcItem.posX !== undefined) targetItem.posX = srcItem.posX;
+            if (srcItem.posY !== undefined) targetItem.posY = srcItem.posY;
+            if (srcItem.width !== undefined) targetItem.width = srcItem.width;
+            if (srcItem.height !== undefined) targetItem.height = srcItem.height;
+            if (srcItem.prefix !== undefined) targetItem.prefix = srcItem.prefix;
+            if (srcItem.suffix !== undefined) targetItem.suffix = srcItem.suffix;
+        }
+
+        // Nếu kịch bản này đang là kịch bản hiện hành, đồng bộ trực tiếp sang bộ nhớ paragraphGridConfig
+        if (activeParagraphProfileId === profileId && paragraphGridConfig && paragraphGridConfig.groups && paragraphGridConfig.groups[gIdx]) {
+            const activeTargetItem = paragraphGridConfig.groups[gIdx].fields && paragraphGridConfig.groups[gIdx].fields[fIdx];
+            if (activeTargetItem && activeTargetItem.type === 'custom_text') {
+                Object.keys(srcItem).forEach(p => {
+                    if (p !== 'id' && p !== 'type' && p !== 'text') {
+                        activeTargetItem[p] = srcItem[p];
+                    }
+                });
+                if (srcItem.useCustomCoords !== undefined) activeTargetItem.useCustomCoords = srcItem.useCustomCoords;
+                if (srcItem.posX !== undefined) activeTargetItem.posX = srcItem.posX;
+                if (srcItem.posY !== undefined) activeTargetItem.posY = srcItem.posY;
+                if (srcItem.width !== undefined) activeTargetItem.width = srcItem.width;
+                if (srcItem.height !== undefined) activeTargetItem.height = srcItem.height;
+                if (srcItem.prefix !== undefined) activeTargetItem.prefix = srcItem.prefix;
+                if (srcItem.suffix !== undefined) activeTargetItem.suffix = srcItem.suffix;
+            }
+        }
+    } else if (type === 'countdown') {
+        if (!selectedCountdownTarget) return;
+        const srcGrp = paragraphGridConfig.groups && paragraphGridConfig.groups[selectedCountdownTarget.gIdx];
+        const srcItem = (srcGrp && srcGrp.fields) ? srcGrp.fields[selectedCountdownTarget.fIdx] : null;
+        if (!srcItem) return;
+
+        const countdownProps = [
+            'preset', 'colorShift', 'enableTickSound', 'tickSoundType', 'tickVolume',
+            'playEndChime', 'endSoundType', 'size', 'radius', 'fontSize', 'opacity',
+            'bgColor', 'bgOpacity', 'textColor', 'textShadow', 'shadowColor',
+            'textGlow', 'glowColor', 'textStroke', 'strokeColor', 'strokeWidth',
+            'position', 'posX', 'posY', 'useCustomCoords', 'width', 'height'
+        ];
+
+        const targetGrp = prof.groups && prof.groups[gIdx];
+        const targetItem = (targetGrp && targetGrp.fields) ? targetGrp.fields[fIdx] : null;
+        if (targetItem && targetItem.type === 'countdown') {
+            countdownProps.forEach(p => {
+                if (srcItem[p] !== undefined) {
+                    targetItem[p] = srcItem[p];
+                }
+            });
+        }
+
+        if (activeParagraphProfileId === profileId && paragraphGridConfig && paragraphGridConfig.groups && paragraphGridConfig.groups[gIdx]) {
+            const activeTargetItem = paragraphGridConfig.groups[gIdx].fields && paragraphGridConfig.groups[gIdx].fields[fIdx];
+            if (activeTargetItem && activeTargetItem.type === 'countdown') {
+                countdownProps.forEach(p => {
+                    if (srcItem[p] !== undefined) {
+                        activeTargetItem[p] = srcItem[p];
+                    }
+                });
+            }
+        }
+    } else if (type === 'progress_tracker') {
+        if (!selectedProgressTrackerTarget) return;
+        const srcGrp = paragraphGridConfig.groups && paragraphGridConfig.groups[selectedProgressTrackerTarget.gIdx];
+        const srcItem = (srcGrp && srcGrp.fields) ? srcGrp.fields[selectedProgressTrackerTarget.fIdx] : null;
+        if (!srcItem) return;
+
+        const trackerProps = [
+            'displayMode', 'textTemplate', 'position', 'barThickness', 'borderRadius',
+            'borderWidth', 'opacity', 'fontSize', 'fontWeight', 'pillBgColor', 'pillBgOpacity',
+            'borderColor', 'borderOpacity', 'barColor', 'barBgColor', 'barBgOpacity', 'textColor', 'shadow',
+            'posX', 'posY', 'useCustomCoords', 'width', 'height'
+        ];
+
+        const targetGrp = prof.groups && prof.groups[gIdx];
+        const targetItem = (targetGrp && targetGrp.fields) ? targetGrp.fields[fIdx] : null;
+        if (targetItem && targetItem.type === 'progress_tracker') {
+            trackerProps.forEach(p => {
+                if (srcItem[p] !== undefined) {
+                    targetItem[p] = srcItem[p];
+                }
+            });
+        }
+
+        if (activeParagraphProfileId === profileId && paragraphGridConfig && paragraphGridConfig.groups && paragraphGridConfig.groups[gIdx]) {
+            const activeTargetItem = paragraphGridConfig.groups[gIdx].fields && paragraphGridConfig.groups[gIdx].fields[fIdx];
+            if (activeTargetItem && activeTargetItem.type === 'progress_tracker') {
+                trackerProps.forEach(p => {
+                    if (srcItem[p] !== undefined) {
+                        activeTargetItem[p] = srcItem[p];
+                    }
+                });
+            }
+        }
+    } else if (type === 'audio_sfx') {
+        if (!selectedAudioSfxTarget) return;
+        const srcGrp = paragraphGridConfig.groups && paragraphGridConfig.groups[selectedAudioSfxTarget.gIdx];
+        const srcItem = (srcGrp && srcGrp.fields) ? srcGrp.fields[selectedAudioSfxTarget.fIdx] : null;
+        if (!srcItem) return;
+
+        const sfxProps = ['soundType', 'volume', 'ducking'];
+        const targetGrp = prof.groups && prof.groups[gIdx];
+        const targetItem = (targetGrp && targetGrp.fields) ? targetGrp.fields[fIdx] : null;
+        if (targetItem && targetItem.type === 'audio_sfx') {
+            sfxProps.forEach(p => {
+                if (srcItem[p] !== undefined) {
+                    if (p === 'soundType' && srcItem[p] === 'custom') return;
+                    targetItem[p] = srcItem[p];
+                }
+            });
+        }
+    }
+}
+
+/**
+ * Sinh khối giao diện Accordion danh sách kịch bản & đối tượng cùng loại
+ */
+function renderBatchStyleAccordionUI(type) {
+    const profiles = getBatchStyleProfilesList();
+    const typeNames = {
+        excel_text: { title: 'Thẻ Chữ Excel', color: 'emerald', border: 'border-emerald-500/50', bg: 'from-emerald-950/80 to-indigo-950/80', text: 'text-emerald-300', btn: 'bg-emerald-600 hover:bg-emerald-500' },
+        excel_image: { title: 'Thẻ Khung Ảnh', color: 'amber', border: 'border-amber-500/50', bg: 'from-amber-950/80 to-yellow-950/80', text: 'text-amber-300', btn: 'bg-amber-600 hover:bg-amber-500' },
+        custom_text: { title: 'Thẻ Chữ Tự Do', color: 'teal', border: 'border-teal-500/50', bg: 'from-teal-950/80 to-emerald-950/80', text: 'text-teal-300', btn: 'bg-teal-600 hover:bg-teal-500' },
+        countdown: { title: 'Thẻ Đồng Hồ', color: 'rose', border: 'border-rose-500/50', bg: 'from-rose-950/80 to-amber-950/80', text: 'text-rose-300', btn: 'bg-rose-600 hover:bg-rose-500' },
+        progress_tracker: { title: 'Thẻ Tiến Độ', color: 'teal', border: 'border-emerald-500/50', bg: 'from-emerald-950/80 to-teal-950/80', text: 'text-emerald-300', btn: 'bg-emerald-600 hover:bg-emerald-500' },
+        audio_sfx: { title: 'Thẻ Âm Thanh SFX', color: 'purple', border: 'border-purple-500/50', bg: 'from-purple-950/80 to-indigo-950/80', text: 'text-purple-300', btn: 'bg-purple-600 hover:bg-purple-500' }
+    };
+    const tConfig = typeNames[type] || typeNames.excel_text;
+
+    let totalEligibleCount = 0;
+    profiles.forEach(p => {
+        totalEligibleCount += getEligibleObjectsInProfile(p, type).length;
+    });
+
+    return `
+        <!-- BẢNG ĐIỀU KHIỂN ĐỒNG BỘ ĐỊNH DẠNG HÀNG LOẠT (ACCORDION DRAWER) -->
+        <div class="bg-gradient-to-r ${tConfig.bg} border ${tConfig.border} rounded-xl p-2.5 mb-2.5 shadow-sm space-y-2">
+            <!-- Header thanh Accordion -->
+            <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center space-x-2 min-w-0 cursor-pointer" onclick="toggleBatchStyleAccordion()">
+                    <div class="p-1.5 rounded-lg bg-black/30 ${tConfig.text} shrink-0">
+                        <i data-lucide="layers" class="w-4 h-4"></i>
+                    </div>
+                    <div class="truncate">
+                        <div class="flex items-center space-x-1.5">
+                            <span class="text-[11px] font-extrabold ${tConfig.text} truncate">Đồng Bộ Định Dạng Mọi Kịch Bản</span>
+                            <span id="batch-style-count-badge" class="text-[8px] bg-black/40 px-1.5 py-0.5 rounded font-bold text-slate-300 border border-slate-700/60">${batchStyleSelectedTargets.size} đã chọn</span>
+                        </div>
+                        <span class="block text-[8.5px] text-slate-300/80 truncate">Tích chọn để áp dụng cho ${totalEligibleCount} đối tượng qua ${profiles.length} kịch bản</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-1 shrink-0">
+                    <button type="button" onclick="applyCurrentStylesToAllSameType('${type}')" class="py-1.5 px-2.5 ${tConfig.btn} text-white rounded-lg text-[10px] font-black flex items-center space-x-1 transition shadow active:scale-95" title="Áp dụng định dạng cho các đối tượng đã tích chọn">
+                        <i data-lucide="check-check" class="w-3.5 h-3.5"></i>
+                        <span>Áp Dụng Tất Cả</span>
+                    </button>
+                    <button type="button" onclick="toggleBatchStyleAccordion()" class="p-1.5 text-slate-300 hover:text-white rounded-lg hover:bg-white/10 transition" title="Mở/Thu gọn danh sách kịch bản">
+                        <i id="batch-style-chevron-icon" data-lucide="chevron-down" class="w-4 h-4 transition-transform duration-200" style="transform: ${batchStyleAccordionOpen ? 'rotate(180deg)' : 'rotate(0deg)'}"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Ngăn kéo danh sách kịch bản & đối tượng (Mặc định uncheck, bấm là preview ngay) -->
+            <div id="batch-style-accordion-content" class="${batchStyleAccordionOpen ? '' : 'hidden'} pt-2 border-t border-white/10 space-y-2">
+                <div class="flex items-center justify-between text-[9px]">
+                    <span class="text-slate-300 font-bold">Danh sách kịch bản & đối tượng:</span>
+                    <div class="flex items-center space-x-2">
+                        <button type="button" onclick="toggleBatchSelectAllTargets('${type}', true)" class="text-amber-300 hover:underline font-bold">Chọn hết</button>
+                        <span class="text-slate-500">|</span>
+                        <button type="button" onclick="toggleBatchSelectAllTargets('${type}', false)" class="text-slate-400 hover:underline">Bỏ chọn hết</button>
+                    </div>
+                </div>
+
+                <div class="max-h-56 overflow-y-auto space-y-1.5 pr-0.5 custom-scrollbar">
+                    ${profiles.map(prof => {
+                        const items = getEligibleObjectsInProfile(prof, type);
+                        const isActiveProf = (prof.id === activeParagraphProfileId);
+                        if (items.length === 0) return '';
+
+                        return `
+                            <div class="bg-slate-950/80 border ${isActiveProf ? 'border-indigo-500/70' : 'border-slate-800'} rounded-lg p-2 space-y-1.5 shadow-inner">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[9.5px] font-extrabold ${isActiveProf ? 'text-indigo-300' : 'text-slate-200'} flex items-center space-x-1.5 truncate">
+                                        <i data-lucide="film" class="w-3 h-3 ${isActiveProf ? 'text-indigo-400' : 'text-slate-400'} shrink-0"></i>
+                                        <span class="truncate">${prof.name || 'Kịch bản'}</span>
+                                        ${isActiveProf ? '<span class="text-[7px] bg-indigo-950 text-indigo-300 border border-indigo-700/80 px-1 rounded uppercase tracking-wider font-mono shrink-0">Đang mở</span>' : ''}
+                                    </span>
+                                    <span class="text-[8px] font-mono text-slate-400 shrink-0">${items.length} mục</span>
+                                </div>
+
+                                <div class="grid grid-cols-1 gap-1">
+                                    ${items.map(item => {
+                                        const itemKey = `${prof.id}:::${item.targetKey}`;
+                                        const isChecked = batchStyleSelectedTargets.has(itemKey);
+                                        const gIdxArg = item.gIdx !== undefined ? item.gIdx : 0;
+                                        const fIdxArg = item.fIdx !== undefined ? item.fIdx : 0;
+
+                                        return `
+                                            <div class="flex items-center justify-between bg-slate-900/90 hover:bg-slate-850 p-1.5 rounded border border-slate-800/80 transition text-[9px] group">
+                                                <div class="flex items-center space-x-2 min-w-0 flex-grow cursor-pointer" onclick="previewBatchStyleTarget('${prof.id}', '${type}', '${item.targetKey}', ${gIdxArg}, ${fIdxArg})" title="Nhấp để xem trước kịch bản này trên Canvas">
+                                                    <i data-lucide="eye" class="w-3 h-3 text-slate-400 group-hover:text-amber-400 transition shrink-0"></i>
+                                                    <div class="truncate">
+                                                        <span class="font-bold text-slate-200 group-hover:text-amber-200 transition block truncate">${item.label}</span>
+                                                        <span class="text-[7.5px] text-slate-400 block truncate">${item.subLabel}</span>
+                                                    </div>
+                                                </div>
+
+                                                <label class="flex items-center space-x-1.5 cursor-pointer pl-2 border-l border-slate-800 shrink-0">
+                                                    <input type="checkbox" class="batch-target-checkbox w-3.5 h-3.5 rounded border-slate-700 bg-slate-950 text-emerald-500 focus:ring-0 cursor-pointer" ${isChecked ? 'checked' : ''} onchange="toggleBatchTargetCheckbox('${prof.id}', '${item.targetKey}', this.checked)">
+                                                </label>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <div class="text-[8px] text-slate-400 italic text-center pt-0.5">
+                    * Mẹo: Nhấp vào dòng đối tượng để xem trước ngay trên khung Canvas. Sau đó bấm "Áp Dụng Tất Cả" để lưu cho các mục đã tích chọn.
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * ÁP DỤNG CHUNG CHO CÁC THẺ / ĐỐI TƯỢNG ĐÃ CHỌN HOẶC TOÀN BỘ CÙNG LOẠI
+ * Hỗ trợ đồng bộ xuyên suốt mọi kịch bản (savedParagraphProfiles)
+ */
+function applyCurrentStylesToAllSameType(type) {
+    syncCurrentActiveProfileState();
+    const profiles = getBatchStyleProfilesList();
+    let appliedCount = 0;
+
+    // Nếu người dùng có tích chọn một số đối tượng cụ thể trong Accordion
+    if (batchStyleSelectedTargets.size > 0) {
+        batchStyleSelectedTargets.forEach(itemKey => {
+            const [profileId, targetKey] = itemKey.split(':::');
+            if (!profileId || !targetKey) return;
+
+            const prof = profiles.find(p => p.id === profileId) || (activeParagraphProfileId === profileId ? paragraphGridConfig : null);
+            if (!prof) return;
+
+            const items = getEligibleObjectsInProfile(prof, type);
+            const foundItem = items.find(it => it.targetKey === targetKey);
+            if (foundItem) {
+                applyCurrentStylesToSpecificTarget(type, profileId, targetKey, foundItem.gIdx, foundItem.fIdx);
+                appliedCount++;
+            }
+        });
+        showToast(`Đã áp dụng thành công định dạng (vị trí, kích thước, kiểu dáng) cho ${appliedCount} đối tượng được chọn qua các kịch bản! (Giữ nguyên nội dung văn bản)`, "success");
+    } else {
+        // Mặc định nếu không có checkbox nào tích chọn riêng: áp dụng cho toàn bộ đối tượng cùng loại trong kịch bản hiện hành
+        // VÀ hỏi người dùng hoặc áp dụng cho các kịch bản
+        if (type === 'excel_text') {
+            const activeKey = paragraphSelectedFieldKey || (selectedFieldKeysList && selectedFieldKeysList[0]) || "Substitution words";
+            const srcSt = paragraphFieldStyles[activeKey] || paragraphFieldStyles["Substitution words"];
+            if (!srcSt) {
+                showToast("Không tìm thấy định dạng nguồn để áp dụng!", "error");
+                return;
+            }
+
+            const textProps = [
+                'font', 'style', 'size', 'color', 'highlightColor', 'highlightPaddingX', 'highlightPaddingY',
+                'hAlign', 'vAlign', 'lineSpacing', 'underline', 'indentLeft', 'indentRight', 'spaceBefore',
+                'spaceAfter', 'boxBgColor', 'boxRadius', 'boxPadding', 'textWrap', 'shrinkToFit'
+            ];
+
+            // Áp dụng cho mọi thẻ chữ trong paragraphFieldStyles
+            Object.keys(paragraphFieldStyles).forEach(key => {
+                const isImg = key.toLowerCase().includes('anh') || key.toLowerCase().includes('dinh_kem') || (paragraphFieldStyles[key] && paragraphFieldStyles[key].type === 'image');
+                if (!isImg && key !== activeKey) {
+                    textProps.forEach(p => {
+                        if (srcSt[p] !== undefined) {
+                            paragraphFieldStyles[key][p] = srcSt[p];
+                        }
+                    });
+                    appliedCount++;
+                }
+            });
+
+            // Khởi tạo luôn cho các cột văn bản Excel chưa có trong paragraphFieldStyles
+            if (Array.isArray(excelColumnsList)) {
+                excelColumnsList.forEach(col => {
+                    const isImg = col.toLowerCase().includes('anh') || col.toLowerCase().includes('dinh_kem');
+                    if (!isImg && !paragraphFieldStyles[col]) {
+                        paragraphFieldStyles[col] = {};
+                        textProps.forEach(p => {
+                            if (srcSt[p] !== undefined) {
+                                paragraphFieldStyles[col][p] = srcSt[p];
+                            }
+                        });
+                        appliedCount++;
+                    }
+                });
+            }
+
+            showToast(`Đã áp dụng định dạng {{${activeKey}}} cho toàn bộ ${appliedCount + 1} thẻ chữ Excel!`, "success");
+        } else if (type === 'excel_image') {
+            const activeKey = paragraphSelectedFieldKey || "ten_file_dinh_kem";
+            const srcSt = paragraphFieldStyles[activeKey] || {};
+            const imgProps = ['width', 'height', 'posX', 'posY', 'boxRadius', 'opacity'];
+
+            Object.keys(paragraphFieldStyles).forEach(key => {
+                const isImg = key.toLowerCase().includes('anh') || key.toLowerCase().includes('dinh_kem') || (paragraphFieldStyles[key] && paragraphFieldStyles[key].type === 'image');
+                if (isImg && key !== activeKey) {
+                    imgProps.forEach(p => {
+                        if (srcSt[p] !== undefined) {
+                            paragraphFieldStyles[key][p] = srcSt[p];
+                        }
+                    });
+                    appliedCount++;
+                }
+            });
+
+            showToast(`Đã áp dụng thông số khung ảnh cho toàn bộ ${appliedCount + 1} thẻ hình ảnh!`, "success");
+        } else if (type === 'custom_text') {
+            if (!selectedCustomTextTarget) {
+                showToast("Vui lòng chọn một Thẻ Chữ Tự Do để làm mẫu!", "error");
+                return;
+            }
+            const { gIdx, fIdx } = selectedCustomTextTarget;
+            const grp = paragraphGridConfig.groups && paragraphGridConfig.groups[gIdx];
+            const srcItem = (grp && grp.fields) ? grp.fields[fIdx] : null;
+            if (!srcItem) return;
+
+            if (Array.isArray(paragraphGridConfig.groups)) {
+                paragraphGridConfig.groups.forEach((g, gi) => {
+                    if (Array.isArray(g.fields)) {
+                        g.fields.forEach((f, fi) => {
+                            if (f.type === 'custom_text' && (gi !== gIdx || fi !== fIdx)) {
+                                Object.keys(srcItem).forEach(p => {
+                                    if (p !== 'id' && p !== 'type' && p !== 'text') {
+                                        f[p] = srcItem[p];
+                                    }
+                                });
+                                if (srcItem.useCustomCoords !== undefined) f.useCustomCoords = srcItem.useCustomCoords;
+                                if (srcItem.posX !== undefined) f.posX = srcItem.posX;
+                                if (srcItem.posY !== undefined) f.posY = srcItem.posY;
+                                if (srcItem.width !== undefined) f.width = srcItem.width;
+                                if (srcItem.height !== undefined) f.height = srcItem.height;
+                                if (srcItem.prefix !== undefined) f.prefix = srcItem.prefix;
+                                if (srcItem.suffix !== undefined) f.suffix = srcItem.suffix;
+                                appliedCount++;
+                            }
+                        });
+                    }
+                });
+            }
+
+            showToast(`Đã áp dụng định dạng (vị trí, kích thước, kiểu dáng) cho toàn bộ ${appliedCount + 1} thẻ Chữ Tự Do trong mọi lớp! (Giữ nguyên nội dung văn bản)`, "success");
+        } else if (type === 'countdown') {
+            if (!selectedCountdownTarget) {
+                showToast("Vui lòng chọn một Thẻ Đồng Hồ để làm mẫu!", "error");
+                return;
+            }
+            const { gIdx, fIdx } = selectedCountdownTarget;
+            const grp = paragraphGridConfig.groups && paragraphGridConfig.groups[gIdx];
+            const srcItem = (grp && grp.fields) ? grp.fields[fIdx] : null;
+            if (!srcItem) return;
+
+            const countdownProps = [
+                'preset', 'colorShift', 'enableTickSound', 'tickSoundType', 'tickVolume',
+                'playEndChime', 'endSoundType', 'size', 'radius', 'fontSize', 'opacity',
+                'bgColor', 'bgOpacity', 'textColor', 'textShadow', 'shadowColor',
+                'textGlow', 'glowColor', 'textStroke', 'strokeColor', 'strokeWidth',
+                'position', 'posX', 'posY', 'useCustomCoords', 'width', 'height'
+            ];
+
+            if (Array.isArray(paragraphGridConfig.groups)) {
+                paragraphGridConfig.groups.forEach((g, gi) => {
+                    if (Array.isArray(g.fields)) {
+                        g.fields.forEach((f, fi) => {
+                            if (f.type === 'countdown' && (gi !== gIdx || fi !== fIdx)) {
+                                countdownProps.forEach(p => {
+                                    if (srcItem[p] !== undefined) {
+                                        f[p] = srcItem[p];
+                                    }
+                                });
+                                appliedCount++;
+                            }
+                        });
+                    }
+                });
+            }
+
+            showToast(`Đã áp dụng giao diện & vị trí cho toàn bộ ${appliedCount + 1} thẻ Đồng Hồ Đếm Ngược!`, "success");
+        } else if (type === 'progress_tracker') {
+            if (!selectedProgressTrackerTarget) {
+                showToast("Vui lòng chọn một Thẻ Tiến Độ để làm mẫu!", "error");
+                return;
+            }
+            const { gIdx, fIdx } = selectedProgressTrackerTarget;
+            const grp = paragraphGridConfig.groups && paragraphGridConfig.groups[gIdx];
+            const srcItem = (grp && grp.fields) ? grp.fields[fIdx] : null;
+            if (!srcItem) return;
+
+            const trackerProps = [
+                'displayMode', 'textTemplate', 'position', 'barThickness', 'borderRadius',
+                'borderWidth', 'opacity', 'fontSize', 'fontWeight', 'pillBgColor', 'pillBgOpacity',
+                'borderColor', 'borderOpacity', 'barColor', 'barBgColor', 'barBgOpacity', 'textColor', 'shadow',
+                'posX', 'posY', 'useCustomCoords', 'width', 'height'
+            ];
+
+            if (Array.isArray(paragraphGridConfig.groups)) {
+                paragraphGridConfig.groups.forEach((g, gi) => {
+                    if (Array.isArray(g.fields)) {
+                        g.fields.forEach((f, fi) => {
+                            if (f.type === 'progress_tracker' && (gi !== gIdx || fi !== fIdx)) {
+                                trackerProps.forEach(p => {
+                                    if (srcItem[p] !== undefined) {
+                                        f[p] = srcItem[p];
+                                    }
+                                });
+                                appliedCount++;
+                            }
+                        });
+                    }
+                });
+            }
+
+            showToast(`Đã áp dụng cài đặt cho toàn bộ ${appliedCount + 1} thẻ Tiến Độ!`, "success");
+        } else if (type === 'audio_sfx') {
+            if (!selectedAudioSfxTarget) {
+                showToast("Vui lòng chọn một Thẻ SFX để làm mẫu!", "error");
+                return;
+            }
+            const { gIdx, fIdx } = selectedAudioSfxTarget;
+            const grp = paragraphGridConfig.groups && paragraphGridConfig.groups[gIdx];
+            const srcItem = (grp && grp.fields) ? grp.fields[fIdx] : null;
+            if (!srcItem) return;
+
+            const sfxProps = ['soundType', 'volume', 'ducking'];
+
+            if (Array.isArray(paragraphGridConfig.groups)) {
+                paragraphGridConfig.groups.forEach((g, gi) => {
+                    if (Array.isArray(g.fields)) {
+                        g.fields.forEach((f, fi) => {
+                            if (f.type === 'audio_sfx' && (gi !== gIdx || fi !== fIdx)) {
+                                sfxProps.forEach(p => {
+                                    if (srcItem[p] !== undefined) {
+                                        if (p === 'soundType' && srcItem[p] === 'custom') return;
+                                        f[p] = srcItem[p];
+                                    }
+                                });
+                                appliedCount++;
+                            }
+                        });
+                    }
+                });
+            }
+
+            showToast(`Đã áp dụng âm lượng & cài đặt cho toàn bộ ${appliedCount + 1} thẻ Âm Thanh SFX!`, "success");
+        }
+    }
+
+    // Đồng bộ lại vào profile lưu trữ & lưu hệ thống
+    syncCurrentActiveProfileState();
+    if (typeof saveFullSystemState === 'function') saveFullSystemState();
+    if (typeof renderTimelineLayersListUI === 'function') renderTimelineLayersListUI();
+    if (typeof renderTimelineTracksUI === 'function') renderTimelineTracksUI();
+    if (typeof drawParagraphCanvasFrame === 'function') drawParagraphCanvasFrame();
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
+    renderInspectorRibbon();
+}
+
 function renderInspectorRibbon() {
     const body = document.getElementById('inspector-panel-body');
     const targetLabel = document.getElementById('inspector-target-label');
@@ -894,6 +1717,9 @@ function renderInspectorRibbon() {
 
         body.innerHTML = `
             <div class="space-y-3 bg-slate-900 p-3 rounded-xl border border-amber-500/50 text-xs">
+                <!-- NÚT ÁP DỤNG CHUNG CHO TOÀN BỘ THẺ ẢNH (ACCORDION MỌI KỊCH BẢN) -->
+                ${renderBatchStyleAccordionUI('excel_image')}
+
                 <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
                     <span class="font-extrabold text-amber-300 flex items-center space-x-1.5">
                         <i data-lucide="image" class="w-4 h-4 text-amber-400"></i>
@@ -953,6 +1779,9 @@ function renderInspectorRibbon() {
     const curPadY = st.highlightPaddingY !== undefined ? st.highlightPaddingY : 4;
 
     body.innerHTML = `
+        <!-- NÚT ÁP DỤNG CHUNG CHO TOÀN BỘ THẺ CHỮ EXCEL (ACCORDION MỌI KỊCH BẢN) -->
+        ${renderBatchStyleAccordionUI('excel_text')}
+
         <div class="space-y-2 bg-slate-900 p-2.5 rounded-xl border border-slate-800">
             <span class="text-[9px] font-bold text-indigo-300 uppercase tracking-wider block">1. Phông Chữ & Màu Sắc</span>
             <div class="flex flex-wrap items-center gap-1">
@@ -1210,3 +2039,12 @@ function toggleAllFieldChipsVisibility() {
     const container = document.getElementById('mail-merge-chips-container');
     if (container) container.classList.toggle('hidden');
 }
+
+// Window global bindings for batch styling and preview
+window.toggleBatchStyleAccordion = toggleBatchStyleAccordion;
+window.previewBatchStyleTarget = previewBatchStyleTarget;
+window.toggleBatchTargetCheckbox = toggleBatchTargetCheckbox;
+window.toggleBatchSelectAllTargets = toggleBatchSelectAllTargets;
+window.applyCurrentStylesToAllSameType = applyCurrentStylesToAllSameType;
+window.renderBatchStyleAccordionUI = renderBatchStyleAccordionUI;
+

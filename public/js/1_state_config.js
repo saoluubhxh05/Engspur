@@ -4,15 +4,100 @@
  */
 
 var APP_VERSION_INFO = {
-    version: "V14.8",
-    releaseDate: "19/09/2026",
+    version: "V15.6",
+    releaseDate: "21/09/2026",
     status: "Mới nhất & Ổn định",
-    summary: "Bản nâng cấp V14.8: Tinh giản bảng điều khiển định dạng đối tượng, xóa khung cài đặt 'Nhãn phụ dưới đồng hồ' giúp giao diện đồng hồ đếm ngược gọn gàng, tập trung tối đa vào trải nghiệm canh giờ và thị giác.",
+    summary: "Bản nâng cấp V15.6: Nâng cấp toàn diện tính năng 'Áp Dụng Tất Cả' trong thanh định dạng. Tự động sao chép và áp dụng trọn vẹn vị trí X-Y, kích thước Rộng-Cao, tọa độ tự do, bo góc, căn lề, viền, bóng, màu sắc và tiền tố/hậu tố cho tất cả đối tượng được tích chọn qua các kịch bản, đồng thời bảo toàn 100% nội dung văn bản gốc của từng đối tượng.",
     categories: [
+        {
+            title: "Đồng Bộ Vị Trí, Kích Thước & Toàn Diện Định Dạng (V15.6)",
+            icon: "copy-check",
+            color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/30",
+            items: [
+                "Áp dụng trọn vẹn vị trí & kích thước: Khi bấm 'Áp Dụng Tất Cả', toàn bộ vị trí (X, Y), kích thước (Rộng, Cao), chế độ tọa độ tự do, bo góc, căn lề và tỷ lệ co giãn được sao chép chuẩn xác sang các đối tượng đã tích chọn.",
+                "Bảo toàn 100% Nội dung văn bản: Giữ nguyên vẹn tuyệt đối nội dung chữ gốc của từng thẻ, đảm bảo không bị ghi đè văn bản khi đồng bộ kiểu dáng và layout hàng loạt qua các kịch bản.",
+                "Đồng bộ tức thì trên Canvas & Bộ nhớ: Tự động cập nhật trực tiếp cả kịch bản đang mở lẫn tất cả kịch bản được lưu trữ trong danh sách.",
+                "Tương thích toàn diện mọi loại đối tượng: Hỗ trợ trọn vẹn Thẻ Chữ Tự Do, Thẻ Đồng Hồ Đếm Ngược, Thẻ Tiến Độ, Khung Ảnh và Thẻ Chữ Excel."
+            ]
+        },
+        {
+            title: "Tối Ưu Bộ Nhớ Tự Động Lưu & Lịch Sử Hoàn Tác (V15.5)",
+            icon: "shield-check",
+            color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+            items: [
+                "Giới hạn 20 bước hoàn tác siêu nhẹ: Chuẩn hóa 20 bước Undo/Redo tối ưu, loại bỏ hoàn toàn các chuỗi âm thanh và ảnh Base64 nặng ẩn trong lịch sử, giảm tới 80% RAM tiêu thụ.",
+                "Tự động lưu thông minh (Smart Debounce & Queue): Gom trễ hợp lý (1000ms) khi chỉnh sửa liên tục, xếp hàng lưu tuần tự chống nghẽn I/O và loại bỏ hoàn toàn hiện tượng khựng giật giao diện.",
+                "Cơ chế cứu hộ chống đầy bộ nhớ (IndexedDB Quota Defense): Tự động phát hiện khi bộ nhớ trình duyệt chạm ngưỡng giới hạn, ưu tiên bảo toàn 100% kịch bản, lưới cột, timeline và dữ liệu chữ Excel.",
+                "Thu hồi bộ nhớ RAM khi Render: Tự động dọn dẹp ngăn xếp lịch sử cũ trước khi chạy xuất video hàng loạt, tối ưu hóa tài nguyên cho MediaRecorder."
+            ]
+        },
+        {
+            title: "Mặt Nạ Cắt Logo Tròn Sát Khít & Tùy Chỉnh Viền (V15.4)",
+            icon: "crop",
+            color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            items: [
+                "Tự động gọt sát viền mép (Crop Inset): Mặc định tự động thu mặt nạ tròn vào 5% để gọt sạch mọi viền trắng hoặc khoảng đệm thừa ngoài mép logo.",
+                "Thanh trượt tinh chỉnh độ sát viền (0% - 25%): Cho phép bạn kéo trượt tùy biến độ ôm sát khít của đường tròn, xem trước tức thì trên Canvas Preview.",
+                "Đồng bộ lưu trữ & Profile: Giữ nguyên thông số thu viền trong cấu hình dự án và xuất/nhập file JSON an toàn."
+            ]
+        },
+        {
+            title: "Lọc Sạch Âm Thanh Base64 Ẩn Cho Bản Siêu Nhẹ (V15.3)",
+            icon: "file-check-2",
+            color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+            items: [
+                "Lọc sạch dữ liệu âm thanh Base64 ẩn: Tự động phát hiện và loại bỏ triệt để toàn bộ chuỗi customAudioData (âm thanh tải lên) ẩn sâu trong các thẻ và nhóm kịch bản con.",
+                "Giảm dung lượng thực tế từ 58MB xuống < 100 KB: Giải quyết triệt để tình trạng file Bản Siêu Nhẹ bị nặng do nhân bản âm thanh qua nhiều profile kịch bản.",
+                "Bảo toàn 100% kịch bản & khôi phục thông minh: Giữ nguyên tên tệp âm thanh, thời lượng đếm ngược, timeline và cấu hình chữ Excel; tự động liên kết lại âm thanh sẵn có trên máy khi nhập file."
+            ]
+        },
+        {
+            title: "Tối Ưu Xuất File JSON & 3 Chế Độ Linh Hoạt (V15.2)",
+            icon: "download",
+            color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/30",
+            items: [
+                "Hộp thoại xuất thông minh 3 lựa chọn: Khi nhấn 'Xuất File', giao diện hiển thị bảng chọn trực quan giữa Bản Siêu Nhẹ, Bản Nén Tối Ưu và Bản Gốc Đầy Đủ.",
+                "Bản Siêu Nhẹ (Khuyên dùng - Giảm ~98%): Chỉ lưu toàn bộ kịch bản, lưới cột, Timeline, cấu hình Render và dữ liệu chữ Excel; loại bỏ hoàn toàn các chuỗi ảnh Base64 giúp file chỉ còn vài chục KB, tải và gửi cực nhanh.",
+                "Bản Nén Tối Ưu (Có đủ ảnh - Giảm ~80%): Tự động nén kích thước ảnh JPEG chuẩn video 720p bằng Canvas API và thu gọn mã JSON, giữ trọn vẹn hình ảnh để mở trên máy khác mà không cần nạp lại ảnh.",
+                "Bảo toàn dữ liệu & Khôi phục thông minh: Khôi phục nguyên vẹn 100% khi nhập lại; tự động giữ nguyên ảnh cục bộ đang có nếu nhập file bản siêu nhẹ."
+            ]
+        },
+        {
+            title: "Hoàn Tác & Làm Lại (Undo / Redo) Chuẩn Studio (V15.1)",
+            icon: "undo-2",
+            color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            items: [
+                "Bộ đôi nút Undo & Redo trực quan: Thay thế vị trí nút Nạp Mẫu Thử và Lưu Máy trên thanh Header, hỗ trợ hoàn tác và làm lại tức thì.",
+                "Phím tắt toàn năng: Hỗ trợ phím tắt tiêu chuẩn Ctrl+Z để Hoàn tác (Undo) và Ctrl+Y hoặc Ctrl+Shift+Z để Làm lại (Redo).",
+                "Quản lý lịch sử thay đổi thông minh: Tự động lưu vết các thao tác thêm, sửa, xóa lớp, căn chỉnh lưới, định dạng màu sắc, đồng hồ, tiến độ và dòng thời gian.",
+                "Trạng thái nút mờ thông minh: Tự động khóa mờ khi không còn thao tác để Undo/Redo và hiển thị thông báo trạng thái Toast tức thì."
+            ]
+        },
+        {
+            title: "Áp Dụng Chung Cho Toàn Bộ Thẻ Cùng Loại (V15.0)",
+            icon: "copy-check",
+            color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+            items: [
+                "Nút 1-Chạm 'Áp Dụng Tất Cả': Xuất hiện nổi bật ngay đầu mỗi bảng cài đặt thuộc tính (Thẻ chữ Excel, Chữ tự do, Đồng hồ đếm ngược, Thanh tiến độ, Âm thanh SFX, Khung ảnh).",
+                "Đồng bộ chuẩn xác theo loại đối tượng: Tự động quét toàn bộ kịch bản, sao chép trọn vẹn phông chữ, cỡ chữ, màu chữ, nền, bo góc, vệt highlight, viền nét, âm lượng sang mọi thẻ cùng loại.",
+                "Bảo toàn nội dung và thời lượng riêng: Chỉ đồng bộ phong cách thiết kế, giữ nguyên văn bản và nội dung riêng biệt của từng thẻ.",
+                "Thông báo trạng thái trực quan: Hiển thị ngay số lượng thẻ đã được cập nhật thành công và tự động lưu trạng thái vào bộ nhớ."
+            ]
+        },
+        {
+            title: "Tối Ưu Hiển Thị Logo Tròn & Khử Nền Trắng (V14.9)",
+            icon: "circle",
+            color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            items: [
+                "Cắt khung Logo hình tròn (Circular Mask): Tự động tạo mặt nạ hình tròn vừa khít với tâm ảnh, triệt tiêu hoàn toàn 4 góc vuông trắng của file ảnh.",
+                "Tự động khử nền trắng (Remove White Background): Bộ lọc pixel thông minh biến toàn bộ nền trắng xung quanh logo thành trong suốt 100%.",
+                "Chuyển đổi 1 chạm linh hoạt: Các nút bấm chọn nhanh 'Hình Tròn', 'Chữ Nhật Bo Góc' và thanh gạt 'Khử nền trắng' tích hợp ngay trong bảng điều khiển Logo."
+            ]
+        },
         {
             title: "Tinh Giản Giao Diện Đồng Hồ (V14.8)",
             icon: "minimize-2",
-            color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/30",
             items: [
                 "Lược bỏ khung 'Nhãn phụ dưới đồng hồ' (Sub-Label) trong bảng điều khiển đối tượng.",
                 "Giao diện gọn gàng, liền mạch: Các thanh cấu hình thời lượng, âm thanh tích tắc và màu sắc hiển thị tối ưu hơn."
@@ -768,7 +853,7 @@ var videoConfig = {
     ttsVoice: 'edge:en-US-JennyNeural',
     ttsRate: 0.95,
     bgImageStyle: { widthPct: 100, heightPct: 100, posX: 0, posY: 0, opacity: 100 },
-    badgeStyle: { widthPct: 15, heightPct: 10, posX: 82, posY: 4, opacity: 100, borderRadius: 20 }
+    badgeStyle: { widthPct: 15, heightPct: 10, posX: 82, posY: 4, opacity: 100, borderRadius: 20, isCircle: true, removeWhiteBg: false, maskInsetPct: 5 }
 };
 
 var isPopoverDragging = false;

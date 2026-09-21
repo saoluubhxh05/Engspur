@@ -398,9 +398,38 @@ function renderVersionChangelogModal() {
 window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         closeVersionChangelogModal();
+        if (typeof closeExportWorkspaceModal === 'function') closeExportWorkspaceModal();
         if (typeof closeSaveFileModal === 'function') closeSaveFileModal();
         if (typeof closeFloatingPopover === 'function') closeFloatingPopover();
         if (typeof closeBatchNamingPopover === 'function') closeBatchNamingPopover();
+    }
+
+    // Phím tắt Studio Hoàn tác (Ctrl+Z) và Làm lại (Ctrl+Y / Ctrl+Shift+Z)
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const modifier = isMac ? e.metaKey : e.ctrlKey;
+
+    if (modifier) {
+        const activeTag = document.activeElement ? document.activeElement.tagName : '';
+        const isEditable = document.activeElement && (
+            activeTag === 'TEXTAREA' || 
+            (activeTag === 'INPUT' && ['text', 'search', 'email', 'url', 'password', 'number'].includes(document.activeElement.type)) ||
+            document.activeElement.isContentEditable
+        );
+
+        // Ctrl + Z (Undo)
+        if (e.key.toLowerCase() === 'z' && !e.shiftKey) {
+            if (!isEditable && typeof executeStudioUndo === 'function') {
+                e.preventDefault();
+                executeStudioUndo();
+            }
+        }
+        // Ctrl + Y hoặc Ctrl + Shift + Z (Redo)
+        else if ((e.key.toLowerCase() === 'y' && !e.shiftKey) || (e.key.toLowerCase() === 'z' && e.shiftKey)) {
+            if (!isEditable && typeof executeStudioRedo === 'function') {
+                e.preventDefault();
+                executeStudioRedo();
+            }
+        }
     }
 });
 
@@ -436,6 +465,12 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     if (typeof loadFullSystemState === 'function') {
         await loadFullSystemState(false);
+    }
+    if (typeof updateUndoRedoButtonsUI === 'function') {
+        updateUndoRedoButtonsUI();
+    }
+    if (window.lucide && lucide.createIcons) {
+        lucide.createIcons();
     }
     if (typeof drawParagraphCanvasFrame === 'function') {
         drawParagraphCanvasFrame();
