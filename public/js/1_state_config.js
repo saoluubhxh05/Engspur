@@ -4,11 +4,34 @@
  */
 
 var APP_VERSION_INFO = {
-    version: "V16.1",
-    releaseDate: "21/09/2026",
+    version: "V16.3",
+    releaseDate: "23/09/2026",
     status: "Mới nhất & Ổn định",
-    summary: "Bản nâng cấp V16.1: Tích hợp Thẻ Video (Clip & Nền) độc lập và động nối cột Excel, hỗ trợ toàn diện định dạng kích thước, vị trí, căn vừa khung, âm lượng và lặp lại.",
+    summary: "Bản nâng cấp V16.3: Thiết kế Giao diện Phân Tầng 2 Dòng (2-Row Studio Bar) chuyên nghiệp. Dòng 1 tích hợp Logo, 2 chế độ Studio Canvas / Render hàng loạt, Undo/Redo và Xuất/Nhập file; Dòng 2 trải rộng 100% thanh 5 Subtabs thao tác thoáng đãng và mượt mà.",
     categories: [
+        {
+            title: "Giao Diện Phân Tầng 2 Dòng & 5 Subtabs Trải Rộng (V16.3)",
+            icon: "layout",
+            color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/30",
+            items: [
+                "Giao diện Phân Tầng 2 Dòng (2-Row Studio Bar): Loại bỏ hoàn toàn thanh cuộn ngang gây che khuất ở Header, tạo không gian thao tác thoáng đãng và chuyên nghiệp.",
+                "Dòng 1 (Điều hướng & Thao tác chính): Bố trí liền mạch Logo Studio, 2 chế độ trọng tâm (Studio Canvas & Render Hàng Loạt), cụm Undo/Redo cùng nút Xuất/Nhập file JSON.",
+                "Dòng 2 (Thanh 5 Subtabs Trải Rộng 100%): Tự động hiển thị khi ở chế độ Studio Canvas với đầy đủ 5 phân mục (Upload Excel & Ảnh, Kịch Bản & Nền, Kho Thẻ Đối Tượng, Định Dạng & Ribbon, Cấu Trúc Lưới Cột).",
+                "Đồng bộ ngữ cảnh thông minh: Tự động ẩn thanh Subtabs khi chuyển sang Render Hàng Loạt để nhường trọn vẹn diện tích cho bảng hàng đợi, và hiển thị lại ngay khi quay về Studio Canvas.",
+                "Thao tác 1 chạm chuẩn xác: Giữ nguyên tên đầy đủ, biểu tượng sinh động, trạng thái chọn rõ nét và phản hồi tức thì trên mọi kích thước màn hình."
+            ]
+        },
+        {
+            title: "Lưu & Quản Lý Mẫu Đặt Tên File Render Thông Minh (V16.2)",
+            icon: "file-text",
+            color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            items: [
+                "Quản lý Mẫu Đặt Tên Linh Hoạt: Tích hợp menu chọn nhanh các mẫu đặt tên file chuẩn có sẵn (STT-KịchBản-ChủĐề, ChủĐề-STT, ThểLoại-MẫuCâu-Ngày, v.v.).",
+                "Lưu Mẫu Đặt Tên Tùy Biến: Cho phép người dùng lưu cấu hình tên file đang nhập thành mẫu yêu thích kèm tên gợi nhớ, dễ dàng tái sử dụng cho mọi dự án.",
+                "Thao tác 1 chạm & Xóa mẫu: Chuyển đổi nhanh giữa các mẫu đặt tên chỉ với 1 click, cập nhật tức thì xem trước và danh sách render; hỗ trợ xóa bỏ mẫu không dùng.",
+                "Lưu trữ bền vững & Xuất nhập trọn vẹn: Tự động ghi nhớ vào bộ nhớ trình duyệt và đồng bộ 100% vào file xuất/nhập JSON dự án."
+            ]
+        },
         {
             title: "Tích Hợp Thẻ Video (Clip & Nền) Độc Lập & Động Nối Cột Excel (V16.1)",
             icon: "video",

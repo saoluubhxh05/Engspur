@@ -711,13 +711,17 @@ function activateBatchRenderView() {
     if (vStudio) vStudio.classList.add('hidden');
     if (vBatch) vBatch.classList.remove('hidden');
 
+    // Ẩn thanh 5 Subtabs Hàng 2 để nhường trọn vẹn diện tích cho bảng hàng đợi Render
+    const subtabsBar = document.getElementById('header-subtabs-bar');
+    if (subtabsBar) subtabsBar.classList.add('hidden');
+
     const btnStudio = document.getElementById('tab-paragraph-btn');
     const btnBatch = document.getElementById('tab-batch-btn');
     if (btnStudio) {
-        btnStudio.className = "px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition flex items-center space-x-1.5 whitespace-nowrap";
+        btnStudio.className = "px-4 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800/80 transition flex items-center space-x-2 whitespace-nowrap active:scale-95 cursor-pointer";
     }
     if (btnBatch) {
-        btnBatch.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 whitespace-nowrap bg-emerald-600 text-white shadow-md";
+        btnBatch.className = "px-4 py-1.5 rounded-xl text-xs font-black transition flex items-center space-x-2 whitespace-nowrap bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/30 active:scale-95 cursor-pointer";
     }
 
     ensureSavedParagraphProfiles();
@@ -760,13 +764,190 @@ function downloadBlobFallback(blob, filename) {
     showToast(`Đã tải file ${filename} về máy!`, "success");
 }
 
-// Đóng Popover đặt tên khi click ra ngoài
+/**
+ * Toggle menu danh sách các mẫu đặt tên file đã lưu
+ */
+function toggleBatchNamingPresetMenu(event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    const menu = document.getElementById('batch-naming-preset-dropdown');
+    if (!menu) return;
+    const isHidden = menu.classList.contains('hidden');
+    if (isHidden) {
+        closeBatchNamingPopover();
+        renderBatchNamingPresetsList();
+        menu.classList.remove('hidden');
+        if (window.lucide && lucide.createIcons) lucide.createIcons();
+    } else {
+        menu.classList.add('hidden');
+    }
+}
+
+/**
+ * Đóng menu danh sách mẫu
+ */
+function closeBatchNamingPresetMenu() {
+    const menu = document.getElementById('batch-naming-preset-dropdown');
+    if (menu) menu.classList.add('hidden');
+}
+
+/**
+ * Render danh sách các mẫu đặt tên file
+ */
+function renderBatchNamingPresetsList() {
+    const container = document.getElementById('batch-naming-presets-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (!Array.isArray(batchNamingPresets) || batchNamingPresets.length === 0) {
+        container.innerHTML = '<p class="text-[10px] text-slate-500 italic p-2 text-center">Chưa có mẫu nào được lưu</p>';
+        return;
+    }
+
+    const currentPattern = document.getElementById('batch-naming-pattern-input')?.value || '';
+
+    batchNamingPresets.forEach((preset, index) => {
+        const isSelected = (preset.pattern === currentPattern);
+        const itemEl = document.createElement('div');
+        itemEl.className = `group flex items-center justify-between p-1.5 rounded-lg border transition cursor-pointer text-left ${
+            isSelected 
+                ? 'bg-amber-950/70 border-amber-500/80 text-amber-200' 
+                : 'bg-slate-900/90 hover:bg-slate-800/90 border-slate-800 text-slate-300 hover:text-white'
+        }`;
+
+        itemEl.innerHTML = `
+            <div class="min-w-0 flex-grow pr-1.5" onclick="applyBatchNamingPreset('${preset.id}')">
+                <div class="flex items-center space-x-1.5">
+                    <i data-lucide="${preset.isDefault ? 'sparkles' : 'bookmark'}" class="w-3 h-3 ${isSelected ? 'text-amber-400' : 'text-slate-400'} shrink-0"></i>
+                    <span class="text-[11px] font-bold truncate">${escapeHtmlBatch(preset.name)}</span>
+                    ${isSelected ? '<span class="text-[8px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40 shrink-0">Đang dùng</span>' : ''}
+                </div>
+                <p class="text-[9px] font-mono text-slate-400 truncate pl-4.5 group-hover:text-amber-300/80 transition-colors">${escapeHtmlBatch(preset.pattern)}</p>
+            </div>
+            <div class="flex items-center space-x-0.5 shrink-0">
+                ${!preset.isDefault ? `
+                    <button type="button" onclick="event.stopPropagation(); deleteBatchNamingPreset('${preset.id}')" class="p-1 hover:bg-rose-950/80 hover:text-rose-400 text-slate-500 rounded transition" title="Xóa mẫu này">
+                        <i data-lucide="trash-2" class="w-3 h-3"></i>
+                    </button>
+                ` : `
+                    <span class="text-[8px] text-slate-600 px-1 py-0.5" title="Mẫu mặc định hệ thống">Hệ thống</span>
+                `}
+            </div>
+        `;
+        container.appendChild(itemEl);
+    });
+
+    if (window.lucide && lucide.createIcons) lucide.createIcons();
+}
+
+/**
+ * Trợ giúp tránh XSS cho chuỗi tên mẫu
+ */
+function escapeHtmlBatch(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/**
+ * Áp dụng một mẫu đặt tên file
+ */
+function applyBatchNamingPreset(presetId) {
+    const preset = (batchNamingPresets || []).find(p => p.id === presetId);
+    if (!preset) return;
+    const input = document.getElementById('batch-naming-pattern-input');
+    if (input) {
+        input.value = preset.pattern;
+    }
+    onBatchNamingPatternChanged();
+    closeBatchNamingPresetMenu();
+    showToast(`Đã áp dụng mẫu: "${preset.name}"`, "success");
+    if (typeof triggerAutoSave === 'function') triggerAutoSave();
+}
+
+/**
+ * Hỏi người dùng tên để lưu mẫu đặt tên file hiện tại
+ */
+function promptSaveCurrentNamingPreset() {
+    const input = document.getElementById('batch-naming-pattern-input');
+    const pattern = input ? input.value.trim() : '';
+    if (!pattern) {
+        showToast("Vui lòng nhập định dạng đặt tên trước khi lưu!", "warning");
+        return;
+    }
+
+    const defaultName = `Mẫu ${new Date().toLocaleDateString('vi-VN')} - ${pattern.slice(0, 20)}`;
+    const presetName = prompt("Nhập tên gợi nhớ cho mẫu đặt tên file này:", defaultName);
+    if (!presetName || !presetName.trim()) return;
+
+    const trimmedName = presetName.trim();
+    if (!Array.isArray(batchNamingPresets)) {
+        batchNamingPresets = [];
+    }
+
+    const newPreset = {
+        id: 'preset_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+        name: trimmedName,
+        pattern: pattern,
+        createdAt: new Date().toISOString()
+    };
+
+    batchNamingPresets.push(newPreset);
+    renderBatchNamingPresetsList();
+    showToast(`Đã lưu mẫu "${trimmedName}" thành công!`, "success");
+    if (typeof triggerAutoSave === 'function') triggerAutoSave();
+}
+
+/**
+ * Xóa một mẫu đã lưu
+ */
+function deleteBatchNamingPreset(presetId) {
+    const preset = (batchNamingPresets || []).find(p => p.id === presetId);
+    if (!preset) return;
+    if (preset.isDefault) {
+        showToast("Không thể xóa mẫu mặc định của hệ thống!", "warning");
+        return;
+    }
+
+    if (!confirm(`Bạn có chắc muốn xóa mẫu "${preset.name}"?`)) return;
+
+    batchNamingPresets = batchNamingPresets.filter(p => p.id !== presetId);
+    renderBatchNamingPresetsList();
+    showToast(`Đã xóa mẫu "${preset.name}"`, "info");
+    if (typeof triggerAutoSave === 'function') triggerAutoSave();
+}
+
+/**
+ * Khôi phục danh sách mẫu gốc
+ */
+function resetBatchNamingPresetsToFactory() {
+    if (!confirm("Khôi phục danh sách mẫu đặt tên file về mặc định ban đầu?")) return;
+    batchNamingPresets = [
+        { id: "preset_default", name: "Mặc định (STT - Kịch bản - Chủ đề)", pattern: "{stt}-[{script}]-[{topic}]", isDefault: true },
+        { id: "preset_stt_topic", name: "Gọn gàng (STT - Chủ đề)", pattern: "{stt}-{topic}" },
+        { id: "preset_topic_stt", name: "Theo Chủ đề (Chủ đề - STT)", pattern: "[{topic}]-Bài_{stt}" },
+        { id: "preset_script_topic_stt", name: "Đầy đủ (Kịch bản - Chủ đề - STT)", pattern: "[{script}]-[{topic}]-No.{stt}" },
+        { id: "preset_genre_topic_stt", name: "Phân loại (Thể loại - Chủ đề - STT)", pattern: "[{genre}]-[{topic}]-{stt}" },
+        { id: "preset_date_stt", name: "Kèm ngày tháng (YYYYMMDD - STT - Chủ đề)", pattern: "{ngay}-{stt}-{topic}" }
+    ];
+    renderBatchNamingPresetsList();
+    showToast("Đã khôi phục các mẫu đặt tên file gốc!", "success");
+    if (typeof triggerAutoSave === 'function') triggerAutoSave();
+}
+
+// Đóng Popover đặt tên & Dropdown mẫu khi click ra ngoài
 document.addEventListener('click', function(e) {
     const box = document.getElementById('batch-naming-box-container');
     const popover = document.getElementById('batch-naming-popover');
-    if (popover && !popover.classList.contains('hidden')) {
-        if (box && !box.contains(e.target)) {
+    const presetMenu = document.getElementById('batch-naming-preset-dropdown');
+
+    if (box && !box.contains(e.target)) {
+        if (popover && !popover.classList.contains('hidden')) {
             popover.classList.add('hidden');
+        }
+        if (presetMenu && !presetMenu.classList.contains('hidden')) {
+            presetMenu.classList.add('hidden');
         }
     }
 });

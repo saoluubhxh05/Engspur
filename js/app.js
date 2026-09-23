@@ -118,14 +118,24 @@ function switchLeftSubTab(subTabNum) {
         const mobBtn = document.getElementById(`mob-subtab-btn-${i}`);
         const panel = document.getElementById(`subtab-panel-${i}`);
         if (i === subTabNum) {
-            if (btn) btn.className = "px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 whitespace-nowrap subtab-active";
+            if (btn) btn.className = "flex-1 min-w-0 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 whitespace-nowrap subtab-active shadow-sm cursor-pointer";
             if (mobBtn) mobBtn.className = "px-2.5 py-1 rounded-lg text-[10px] font-bold subtab-active whitespace-nowrap";
             if (panel) panel.classList.remove('hidden');
         } else {
-            if (btn) btn.className = "px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 whitespace-nowrap text-slate-400 hover:text-white";
+            if (btn) btn.className = "flex-1 min-w-0 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 whitespace-nowrap text-slate-400 hover:text-white hover:bg-slate-900 border border-slate-800/80 cursor-pointer";
             if (mobBtn) mobBtn.className = "px-2.5 py-1 rounded-lg text-[10px] font-bold text-slate-400 hover:text-white whitespace-nowrap";
             if (panel) panel.classList.add('hidden');
         }
+    }
+
+    // Reset subtab 5 (Cấu Trúc Lưới Cột) về trạng thái bình thường
+    const btnGrid = document.getElementById('hdr-tab-right-btn');
+    if (btnGrid) {
+        btnGrid.className = "flex-1 min-w-0 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 whitespace-nowrap text-slate-400 hover:text-white hover:bg-slate-900 border border-slate-800/80 cursor-pointer";
+    }
+    const mobBtnGrid = document.getElementById('mob-subtab-btn-5');
+    if (mobBtnGrid) {
+        mobBtnGrid.className = "px-2.5 py-1 rounded-lg text-[10px] font-bold text-teal-400 hover:text-white whitespace-nowrap";
     }
 
     if (subTabNum === 4) {
@@ -151,13 +161,17 @@ function activateStudioWorkspace() {
     if (vBatch) vBatch.classList.add('hidden');
     syncMobileNavState('center');
 
+    // Hiển thị thanh 5 Subtabs Hàng 2 khi ở chế độ Studio Canvas
+    const subtabsBar = document.getElementById('header-subtabs-bar');
+    if (subtabsBar) subtabsBar.classList.remove('hidden');
+
     const btnStudio = document.getElementById('tab-paragraph-btn');
     const btnBatch = document.getElementById('tab-batch-btn');
     if (btnStudio) {
-        btnStudio.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 whitespace-nowrap bg-indigo-600 text-white shadow-md";
+        btnStudio.className = "px-4 py-1.5 rounded-xl text-xs font-black transition flex items-center space-x-2 whitespace-nowrap bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30 active:scale-95 cursor-pointer";
     }
     if (btnBatch) {
-        btnBatch.className = "px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition flex items-center space-x-1.5 whitespace-nowrap";
+        btnBatch.className = "px-4 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800/80 transition flex items-center space-x-2 whitespace-nowrap active:scale-95 cursor-pointer";
     }
 
     if (studioSavedBackupState) {
@@ -194,6 +208,23 @@ function focusRightColumnGrid() {
     if (panel) panel.classList.remove('hidden');
     const scrollCont = document.getElementById('col-right-scroll-container');
     if (scrollCont) scrollCont.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Highlight subtab 5 trên Hàng 2 và bỏ active ở 4 subtabs kia
+    for (let i = 1; i <= 4; i++) {
+        const btn = document.getElementById(`hdr-subtab-btn-${i}`);
+        if (btn) btn.className = "flex-1 min-w-0 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 whitespace-nowrap text-slate-400 hover:text-white hover:bg-slate-900 border border-slate-800/80 cursor-pointer";
+        const mobBtn = document.getElementById(`mob-subtab-btn-${i}`);
+        if (mobBtn) mobBtn.className = "px-2.5 py-1 rounded-lg text-[10px] font-bold text-slate-400 hover:text-white whitespace-nowrap";
+    }
+    const btnGrid = document.getElementById('hdr-tab-right-btn');
+    if (btnGrid) {
+        btnGrid.className = "flex-1 min-w-0 py-2 px-2.5 rounded-xl text-xs font-black transition flex items-center justify-center space-x-2 whitespace-nowrap bg-teal-500/25 text-teal-300 border border-teal-400/60 shadow-sm cursor-pointer";
+    }
+    const mobBtnGrid = document.getElementById('mob-subtab-btn-5');
+    if (mobBtnGrid) {
+        mobBtnGrid.className = "px-2.5 py-1 rounded-lg text-[10px] font-bold bg-teal-600 text-white shadow whitespace-nowrap";
+    }
+
     showToast("Đang tập trung cấu hình Lưới Cột & Lề!");
 }
 
@@ -459,6 +490,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (typeof renderDatasetTable === 'function') renderDatasetTable();
     if (typeof refreshBatchTopicsTable === 'function') refreshBatchTopicsTable();
     if (typeof renderBatchNamingExcelFields === 'function') renderBatchNamingExcelFields();
+    if (typeof renderBatchNamingPresetsList === 'function') renderBatchNamingPresetsList();
     if (typeof updateBatchNamingPreview === 'function') updateBatchNamingPreview();
     if (typeof syncMediaInputsFromConfig === 'function') syncMediaInputsFromConfig();
     if (typeof syncInlineGridSettingsInputs === 'function') syncInlineGridSettingsInputs();

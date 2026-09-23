@@ -444,6 +444,7 @@ async function executeExportWorkspaceByMode(mode = 'light') {
         batchRenderConfig: {
             targetPracticeMode,
             namingPattern,
+            namingPresets: (typeof batchNamingPresets !== 'undefined') ? batchNamingPresets : [],
             groupingMode,
             separateOutputType,
             selectedChainProfiles,
@@ -453,6 +454,7 @@ async function executeExportWorkspaceByMode(mode = 'light') {
         },
         batchTargetPracticeMode: targetPracticeMode,
         batchNamingPattern: namingPattern,
+        batchNamingPresets: (typeof batchNamingPresets !== 'undefined') ? batchNamingPresets : [],
         batchGroupingMode: groupingMode,
         batchSeparateOutputType: separateOutputType,
         batchSelectedChainProfiles: selectedChainProfiles,
@@ -559,6 +561,7 @@ function handleImportFullWorkspaceJSON(e) {
                 const batchCfg = data.batchRenderConfig || {};
                 const importedTargetMode = batchCfg.targetPracticeMode || data.batchTargetPracticeMode || 'mode3';
                 const importedNamingPattern = batchCfg.namingPattern || data.batchNamingPattern || '{stt}-[{script}]-[{topic}]';
+                const importedNamingPresets = batchCfg.namingPresets || data.batchNamingPresets;
                 const importedGroupingMode = batchCfg.groupingMode || data.batchGroupingMode || 'topic';
                 const importedSeparateType = batchCfg.separateOutputType || data.batchSeparateOutputType || 'per_script';
                 const importedChainProfiles = batchCfg.selectedChainProfiles || data.batchSelectedChainProfiles;
@@ -571,10 +574,13 @@ function handleImportFullWorkspaceJSON(e) {
                     targetModeEl.value = importedTargetMode;
                 }
 
-                // 2. Áp dụng Mẫu Đặt Tên File
+                // 2. Áp dụng Mẫu Đặt Tên File & Danh sách mẫu đã lưu
                 const patternInput = document.getElementById('batch-naming-pattern-input');
                 if (patternInput) {
                     patternInput.value = importedNamingPattern;
+                }
+                if (importedNamingPresets && Array.isArray(importedNamingPresets) && importedNamingPresets.length > 0) {
+                    batchNamingPresets = importedNamingPresets;
                 }
 
                 // 3. Áp dụng Gom nhóm tạo file (Chủ đề / Thể loại)

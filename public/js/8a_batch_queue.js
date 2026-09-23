@@ -711,13 +711,17 @@ function activateBatchRenderView() {
     if (vStudio) vStudio.classList.add('hidden');
     if (vBatch) vBatch.classList.remove('hidden');
 
+    // Ẩn thanh 5 Subtabs Hàng 2 để nhường trọn vẹn diện tích cho bảng hàng đợi Render
+    const subtabsBar = document.getElementById('header-subtabs-bar');
+    if (subtabsBar) subtabsBar.classList.add('hidden');
+
     const btnStudio = document.getElementById('tab-paragraph-btn');
     const btnBatch = document.getElementById('tab-batch-btn');
     if (btnStudio) {
-        btnStudio.className = "px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition flex items-center space-x-1.5 whitespace-nowrap";
+        btnStudio.className = "px-4 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800/80 transition flex items-center space-x-2 whitespace-nowrap active:scale-95 cursor-pointer";
     }
     if (btnBatch) {
-        btnBatch.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 whitespace-nowrap bg-emerald-600 text-white shadow-md";
+        btnBatch.className = "px-4 py-1.5 rounded-xl text-xs font-black transition flex items-center space-x-2 whitespace-nowrap bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/30 active:scale-95 cursor-pointer";
     }
 
     ensureSavedParagraphProfiles();

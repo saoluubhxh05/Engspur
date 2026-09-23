@@ -418,6 +418,7 @@ async function saveFullSystemState(showToastMsg = true) {
             batchGroupingMode: batchGroupingMode || 'topic',
             batchTargetPracticeMode: targetPracticeMode,
             batchNamingPattern: namingPattern,
+            batchNamingPresets: (typeof batchNamingPresets !== 'undefined') ? batchNamingPresets : [],
             batchSeparateOutputType: separateOutputType,
             batchSelectedChainProfiles: (typeof batchSelectedChainProfiles !== 'undefined') ? batchSelectedChainProfiles : [],
             batchCustomScriptNamingMap: (typeof batchCustomScriptNamingMap !== 'undefined') ? batchCustomScriptNamingMap : {},
@@ -525,6 +526,9 @@ async function loadFullSystemState(isManual = false) {
             if (saved.batchNamingPattern) {
                 const patInput = document.getElementById('batch-naming-pattern-input');
                 if (patInput) patInput.value = saved.batchNamingPattern;
+            }
+            if (saved.batchNamingPresets && Array.isArray(saved.batchNamingPresets) && saved.batchNamingPresets.length > 0) {
+                batchNamingPresets = saved.batchNamingPresets;
             }
             if (saved.batchSeparateOutputType) {
                 const sepSelect = document.getElementById('batch-separate-output-type');

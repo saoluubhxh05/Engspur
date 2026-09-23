@@ -74,9 +74,9 @@
                     <div>
                         <div class="flex items-center space-x-2">
                             <h2 class="text-sm font-black text-white">Phiên Bản & Nhật Ký Cập Nhật</h2>
-                            <span id="modal-version-tag" class="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[10px] font-black text-emerald-300">V15.8</span>
+                            <span id="modal-version-tag" class="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[10px] font-black text-emerald-300">V16.3</span>
                         </div>
-                        <p id="modal-version-date" class="text-[11px] text-slate-400">Cập nhật: 21/09/2026 • Trạng thái: Mới nhất & Ổn định</p>
+                        <p id="modal-version-date" class="text-[11px] text-slate-400">Cập nhật: 23/09/2026 • Trạng thái: Mới nhất & Ổn định</p>
                     </div>
                 </div>
                 <button onclick="closeVersionChangelogModal()" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition font-bold text-sm active:scale-95" title="Đóng (Esc)">✕</button>
@@ -225,118 +225,130 @@
         </div>
     </div>
 
-    <!-- HEADER CỐ ĐỊNH (TƯƠNG THÍCH MỌI KÍCH THƯỚC MÀN HÌNH) -->
-    <header class="bg-slate-900/95 border-b border-slate-800 px-2.5 sm:px-3 py-2 flex items-center justify-between gap-2 shadow-xl shrink-0 z-30">
-        <!-- GIAO DIỆN HEADER DI ĐỘNG (< 1024px) -->
-        <div class="flex lg:hidden w-full items-center justify-between gap-1.5">
-            <div class="flex items-center space-x-2 min-w-0">
-                <div class="bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 p-1.5 rounded-xl text-white font-black flex items-center justify-center shadow-md shrink-0">
-                    <i data-lucide="sparkles" class="w-4 h-4"></i>
-                </div>
-                <div class="min-w-0">
-                    <div class="flex items-center space-x-1.5">
-                        <span class="font-black text-xs text-white tracking-wide truncate">EngSpur Studio</span>
-                        <button onclick="openVersionChangelogModal()" class="px-1.5 py-0.5 rounded-full bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-400/40 text-[9px] font-black text-indigo-300 flex items-center space-x-1 shrink-0">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                            <span>V15.8</span>
-                        </button>
+    <!-- HEADER CỐ ĐỊNH PHÂN TẦNG 2 DÒNG (2-ROW STUDIO BAR) -->
+    <header class="sticky top-0 bg-slate-950/95 backdrop-blur-md border-b border-indigo-500/20 shadow-2xl shrink-0 z-30 transition-all flex flex-col">
+        <!-- DÒNG 1: BRAND LOGO, 2 CHẾ ĐỘ CHÍNH, UNDO/REDO & XUẤT NHẬP FILE -->
+        <div class="w-full px-3 sm:px-4 py-2 flex items-center justify-between gap-2 sm:gap-4 border-b border-slate-800/80">
+            <!-- GIAO DIỆN HEADER DI ĐỘNG (< 1024px) -->
+            <div class="flex lg:hidden w-full items-center justify-between gap-2">
+                <div class="flex items-center space-x-2.5 min-w-0">
+                    <div class="bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 p-1.5 sm:p-2 rounded-xl text-white font-black flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i>
                     </div>
-                    <p class="text-[9px] text-indigo-400 font-medium truncate">Studio Video AI</p>
+                    <div class="min-w-0">
+                        <div class="flex items-center space-x-1.5">
+                            <span class="font-black text-xs text-white tracking-wide truncate">EngSpur Studio</span>
+                            <button onclick="openVersionChangelogModal()" class="px-2 py-0.5 rounded-full bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/20 border border-indigo-400/40 text-[9px] font-black text-indigo-300 flex items-center space-x-1 shrink-0 active:scale-95 shadow-sm">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                <span class="app-version-display-tag">V16.3</span>
+                            </button>
+                        </div>
+                        <p class="text-[9px] text-indigo-400/90 font-medium truncate">Studio Video AI • Bố Cục Đa Nền Tảng</p>
+                    </div>
                 </div>
-            </div>
 
-            <div class="flex items-center space-x-1 shrink-0">
-                <span id="hdr-autosave-status-mob" class="text-[9px] text-emerald-400 font-bold px-1.5 py-0.5 rounded bg-emerald-950/80 border border-emerald-800/60 transition-opacity duration-300 opacity-0 whitespace-nowrap">Đã lưu</span>
-                <button id="btn-studio-undo-mob" onclick="executeStudioUndo()" disabled class="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-lg text-xs font-bold transition flex items-center justify-center shadow active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed" title="Hoàn tác (Ctrl+Z)">
-                    <i data-lucide="undo-2" class="w-3.5 h-3.5 text-amber-400"></i>
-                </button>
-                <button id="btn-studio-redo-mob" onclick="executeStudioRedo()" disabled class="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-lg text-xs font-bold transition flex items-center justify-center shadow active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed" title="Làm lại (Ctrl+Y)">
-                    <i data-lucide="redo-2" class="w-3.5 h-3.5 text-cyan-400"></i>
-                </button>
-                <button onclick="openMobileQuickActionsSheet()" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-bold transition flex items-center justify-center shadow active:scale-95" title="Menu Tiện Ích & Sao Lưu">
-                    <i data-lucide="more-horizontal" class="w-3.5 h-3.5"></i>
-                </button>
-            </div>
-        </div>
-
-        <!-- GIAO DIỆN HEADER MÀN HÌNH LỚN (>= 1024px) -->
-        <div class="hidden lg:flex items-center space-x-2.5 shrink-0">
-            <div class="bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 p-1.5 rounded-xl text-white font-black flex items-center justify-center shadow-md shadow-indigo-600/20">
-                <i data-lucide="sparkles" class="w-5 h-5"></i>
-            </div>
-            <div>
-                <div class="flex items-center space-x-2">
-                    <h1 class="font-black text-sm text-white tracking-wide leading-tight">EngSpur Studio</h1>
-                    <button id="btn-header-version" onclick="openVersionChangelogModal()" class="px-2 py-0.5 rounded-full bg-gradient-to-r from-indigo-500/20 to-purple-500/20 hover:from-indigo-500/35 hover:to-purple-500/35 border border-indigo-400/40 hover:border-indigo-300 text-[10px] font-black text-indigo-300 hover:text-white transition flex items-center space-x-1 shadow-sm active:scale-95 cursor-pointer" title="Nhấn để xem phiên bản hiện tại & nội dung cập nhật mới">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span id="app-header-version-tag">V15.8</span>
-                        <i data-lucide="info" class="w-3 h-3 text-indigo-400"></i>
+                <div class="flex items-center space-x-1.5 shrink-0">
+                    <span id="hdr-autosave-status-mob" class="text-[9px] text-emerald-400 font-bold px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 transition-opacity duration-300 opacity-0 whitespace-nowrap shadow-sm">Đã lưu</span>
+                    <button id="btn-studio-undo-mob" onclick="executeStudioUndo()" disabled class="p-2 bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700/60 rounded-xl text-xs font-bold transition flex items-center justify-center shadow active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed" title="Hoàn tác (Ctrl+Z)">
+                        <i data-lucide="undo-2" class="w-3.5 h-3.5 text-amber-400"></i>
+                    </button>
+                    <button id="btn-studio-redo-mob" onclick="executeStudioRedo()" disabled class="p-2 bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700/60 rounded-xl text-xs font-bold transition flex items-center justify-center shadow active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed" title="Làm lại (Ctrl+Y)">
+                        <i data-lucide="redo-2" class="w-3.5 h-3.5 text-cyan-400"></i>
+                    </button>
+                    <button onclick="openMobileQuickActionsSheet()" class="p-2 bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-slate-700/70 rounded-xl text-xs font-bold transition flex items-center justify-center shadow active:scale-95" title="Menu Tiện Ích & Sao Lưu">
+                        <i data-lucide="more-horizontal" class="w-4 h-4 text-indigo-300"></i>
                     </button>
                 </div>
-                <p class="text-[10px] text-indigo-400 font-medium">Bố Cục Đa Nền Tảng • Tương Thích Di Động & Máy Tính</p>
+            </div>
+
+            <!-- GIAO DIỆN HEADER DÒNG 1 MÀN HÌNH LỚN (>= 1024px) -->
+            <!-- CỘT 1: LOGO & THƯƠNG HIỆU -->
+            <div class="hidden lg:flex items-center space-x-3 shrink-0">
+                <div class="bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 p-2 rounded-2xl text-white font-black flex items-center justify-center shadow-lg shadow-indigo-600/30 ring-1 ring-white/20">
+                    <i data-lucide="sparkles" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h1 class="font-black text-sm text-white tracking-wide leading-tight bg-gradient-to-r from-white via-indigo-100 to-indigo-200 bg-clip-text text-transparent">EngSpur Studio</h1>
+                        <button id="btn-header-version" onclick="openVersionChangelogModal()" class="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/20 hover:from-indigo-500/30 hover:to-purple-500/30 border border-indigo-400/40 hover:border-indigo-300 text-[10px] font-black text-indigo-300 hover:text-white transition flex items-center space-x-1.5 shadow-sm active:scale-95 cursor-pointer" title="Xem phiên bản & nhật ký cập nhật mới nhất">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span id="app-header-version-tag" class="app-version-display-tag">V16.3</span>
+                            <i data-lucide="info" class="w-3 h-3 text-indigo-300"></i>
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-indigo-300/80 font-medium">Bố Cục Đa Nền Tảng • Tương Thích Di Động & Máy Tính</p>
+                </div>
+            </div>
+
+            <!-- CỘT 2: 2 CHẾ ĐỘ CHÍNH CỦA STUDIO (STUDIO CANVAS & RENDER HÀNG LOẠT) -->
+            <div class="hidden lg:flex items-center bg-slate-900/90 p-1 rounded-2xl border border-slate-800 shadow-inner space-x-1">
+                <button id="tab-paragraph-btn" onclick="activateStudioWorkspace()" class="px-4 py-1.5 rounded-xl text-xs font-black transition flex items-center space-x-2 whitespace-nowrap bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30 active:scale-95 cursor-pointer" title="Màn hình dựng video Canvas, dòng thời gian Timeline và 5 Subtabs thao tác">
+                    <i data-lucide="film" class="w-4 h-4 text-indigo-200"></i>
+                    <span>Studio Canvas</span>
+                </button>
+                <button id="tab-batch-btn" onclick="activateBatchRenderView()" class="px-4 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800/80 transition flex items-center space-x-2 whitespace-nowrap active:scale-95 cursor-pointer" title="Chuyển sang chế độ xuất hàng loạt video MP4 theo kịch bản">
+                    <i data-lucide="layers" class="w-4 h-4 text-emerald-400"></i>
+                    <span class="text-emerald-300 font-black">Render Hàng Loạt</span>
+                </button>
+            </div>
+
+            <!-- CỘT 3: CÔNG CỤ NHANH (UNDO/REDO, XUẤT/NHẬP FILE, TỰ ĐỘNG LƯU) -->
+            <div class="hidden lg:flex items-center space-x-2 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800 shadow-xl shrink-0">
+                <span id="hdr-autosave-status" class="text-[10px] text-emerald-400 font-bold px-2.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/30 transition-opacity duration-300 opacity-0 whitespace-nowrap shadow-sm">Đã tự động lưu</span>
+                
+                <div class="flex items-center space-x-1 bg-slate-950/70 p-0.5 rounded-xl border border-slate-800/70">
+                    <button id="btn-studio-undo" onclick="executeStudioUndo()" disabled class="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700/60 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 shadow-sm active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer" title="Hoàn tác thao tác trước (Ctrl+Z)">
+                        <i data-lucide="undo-2" class="w-3.5 h-3.5 text-amber-400"></i>
+                        <span>Undo</span>
+                        <span class="text-[9px] font-mono px-1 py-0.2 rounded bg-slate-800 text-slate-400 border border-slate-700 hidden xl:inline">Ctrl+Z</span>
+                    </button>
+
+                    <button id="btn-studio-redo" onclick="executeStudioRedo()" disabled class="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700/60 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 shadow-sm active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer" title="Làm lại thao tác vừa hoàn tác (Ctrl+Y)">
+                        <i data-lucide="redo-2" class="w-3.5 h-3.5 text-cyan-400"></i>
+                        <span>Redo</span>
+                        <span class="text-[9px] font-mono px-1 py-0.2 rounded bg-slate-800 text-slate-400 border border-slate-700 hidden xl:inline">Ctrl+Y</span>
+                    </button>
+                </div>
+
+                <div class="flex items-center space-x-1 border-l border-slate-800 pl-1.5">
+                    <button onclick="exportFullWorkspaceToJSON()" class="px-2.5 py-1.5 bg-gradient-to-r from-indigo-950/70 to-indigo-900/60 hover:from-indigo-900 hover:to-indigo-800 text-indigo-200 hover:text-white border border-indigo-500/40 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow-sm active:scale-95 cursor-pointer" title="Xuất toàn bộ Excel, kịch bản ra file JSON với 3 chế độ tối ưu dung lượng">
+                        <i data-lucide="download" class="w-3.5 h-3.5 text-indigo-400"></i>
+                        <span>Xuất File</span>
+                    </button>
+
+                    <button onclick="document.getElementById('full-workspace-file-input').click()" class="px-2.5 py-1.5 bg-gradient-to-r from-emerald-950/70 to-emerald-900/60 hover:from-emerald-900 hover:to-emerald-800 text-emerald-200 hover:text-white border border-emerald-500/40 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow-sm active:scale-95 cursor-pointer" title="Khôi phục toàn bộ không gian làm việc từ file sao lưu JSON">
+                        <i data-lucide="upload" class="w-3.5 h-3.5 text-emerald-400"></i>
+                        <span>Nhập File</span>
+                    </button>
+                    <input type="file" id="full-workspace-file-input" accept=".json" onchange="handleImportFullWorkspaceJSON(event)" class="hidden">
+                </div>
             </div>
         </div>
 
-        <nav class="hidden lg:flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800/80 overflow-x-auto gap-1">
-            <div class="flex items-center border-r border-slate-800 pr-1.5 mr-1 gap-1">
-                <span class="text-[9px] font-bold text-slate-500 uppercase px-1 hidden xl:inline">Cột Trái:</span>
-                <button id="hdr-subtab-btn-1" onclick="switchLeftSubTab(1)" class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 whitespace-nowrap subtab-active">
-                    <i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i>
-                    <span>1. Upload Excel & Ảnh</span>
+        <!-- DÒNG 2: THANH 5 SUBTABS TRẢI RỘNG 100% THOÁNG ĐÃNG KHI Ở CHẾ ĐỘ STUDIO CANVAS -->
+        <div id="header-subtabs-bar" class="w-full bg-slate-950/90 px-3 sm:px-4 py-1.5 transition-all">
+            <nav class="w-full flex items-center justify-between gap-1.5 sm:gap-2">
+                <button id="hdr-subtab-btn-1" onclick="switchLeftSubTab(1)" class="flex-1 min-w-0 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 whitespace-nowrap subtab-active shadow-sm cursor-pointer" title="Upload Excel, kho ảnh và quản lý dữ liệu bài học">
+                    <i data-lucide="upload-cloud" class="w-3.5 h-3.5 shrink-0"></i>
+                    <span class="truncate">1. Upload Excel & Ảnh</span>
                 </button>
-                <button id="hdr-subtab-btn-2" onclick="switchLeftSubTab(2)" class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 whitespace-nowrap text-slate-400 hover:text-white">
-                    <i data-lucide="file-json" class="w-3.5 h-3.5"></i>
-                    <span>2. Kịch Bản & Nền</span>
+                <button id="hdr-subtab-btn-2" onclick="switchLeftSubTab(2)" class="flex-1 min-w-0 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 whitespace-nowrap text-slate-400 hover:text-white hover:bg-slate-900 border border-slate-800/80 cursor-pointer" title="Quản lý danh sách kịch bản & hình nền Canvas">
+                    <i data-lucide="file-json" class="w-3.5 h-3.5 shrink-0 text-sky-400"></i>
+                    <span class="truncate">2. Kịch Bản & Nền</span>
                 </button>
-                <button id="hdr-subtab-btn-3" onclick="switchLeftSubTab(3)" class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 whitespace-nowrap text-slate-400 hover:text-white">
-                    <i data-lucide="box" class="w-3.5 h-3.5"></i>
-                    <span>3. Kho Thẻ Đối Tượng</span>
+                <button id="hdr-subtab-btn-3" onclick="switchLeftSubTab(3)" class="flex-1 min-w-0 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 whitespace-nowrap text-slate-400 hover:text-white hover:bg-slate-900 border border-slate-800/80 cursor-pointer" title="Kho các thẻ đối tượng: Chữ, Đồng hồ, Tiến độ, Ảnh, Video">
+                    <i data-lucide="box" class="w-3.5 h-3.5 shrink-0 text-purple-400"></i>
+                    <span class="truncate">3. Kho Thẻ Đối Tượng</span>
                 </button>
-                <button id="hdr-subtab-btn-4" onclick="switchLeftSubTab(4)" class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 whitespace-nowrap text-slate-400 hover:text-white">
-                    <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
-                    <span>4. Định Dạng & Ribbon</span>
+                <button id="hdr-subtab-btn-4" onclick="switchLeftSubTab(4)" class="flex-1 min-w-0 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 whitespace-nowrap text-slate-400 hover:text-white hover:bg-slate-900 border border-slate-800/80 cursor-pointer" title="Thanh định dạng font chữ, màu sắc, bóng và căn chỉnh">
+                    <i data-lucide="layout-grid" class="w-3.5 h-3.5 shrink-0 text-rose-400"></i>
+                    <span class="truncate">4. Định Dạng & Ribbon</span>
                 </button>
-            </div>
-
-            <button id="tab-paragraph-btn" onclick="activateStudioWorkspace()" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 whitespace-nowrap bg-indigo-600 text-white shadow-md">
-                <i data-lucide="film" class="w-3.5 h-3.5 text-indigo-200"></i>
-                <span class="font-extrabold">2. Studio Timeline & Lưới</span>
-            </button>
-            <button id="hdr-tab-right-btn" onclick="focusRightColumnGrid()" class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 whitespace-nowrap text-slate-400 hover:text-white">
-                <i data-lucide="grid" class="w-3.5 h-3.5 text-teal-400"></i>
-                <span>4. Cấu Trúc Lưới Cột</span>
-            </button>
-            <button id="tab-batch-btn" onclick="activateBatchRenderView()" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition flex items-center space-x-1.5 whitespace-nowrap">
-                <i data-lucide="layers" class="w-3.5 h-3.5 text-emerald-400"></i>
-                <span class="text-emerald-300 font-extrabold">3. Render Hàng Loạt</span>
-            </button>
-        </nav>
-
-        <div class="hidden lg:flex items-center space-x-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 shadow-lg shrink-0">
-            <span id="hdr-autosave-status" class="text-[10px] text-emerald-400 font-semibold px-2 py-1 rounded bg-emerald-950/80 border border-emerald-800/60 transition-opacity duration-300 opacity-0 whitespace-nowrap">Đã tự động lưu</span>
-            
-            <button id="btn-studio-undo" onclick="executeStudioUndo()" disabled class="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700/80 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 shadow-sm active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-900 disabled:hover:text-slate-400 cursor-pointer" title="Hoàn tác thao tác trước (Ctrl+Z)">
-                <i data-lucide="undo-2" class="w-3.5 h-3.5 text-amber-400"></i>
-                <span>Undo</span>
-                <span class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 hidden xl:inline">Ctrl+Z</span>
-            </button>
-
-            <button id="btn-studio-redo" onclick="executeStudioRedo()" disabled class="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700/80 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 shadow-sm active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-900 disabled:hover:text-slate-400 cursor-pointer" title="Làm lại thao tác vừa hoàn tác (Ctrl+Y hoặc Ctrl+Shift+Z)">
-                <i data-lucide="redo-2" class="w-3.5 h-3.5 text-cyan-400"></i>
-                <span>Redo</span>
-                <span class="text-[9px] font-mono px-1 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 hidden xl:inline">Ctrl+Y</span>
-            </button>
-
-            <button onclick="exportFullWorkspaceToJSON()" class="px-2 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/80 rounded-lg text-xs font-bold transition flex items-center space-x-1 cursor-pointer" title="Xuất toàn bộ Excel, kịch bản ra file JSON với 3 chế độ tối ưu dung lượng (Siêu nhẹ / Nén / Đầy đủ)">
-                <i data-lucide="download" class="w-3.5 h-3.5 text-indigo-400"></i>
-                <span>Xuất File</span>
-            </button>
-
-            <button onclick="document.getElementById('full-workspace-file-input').click()" class="px-2 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/80 rounded-lg text-xs font-bold transition flex items-center space-x-1" title="Khôi phục toàn bộ không gian làm việc từ file sao lưu JSON">
-                <i data-lucide="upload" class="w-3.5 h-3.5 text-emerald-400"></i>
-                <span>Nhập File</span>
-            </button>
-            <input type="file" id="full-workspace-file-input" accept=".json" onchange="handleImportFullWorkspaceJSON(event)" class="hidden">
+                <button id="hdr-tab-right-btn" onclick="focusRightColumnGrid()" class="flex-1 min-w-0 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 whitespace-nowrap text-slate-400 hover:text-white hover:bg-slate-900 border border-slate-800/80 cursor-pointer" title="Tập trung cấu hình Lưới Cột, khoảng đệm lề và khung viền bao">
+                    <i data-lucide="grid" class="w-3.5 h-3.5 shrink-0 text-teal-400"></i>
+                    <span class="truncate">5. Cấu Trúc Lưới Cột</span>
+                </button>
+            </nav>
         </div>
     </header>
 
@@ -360,12 +372,13 @@
                 </div>
             </div>
 
-            <!-- THANH CHUYỂN NHANH 4 SUBTABS CHO DI ĐỘNG (< 1024px) -->
+            <!-- THANH CHUYỂN NHANH 5 SUBTABS CHO DI ĐỘNG (< 1024px) -->
             <div class="lg:hidden flex items-center space-x-1 p-1 bg-slate-950 border-b border-slate-800 overflow-x-auto shrink-0 touch-scroll">
                 <button id="mob-subtab-btn-1" onclick="switchLeftSubTab(1)" class="px-2.5 py-1 rounded-lg text-[10px] font-bold subtab-active whitespace-nowrap">1. Excel & Ảnh</button>
                 <button id="mob-subtab-btn-2" onclick="switchLeftSubTab(2)" class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-slate-400 hover:text-white whitespace-nowrap">2. Kịch Bản</button>
                 <button id="mob-subtab-btn-3" onclick="switchLeftSubTab(3)" class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-slate-400 hover:text-white whitespace-nowrap">3. Kho Thẻ</button>
                 <button id="mob-subtab-btn-4" onclick="switchLeftSubTab(4)" class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-slate-400 hover:text-white whitespace-nowrap">4. Định Dạng</button>
+                <button id="mob-subtab-btn-5" onclick="focusRightColumnGrid(); switchMobileTab('right');" class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-teal-400 hover:text-white whitespace-nowrap">5. Lưới Cột</button>
             </div>
 
             <div id="col-left-scroll-container" class="flex-grow overflow-y-auto p-3 space-y-3">
@@ -1252,24 +1265,59 @@
                             </select>
                         </div>
 
-                        <!-- Đặt Tên File: Kế bên Chế độ/Chuỗi render -->
+                        <!-- Đặt Tên File: Kế bên Chế độ/Chuỗi render (Tích hợp Lưu & Chọn Mẫu Thông Minh) -->
                         <div class="lg:col-span-3 bg-slate-950 p-2.5 rounded-xl border border-amber-500/40 space-y-1 relative" id="batch-naming-box-container">
                             <div class="flex items-center justify-between">
                                 <label class="text-[10px] text-amber-400 font-bold flex items-center space-x-1">
                                     <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
                                     <span>Đặt Tên File:</span>
                                 </label>
-                                <button type="button" onclick="toggleBatchNamingPopover(event)" class="text-[10px] text-amber-300 hover:text-amber-200 bg-amber-950/70 hover:bg-amber-900 border border-amber-500/40 px-1.5 py-0.5 rounded font-bold transition flex items-center space-x-1 active:scale-95 shadow-sm" title="Mở bảng chọn thẻ trường Excel và Chế độ để chèn">
-                                    <i data-lucide="plus-circle" class="w-3 h-3 text-amber-400"></i>
-                                    <span>Chèn thẻ</span>
-                                </button>
+                                <div class="flex items-center space-x-1">
+                                    <button type="button" onclick="toggleBatchNamingPresetMenu(event)" class="text-[10px] text-amber-300 hover:text-amber-100 bg-amber-950/80 hover:bg-amber-900 border border-amber-500/50 px-2 py-0.5 rounded font-bold transition flex items-center space-x-1 active:scale-95 shadow-sm" title="Chọn mẫu tên file có sẵn hoặc đã lưu">
+                                        <i data-lucide="bookmark" class="w-3 h-3 text-amber-400"></i>
+                                        <span>Mẫu lưu</span>
+                                        <i data-lucide="chevron-down" class="w-2.5 h-2.5 text-amber-400"></i>
+                                    </button>
+                                    <button type="button" onclick="promptSaveCurrentNamingPreset()" class="text-[10px] text-emerald-300 hover:text-emerald-100 bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/50 px-1.5 py-0.5 rounded font-bold transition flex items-center space-x-0.5 active:scale-95 shadow-sm" title="Lưu định dạng hiện tại thành mẫu mới">
+                                        <i data-lucide="save" class="w-3 h-3 text-emerald-400"></i>
+                                        <span>Lưu</span>
+                                    </button>
+                                    <button type="button" onclick="toggleBatchNamingPopover(event)" class="text-[10px] text-amber-300 hover:text-amber-200 bg-amber-950/70 hover:bg-amber-900 border border-amber-500/40 px-1.5 py-0.5 rounded font-bold transition flex items-center space-x-1 active:scale-95 shadow-sm" title="Mở bảng chọn thẻ trường Excel và Chế độ để chèn">
+                                        <i data-lucide="plus-circle" class="w-3 h-3 text-amber-400"></i>
+                                        <span>Chèn thẻ</span>
+                                    </button>
+                                </div>
                             </div>
+
                             <div class="relative">
                                 <input type="text" id="batch-naming-pattern-input" value="{stt}-[{script}]-[{topic}]" oninput="onBatchNamingPatternChanged()" class="w-full bg-slate-900 border border-amber-500/50 rounded-lg p-1.5 text-[11px] text-amber-200 font-mono focus:ring-1 focus:ring-amber-400 focus:outline-none" placeholder="{stt}-[{script}]-[{topic}]" title="Cú pháp: {stt}, {script}, {topic}, {genre} hoặc bất kỳ {Tên_Cột_Excel}">
                             </div>
                             <div class="flex items-center justify-between text-[9px] text-slate-400 font-mono pt-0.5 truncate">
                                 <span class="text-slate-500 shrink-0">Mẫu:</span>
                                 <span id="batch-naming-preview-tag" class="text-amber-300 font-bold truncate pl-1" title="Xem trước tên file">01-[KB]-[General].mp4</span>
+                            </div>
+
+                            <!-- Popover / Dropdown Menu Danh Sách Mẫu Đặt Tên File -->
+                            <div id="batch-naming-preset-dropdown" class="absolute left-0 top-full mt-1.5 z-50 w-[calc(100vw-36px)] max-w-sm sm:w-80 bg-slate-950 border border-amber-500/60 rounded-xl p-2.5 shadow-2xl space-y-2 hidden backdrop-blur-md">
+                                <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                                    <span class="text-[11px] font-extrabold text-amber-300 flex items-center space-x-1.5">
+                                        <i data-lucide="bookmark" class="w-3.5 h-3.5 text-amber-400"></i>
+                                        <span>Các Mẫu Đặt Tên Đã Lưu</span>
+                                    </span>
+                                    <button type="button" onclick="closeBatchNamingPresetMenu()" class="text-slate-400 hover:text-white p-0.5 rounded transition">
+                                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </div>
+                                <div id="batch-naming-presets-list" class="space-y-1 max-h-56 overflow-y-auto pr-1">
+                                    <!-- Render động từ batchNamingPresets -->
+                                </div>
+                                <div class="pt-1.5 border-t border-slate-800 flex items-center justify-between text-[10px]">
+                                    <button type="button" onclick="promptSaveCurrentNamingPreset()" class="text-emerald-400 hover:text-emerald-300 font-bold flex items-center space-x-1">
+                                        <i data-lucide="plus" class="w-3 h-3"></i>
+                                        <span>Lưu mẫu hiện tại</span>
+                                    </button>
+                                    <button type="button" onclick="resetBatchNamingPresetsToFactory()" class="text-slate-500 hover:text-amber-300 text-[9px] underline">Khôi phục gốc</button>
+                                </div>
                             </div>
 
                             <!-- Popover / Dropdown chọn thẻ trường Excel & Chế độ -->
@@ -1553,7 +1601,7 @@
                 <button onclick="openVersionChangelogModal(); closeMobileQuickActionsSheet();" class="p-3 bg-slate-800/80 hover:bg-slate-800 border border-slate-700 rounded-xl flex flex-col items-center justify-center text-center space-y-1.5 transition active:scale-95">
                     <i data-lucide="info" class="w-5 h-5 text-indigo-400"></i>
                     <span class="font-bold text-slate-200 text-[11px]">Nhật Ký Phiên Bản</span>
-                    <span class="text-[9px] text-slate-400">V16.1 Thẻ Video Clip Độc Lập & Excel</span>
+                    <span class="text-[9px] text-slate-400">V16.3 Phân Tầng 2 Dòng & 5 Subtabs</span>
                 </button>
             </div>
 
