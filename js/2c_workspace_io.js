@@ -462,7 +462,7 @@ async function executeExportWorkspaceByMode(mode = 'light') {
 
     const backupData = {
         app: "EngSpur Auto Video Studio",
-        version: (typeof APP_VERSION_INFO !== 'undefined' && APP_VERSION_INFO.version) ? APP_VERSION_INFO.version : "V16.6",
+        version: (typeof APP_VERSION_INFO !== 'undefined' && APP_VERSION_INFO.version) ? APP_VERSION_INFO.version : "V16.7",
         exportMode: mode,
         exportDate: new Date().toISOString(),
         importedDatasets: exportDatasets,

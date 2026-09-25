@@ -319,7 +319,7 @@ function addExcelFieldToGroup(gIdx, fieldKey) {
         } else {
             paragraphFieldStyles[fieldKey] = { 
                 type: 'text', font: 'Quicksand', style: 'bold', size: 28, color: '#0f172a', highlightColor: 'transparent', 
-                highlightPaddingX: 8, highlightPaddingY: 4,
+                highlightPaddingX: 8, highlightPaddingY: 4, highlightRadius: 6,
                 hAlign: 'left', vAlign: 'middle', lineSpacing: 1.25, underline: false,
                 indentLeft: 0, indentRight: 0, spaceBefore: 0, spaceAfter: 0,
                 boxBgColor: '#fef08a', boxRadius: 18, boxPadding: 12, 
@@ -631,19 +631,26 @@ function renderTimelineLayersListUI() {
                             <i data-lucide="${meta.icon}" class="w-3.5 h-3.5 ${meta.colorClass} shrink-0"></i>
                             <span class="font-bold truncate text-[11px] ${isSel ? 'text-white' : 'text-slate-200'}">${grp.name || `Lớp ${gIdx + 1}`}</span>
                         </div>
+                        <span class="text-[8px] font-mono font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0" title="Cấp bậc tầng: Tầng ${gIdx + 1}/${paragraphGridConfig.groups.length} ${gIdx === paragraphGridConfig.groups.length - 1 ? '(Trên cùng)' : (gIdx === 0 ? '(Dưới cùng)' : '')}">T${gIdx + 1}</span>
                         <span class="text-[8px] font-bold px-1 py-0.2 rounded border ${zoneBadgeClass} shrink-0 hidden sm:inline-block">${zoneLabel}</span>
                         <span class="text-[8px] font-mono px-1 py-0.2 rounded bg-slate-800 border border-slate-700 text-slate-400 shrink-0">${colLabel}</span>
                     </div>
 
-                    <div class="flex items-center space-x-1 shrink-0" onclick="event.stopPropagation()">
+                    <div class="flex items-center space-x-0.5 shrink-0" onclick="event.stopPropagation()">
                         <button onclick="toggleGroupVisibility(${gIdx}, event)" class="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition" title="${isHidden ? 'Bật hiện lớp trên Canvas' : 'Tạm ẩn lớp trên Canvas'}">
                             <i data-lucide="${isHidden ? 'eye-off' : 'eye'}" class="w-3.5 h-3.5 ${isHidden ? 'text-rose-400' : 'text-slate-400'}"></i>
                         </button>
-                        <button onclick="moveTimelineGroup(${gIdx}, -1)" ${gIdx === 0 ? 'disabled' : ''} class="p-1 rounded hover:bg-slate-800 disabled:opacity-20 text-slate-400 hover:text-white" title="Đẩy lên">
-                            <i data-lucide="chevron-up" class="w-3 h-3"></i>
+                        <button onclick="moveLayerLevel(${gIdx}, 'top')" ${gIdx === paragraphGridConfig.groups.length - 1 ? 'disabled' : ''} class="p-0.5 rounded hover:bg-indigo-600 disabled:opacity-20 text-slate-400 hover:text-white transition" title="Lên trên cùng (Bring to Front)">
+                            <span class="text-[9px]">⏫</span>
                         </button>
-                        <button onclick="moveTimelineGroup(${gIdx}, 1)" ${gIdx === paragraphGridConfig.groups.length - 1 ? 'disabled' : ''} class="p-1 rounded hover:bg-slate-800 disabled:opacity-20 text-slate-400 hover:text-white" title="Đẩy xuống">
-                            <i data-lucide="chevron-down" class="w-3 h-3"></i>
+                        <button onclick="moveLayerLevel(${gIdx}, 'up')" ${gIdx === paragraphGridConfig.groups.length - 1 ? 'disabled' : ''} class="p-0.5 rounded hover:bg-teal-600 disabled:opacity-20 text-slate-400 hover:text-white transition" title="Lên 1 tầng (Bring Forward)">
+                            <span class="text-[9px]">🔼</span>
+                        </button>
+                        <button onclick="moveLayerLevel(${gIdx}, 'down')" ${gIdx === 0 ? 'disabled' : ''} class="p-0.5 rounded hover:bg-amber-600 disabled:opacity-20 text-slate-400 hover:text-white transition" title="Xuống 1 tầng (Send Backward)">
+                            <span class="text-[9px]">🔽</span>
+                        </button>
+                        <button onclick="moveLayerLevel(${gIdx}, 'bottom')" ${gIdx === 0 ? 'disabled' : ''} class="p-0.5 rounded hover:bg-rose-600 disabled:opacity-20 text-slate-400 hover:text-white transition" title="Xuống dưới cùng (Send to Back)">
+                            <span class="text-[9px]">⏬</span>
                         </button>
                         <button onclick="duplicateTimelineGroup(${gIdx})" class="p-1 rounded hover:bg-slate-800 text-sky-400 hover:text-sky-300" title="Nhân bản lớp">
                             <i data-lucide="copy" class="w-3 h-3"></i>
@@ -698,6 +705,33 @@ function renderTimelineLayersListUI() {
                     </div>
                     <div class="flex items-center space-x-1 shrink-0">
                         <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">Lớp #${gIdx + 1}</span>
+                    </div>
+                </div>
+
+                <!-- CỤM ĐIỀU HƯỚNG TẦNG NHANH 1-CHẠM & HUY HIỆU LEVEL (V16.9) -->
+                <div class="flex flex-wrap items-center justify-between gap-1.5 p-2 bg-slate-900/90 rounded-xl border border-indigo-500/40 text-[9.5px]">
+                    <div class="flex items-center space-x-1.5 min-w-0">
+                        <span class="text-indigo-300 font-bold shrink-0 flex items-center space-x-1">
+                            <i data-lucide="layers" class="w-3.5 h-3.5 text-indigo-400"></i>
+                            <span>Cấp Bậc Tầng:</span>
+                        </span>
+                        <span class="px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/50 text-[9px] font-black text-amber-300 font-mono shrink-0">
+                            Tầng ${gIdx + 1} / ${paragraphGridConfig.groups.length} ${gIdx === paragraphGridConfig.groups.length - 1 ? '• Trên Cùng' : (gIdx === 0 ? '• Dưới Cùng' : '')}
+                        </span>
+                    </div>
+                    <div class="flex items-center space-x-1 shrink-0">
+                        <button onclick="moveLayerLevel(${gIdx}, 'top')" ${gIdx === paragraphGridConfig.groups.length - 1 ? 'disabled' : ''} title="Đưa lớp này lên trên cùng mọi lớp khác" class="px-2 py-1 bg-slate-800 hover:bg-indigo-600 disabled:opacity-30 text-slate-200 hover:text-white rounded-md text-[9px] font-black transition active:scale-95 cursor-pointer shadow-sm">
+                            <span>⏫ Trên cùng</span>
+                        </button>
+                        <button onclick="moveLayerLevel(${gIdx}, 'up')" ${gIdx === paragraphGridConfig.groups.length - 1 ? 'disabled' : ''} title="Đưa lớp này lên 1 tầng" class="px-2 py-1 bg-slate-800 hover:bg-teal-600 disabled:opacity-30 text-slate-200 hover:text-white rounded-md text-[9px] font-black transition active:scale-95 cursor-pointer shadow-sm">
+                            <span>🔼 Lên 1</span>
+                        </button>
+                        <button onclick="moveLayerLevel(${gIdx}, 'down')" ${gIdx === 0 ? 'disabled' : ''} title="Đưa lớp này xuống 1 tầng" class="px-2 py-1 bg-slate-800 hover:bg-amber-600 disabled:opacity-30 text-slate-200 hover:text-white rounded-md text-[9px] font-black transition active:scale-95 cursor-pointer shadow-sm">
+                            <span>🔽 Xuống 1</span>
+                        </button>
+                        <button onclick="moveLayerLevel(${gIdx}, 'bottom')" ${gIdx === 0 ? 'disabled' : ''} title="Đưa lớp này xuống dưới cùng mọi lớp khác" class="px-2 py-1 bg-slate-800 hover:bg-rose-600 disabled:opacity-30 text-slate-200 hover:text-white rounded-md text-[9px] font-black transition active:scale-95 cursor-pointer shadow-sm">
+                            <span>⏬ Dưới cùng</span>
+                        </button>
                     </div>
                 </div>
 
@@ -890,6 +924,7 @@ function renderTimelineLayersListUI() {
                     <div class="flex items-center justify-between gap-1 border-b border-slate-800/80 pb-1">
                         <div class="flex items-center space-x-1.5 truncate">
                             <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${grp.trackColor || '#3b82f6'};"></span>
+                            <span class="text-[8px] font-mono font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0" title="Cấp bậc tầng: Tầng ${gIdx + 1}/${paragraphGridConfig.groups.length} ${gIdx === paragraphGridConfig.groups.length - 1 ? '(Trên cùng)' : (gIdx === 0 ? '(Dưới cùng)' : '')}">T${gIdx + 1}</span>
                             <input type="text" value="${grp.name || `Lớp ${gIdx + 1}`}" onchange="event.stopPropagation(); updateGroupName(${gIdx}, this.value)" class="bg-transparent border-0 font-bold text-slate-200 text-xs focus:ring-0 truncate w-24">
                             ${audioBadge}
                         </div>
@@ -898,8 +933,10 @@ function renderTimelineLayersListUI() {
                             <button onclick="toggleGroupVisibility(${gIdx}, event)" class="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white" title="${isHidden ? 'Bật hiện lớp' : 'Ẩn lớp'}">
                                 <i data-lucide="${isHidden ? 'eye-off' : 'eye'}" class="w-3 h-3 ${isHidden ? 'text-rose-400' : 'text-slate-400'}"></i>
                             </button>
-                            <button onclick="moveTimelineGroup(${gIdx}, -1)" ${gIdx === 0 ? 'disabled' : ''} title="Lên" class="p-0.5 hover:bg-slate-800 disabled:opacity-30 rounded text-slate-300"><i data-lucide="chevron-up" class="w-3 h-3"></i></button>
-                            <button onclick="moveTimelineGroup(${gIdx}, 1)" ${gIdx === paragraphGridConfig.groups.length - 1 ? 'disabled' : ''} title="Xuống" class="p-0.5 hover:bg-slate-800 disabled:opacity-30 rounded text-slate-300"><i data-lucide="chevron-down" class="w-3 h-3"></i></button>
+                            <button onclick="event.stopPropagation(); moveLayerLevel(${gIdx}, 'top')" ${gIdx === paragraphGridConfig.groups.length - 1 ? 'disabled' : ''} title="Lên trên cùng" class="p-0.5 hover:bg-indigo-600 disabled:opacity-20 rounded text-slate-300"><span class="text-[9px]">⏫</span></button>
+                            <button onclick="event.stopPropagation(); moveLayerLevel(${gIdx}, 'up')" ${gIdx === paragraphGridConfig.groups.length - 1 ? 'disabled' : ''} title="Lên 1 tầng" class="p-0.5 hover:bg-teal-600 disabled:opacity-20 rounded text-slate-300"><span class="text-[9px]">🔼</span></button>
+                            <button onclick="event.stopPropagation(); moveLayerLevel(${gIdx}, 'down')" ${gIdx === 0 ? 'disabled' : ''} title="Xuống 1 tầng" class="p-0.5 hover:bg-amber-600 disabled:opacity-20 rounded text-slate-300"><span class="text-[9px]">🔽</span></button>
+                            <button onclick="event.stopPropagation(); moveLayerLevel(${gIdx}, 'bottom')" ${gIdx === 0 ? 'disabled' : ''} title="Xuống dưới cùng" class="p-0.5 hover:bg-rose-600 disabled:opacity-20 rounded text-slate-300"><span class="text-[9px]">⏬</span></button>
                             <button onclick="duplicateTimelineGroup(${gIdx})" title="Nhân bản" class="p-0.5 hover:bg-slate-800 rounded text-sky-400"><i data-lucide="copy" class="w-3 h-3"></i></button>
                             <button onclick="deleteGridGroup(${gIdx})" class="p-0.5 hover:bg-slate-800 rounded text-rose-400" title="Xóa"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
                             <button onclick="toggleCardCollapse(${gIdx}, event)" class="p-0.5 hover:bg-slate-800 rounded text-slate-400" title="${isCollapsed ? 'Mở rộng thẻ' : 'Thu gọn thẻ'}">
@@ -980,6 +1017,8 @@ function renderTimelineLayersListUI() {
     }
 
     if (window.lucide && lucide.createIcons) lucide.createIcons();
+    if (typeof updateCanvasQuickLayerBar === 'function') updateCanvasQuickLayerBar();
+    if (typeof renderCanvasMasterLayerStackUI === 'function') renderCanvasMasterLayerStackUI();
 }
 
 function toggleGroupAutoFitOverflow(gIdx, isChecked) {
@@ -1040,8 +1079,463 @@ function moveTimelineGroup(gIdx, direction) {
     paragraphSelectedGroupIdx = targetIdx;
     renderTimelineLayersListUI();
     renderTimelineTracksUI();
+    if (typeof renderInspectorRibbon === 'function') renderInspectorRibbon();
     drawParagraphCanvasFrame();
+    updateCanvasQuickLayerBar();
+    renderCanvasMasterLayerStackUI();
     showToast("Đã thay đổi thứ tự lớp!");
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(true);
+}
+
+/**
+ * =========================================================================
+ * ĐIỀU HƯỚNG TẦNG NHANH 1-CHẠM & QUẢN LÝ CẤP BẬC TẦNG (LEVEL / Z-INDEX) - V16.9
+ * =========================================================================
+ */
+
+function moveLayerLevel(gIdx, action) {
+    if (!paragraphGridConfig || !paragraphGridConfig.groups || paragraphGridConfig.groups.length === 0) return;
+    const total = paragraphGridConfig.groups.length;
+    let targetIdx = gIdx;
+    if (action === 'top') {
+        targetIdx = total - 1;
+    } else if (action === 'bottom') {
+        targetIdx = 0;
+    } else if (action === 'up') {
+        targetIdx = Math.min(total - 1, gIdx + 1);
+    } else if (action === 'down') {
+        targetIdx = Math.max(0, gIdx - 1);
+    }
+    if (targetIdx === gIdx) return;
+    const item = paragraphGridConfig.groups.splice(gIdx, 1)[0];
+    paragraphGridConfig.groups.splice(targetIdx, 0, item);
+    paragraphSelectedGroupIdx = targetIdx;
+    renderTimelineLayersListUI();
+    renderTimelineTracksUI();
+    if (typeof renderInspectorRibbon === 'function') renderInspectorRibbon();
+    drawParagraphCanvasFrame();
+    updateCanvasQuickLayerBar();
+    renderCanvasMasterLayerStackUI();
+    const actionNames = { 'top': 'Lên trên cùng', 'up': 'Lên 1 tầng', 'down': 'Xuống 1 tầng', 'bottom': 'Xuống dưới cùng' };
+    showToast(`Lớp "${item.name}": Đã ${actionNames[action]} (Tầng ${targetIdx + 1}/${total})!`);
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(true);
+}
+
+function moveCardLevel(gIdx, fIdx, action) {
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (!grp || !grp.fields || grp.fields.length === 0) return;
+    const total = grp.fields.length;
+    let targetIdx = fIdx;
+    if (action === 'top') {
+        targetIdx = total - 1;
+    } else if (action === 'bottom') {
+        targetIdx = 0;
+    } else if (action === 'up') {
+        targetIdx = Math.min(total - 1, fIdx + 1);
+    } else if (action === 'down') {
+        targetIdx = Math.max(0, fIdx - 1);
+    }
+    if (targetIdx === fIdx) return;
+    const item = grp.fields.splice(fIdx, 1)[0];
+    grp.fields.splice(targetIdx, 0, item);
+    
+    // Cập nhật lại chỉ số chọn nếu thẻ này đang được mở chỉnh sửa
+    if (typeof selectedCustomTextTarget !== 'undefined' && selectedCustomTextTarget && selectedCustomTextTarget.gIdx === gIdx && selectedCustomTextTarget.fIdx === fIdx) {
+        selectedCustomTextTarget.fIdx = targetIdx;
+    } else if (typeof selectedCountdownTarget !== 'undefined' && selectedCountdownTarget && selectedCountdownTarget.gIdx === gIdx && selectedCountdownTarget.fIdx === fIdx) {
+        selectedCountdownTarget.fIdx = targetIdx;
+    } else if (typeof selectedTtsTarget !== 'undefined' && selectedTtsTarget && selectedTtsTarget.gIdx === gIdx && selectedTtsTarget.fIdx === fIdx) {
+        selectedTtsTarget.fIdx = targetIdx;
+    } else if (typeof selectedProgressTrackerTarget !== 'undefined' && selectedProgressTrackerTarget && selectedProgressTrackerTarget.gIdx === gIdx && selectedProgressTrackerTarget.fIdx === fIdx) {
+        selectedProgressTrackerTarget.fIdx = targetIdx;
+    } else if (typeof selectedAudioSfxTarget !== 'undefined' && selectedAudioSfxTarget && selectedAudioSfxTarget.gIdx === gIdx && selectedAudioSfxTarget.fIdx === fIdx) {
+        selectedAudioSfxTarget.fIdx = targetIdx;
+    } else if (typeof selectedVideoTarget !== 'undefined' && selectedVideoTarget && selectedVideoTarget.gIdx === gIdx && selectedVideoTarget.fIdx === fIdx) {
+        selectedVideoTarget.fIdx = targetIdx;
+    }
+
+    renderTimelineLayersListUI();
+    if (typeof renderInspectorRibbon === 'function') renderInspectorRibbon();
+    drawParagraphCanvasFrame();
+    updateCanvasQuickLayerBar();
+    renderCanvasMasterLayerStackUI();
+    showToast(`Đã thay đổi vị trí thẻ trong Lớp "${grp.name}"!`);
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(true);
+}
+
+function moveCurrentSelectedZOrder(action) {
+    // 1. Kiểm tra nếu đang chọn thẻ con cụ thể
+    if (typeof selectedCustomTextTarget !== 'undefined' && selectedCustomTextTarget) {
+        moveCardLevel(selectedCustomTextTarget.gIdx, selectedCustomTextTarget.fIdx, action);
+        return;
+    }
+    if (typeof selectedCountdownTarget !== 'undefined' && selectedCountdownTarget) {
+        moveCardLevel(selectedCountdownTarget.gIdx, selectedCountdownTarget.fIdx, action);
+        return;
+    }
+    if (typeof selectedTtsTarget !== 'undefined' && selectedTtsTarget) {
+        moveCardLevel(selectedTtsTarget.gIdx, selectedTtsTarget.fIdx, action);
+        return;
+    }
+    if (typeof selectedProgressTrackerTarget !== 'undefined' && selectedProgressTrackerTarget) {
+        moveCardLevel(selectedProgressTrackerTarget.gIdx, selectedProgressTrackerTarget.fIdx, action);
+        return;
+    }
+    if (typeof selectedAudioSfxTarget !== 'undefined' && selectedAudioSfxTarget) {
+        moveCardLevel(selectedAudioSfxTarget.gIdx, selectedAudioSfxTarget.fIdx, action);
+        return;
+    }
+    if (typeof selectedVideoTarget !== 'undefined' && selectedVideoTarget) {
+        moveCardLevel(selectedVideoTarget.gIdx, selectedVideoTarget.fIdx, action);
+        return;
+    }
+
+    // 2. Nếu đang chọn thẻ trường dữ liệu (fieldKey)
+    if (paragraphSelectedGroupIdx !== undefined && paragraphSelectedGroupIdx >= 0) {
+        const grp = paragraphGridConfig.groups[paragraphSelectedGroupIdx];
+        if (grp && paragraphSelectedFieldKey && paragraphSelectedFieldKey !== '__CUSTOM_TEXT__' && paragraphSelectedFieldKey !== '__TTS__' && paragraphSelectedFieldKey !== '__COUNTDOWN__') {
+            const fIdx = grp.fields.findIndex(f => (typeof f === 'string' ? f : f.key) === paragraphSelectedFieldKey);
+            if (fIdx >= 0 && grp.fields.length > 1) {
+                moveCardLevel(paragraphSelectedGroupIdx, fIdx, action);
+                return;
+            }
+        }
+
+        // Mặc định di chuyển toàn bộ Lớp đang chọn
+        moveLayerLevel(paragraphSelectedGroupIdx, action);
+        return;
+    }
+
+    showToast("Vui lòng chọn 1 đối tượng hoặc 1 lớp trên Canvas để điều hướng tầng!", "info");
+}
+
+function selectLayerFieldByOrder(gIdx, fIdx) {
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (!grp || !grp.fields || !grp.fields[fIdx]) return;
+    paragraphSelectedGroupIdx = gIdx;
+    const item = grp.fields[fIdx];
+    const type = item.type || 'field';
+    if (type === 'custom_text') {
+        if (typeof selectCustomTextItem === 'function') selectCustomTextItem(gIdx, fIdx);
+    } else if (type === 'countdown') {
+        if (typeof selectCountdownItem === 'function') selectCountdownItem(gIdx, fIdx);
+    } else if (type === 'tts') {
+        if (typeof selectTtsItem === 'function') selectTtsItem(gIdx, fIdx);
+    } else if (type === 'progress_tracker') {
+        if (typeof selectProgressTrackerItem === 'function') selectProgressTrackerItem(gIdx, fIdx);
+    } else if (type === 'audio_sfx') {
+        if (typeof selectAudioSfxItem === 'function') selectAudioSfxItem(gIdx, fIdx);
+    } else if (type === 'video') {
+        if (typeof selectVideoItem === 'function') selectVideoItem(gIdx, fIdx);
+    } else {
+        const fKey = typeof item === 'string' ? item : item.key;
+        if (fKey && typeof selectLayerFieldItem === 'function') selectLayerFieldItem(gIdx, fKey);
+    }
+}
+
+function updateCanvasQuickLayerBar() {
+    const bar = document.getElementById('canvas-quick-layer-bar');
+    if (!bar) return;
+
+    const iconEl = document.getElementById('quick-layer-target-icon');
+    const nameEl = document.getElementById('quick-layer-target-name');
+    const badgeEl = document.getElementById('quick-layer-level-badge');
+
+    if (!paragraphGridConfig || !paragraphGridConfig.groups || paragraphGridConfig.groups.length === 0) {
+        if (nameEl) nameEl.innerText = "Chưa có lớp";
+        if (badgeEl) badgeEl.innerText = "Tầng 0";
+        return;
+    }
+
+    const totalGroups = paragraphGridConfig.groups.length;
+    let targetName = "";
+    let targetBadge = "";
+    let iconName = "layers";
+
+    if (typeof selectedCustomTextTarget !== 'undefined' && selectedCustomTextTarget) {
+        const { gIdx, fIdx } = selectedCustomTextTarget;
+        const grp = paragraphGridConfig.groups[gIdx];
+        const item = grp && grp.fields ? grp.fields[fIdx] : null;
+        targetName = `Thẻ Chữ: "${(item && item.text) ? item.text.substring(0, 14) : ''}..."`;
+        targetBadge = `Thẻ ${fIdx + 1}/${grp ? grp.fields.length : 1} • Tầng ${gIdx + 1}`;
+        iconName = "type";
+    } else if (typeof selectedCountdownTarget !== 'undefined' && selectedCountdownTarget) {
+        const { gIdx, fIdx } = selectedCountdownTarget;
+        const grp = paragraphGridConfig.groups[gIdx];
+        targetName = `Đồng Hồ Đếm Ngược`;
+        targetBadge = `Thẻ ${fIdx + 1}/${grp ? grp.fields.length : 1} • Tầng ${gIdx + 1}`;
+        iconName = "timer";
+    } else if (typeof selectedTtsTarget !== 'undefined' && selectedTtsTarget) {
+        const { gIdx, fIdx } = selectedTtsTarget;
+        const grp = paragraphGridConfig.groups[gIdx];
+        targetName = `Giọng Đọc AI (TTS)`;
+        targetBadge = `Thẻ ${fIdx + 1}/${grp ? grp.fields.length : 1} • Tầng ${gIdx + 1}`;
+        iconName = "volume-2";
+    } else if (typeof selectedProgressTrackerTarget !== 'undefined' && selectedProgressTrackerTarget) {
+        const { gIdx, fIdx } = selectedProgressTrackerTarget;
+        const grp = paragraphGridConfig.groups[gIdx];
+        targetName = `Thanh Tiến Độ`;
+        targetBadge = `Thẻ ${fIdx + 1}/${grp ? grp.fields.length : 1} • Tầng ${gIdx + 1}`;
+        iconName = "sliders";
+    } else if (typeof selectedAudioSfxTarget !== 'undefined' && selectedAudioSfxTarget) {
+        const { gIdx, fIdx } = selectedAudioSfxTarget;
+        const grp = paragraphGridConfig.groups[gIdx];
+        targetName = `Hiệu Ứng SFX`;
+        targetBadge = `Thẻ ${fIdx + 1}/${grp ? grp.fields.length : 1} • Tầng ${gIdx + 1}`;
+        iconName = "music";
+    } else if (typeof selectedVideoTarget !== 'undefined' && selectedVideoTarget) {
+        const { gIdx, fIdx } = selectedVideoTarget;
+        const grp = paragraphGridConfig.groups[gIdx];
+        targetName = `Thẻ Video`;
+        targetBadge = `Thẻ ${fIdx + 1}/${grp ? grp.fields.length : 1} • Tầng ${gIdx + 1}`;
+        iconName = "video";
+    } else if (paragraphSelectedFieldKey && paragraphSelectedFieldKey !== '__CUSTOM_TEXT__' && paragraphSelectedFieldKey !== '__TTS__' && paragraphSelectedFieldKey !== '__COUNTDOWN__') {
+        const gIdx = Math.max(0, Math.min(totalGroups - 1, paragraphSelectedGroupIdx || 0));
+        const grp = paragraphGridConfig.groups[gIdx];
+        const fIdx = grp && grp.fields ? grp.fields.findIndex(f => (typeof f === 'string' ? f : f.key) === paragraphSelectedFieldKey) : -1;
+        targetName = `Thẻ: {{${paragraphSelectedFieldKey}}}`;
+        targetBadge = (fIdx >= 0) ? `Thẻ ${fIdx + 1}/${grp.fields.length} • Lớp Tầng ${gIdx + 1}` : `Lớp Tầng ${gIdx + 1}/${totalGroups}`;
+        iconName = "tag";
+    } else {
+        const gIdx = Math.max(0, Math.min(totalGroups - 1, paragraphSelectedGroupIdx || 0));
+        const grp = paragraphGridConfig.groups[gIdx];
+        targetName = grp ? (grp.name || `Lớp ${gIdx + 1}`) : `Lớp ${gIdx + 1}`;
+        const posLabel = (gIdx === totalGroups - 1) ? 'Trên Cùng' : (gIdx === 0 ? 'Dưới Cùng' : 'Giữa');
+        targetBadge = `Tầng ${gIdx + 1} / ${totalGroups} [${posLabel}]`;
+        iconName = "layers";
+    }
+
+    if (nameEl) nameEl.innerText = targetName;
+    if (badgeEl) badgeEl.innerText = targetBadge;
+    if (iconEl) iconEl.setAttribute('data-lucide', iconName);
+    if (window.lucide && lucide.createIcons) lucide.createIcons();
+}
+
+function renderCanvasMasterLayerStackUI() {
+    const container = document.getElementById('canvas-master-stack-content');
+    const totalBadge = document.getElementById('master-stack-total-badge');
+    if (!container) return;
+
+    if (!paragraphGridConfig || !paragraphGridConfig.groups || paragraphGridConfig.groups.length === 0) {
+        container.innerHTML = `<div class="p-3 text-center text-slate-500 text-xs">Chưa có đối tượng nào trên Canvas!</div>`;
+        if (totalBadge) totalBadge.innerText = '0 Đối tượng';
+        return;
+    }
+
+    const groups = paragraphGridConfig.groups;
+    const totalLayers = groups.length;
+    let totalCards = 0;
+    groups.forEach(g => { if (g.fields) totalCards += g.fields.length; });
+
+    const wrapBox = paragraphGridConfig.gridMatrix && paragraphGridConfig.gridMatrix.columnBoxWrapper;
+    const isWrapBoxActive = !!(wrapBox && wrapBox.enabled);
+    const wrapBoxAbove = isWrapBoxActive && (wrapBox.zOrder === 'above_layers');
+
+    const hasBadge = !!(canvasBadgeImage || (videoConfig && videoConfig.badgeStyle));
+    const badgeBelow = hasBadge && (videoConfig.badgeStyle && videoConfig.badgeStyle.zOrder === 'below_layers');
+
+    if (totalBadge) {
+        totalBadge.innerText = `${totalLayers} Lớp • ${totalCards} Thẻ • ${isWrapBoxActive ? 'Khung viền • ' : ''}${hasBadge ? 'Logo • ' : ''}Nền`;
+    }
+
+    let html = `
+        <div class="space-y-1.5 p-1 rounded-xl bg-slate-900/60 border border-slate-800 text-[11px]">
+            <div class="flex items-center justify-between text-[9px] font-bold text-slate-400 px-1 pb-1 border-b border-slate-800/80">
+                <span class="flex items-center space-x-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                    <span>Thứ Tự Hiển Thị Từ Trên Cùng ➔ Dưới Cùng (Canvas View)</span>
+                </span>
+                <span class="text-amber-400 font-mono">Trực quan 100%</span>
+            </div>
+    `;
+
+    // 1. TOPMOST: Logo nếu ở chế độ mặc định / trên cùng
+    if (hasBadge && !badgeBelow) {
+        html += `
+            <div class="flex items-center justify-between p-1.5 rounded-lg bg-amber-950/40 border border-amber-600/40 text-amber-200">
+                <div class="flex items-center space-x-2 min-w-0">
+                    <span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono font-bold text-[8.5px] border border-amber-500/40 shrink-0">TOP</span>
+                    <i data-lucide="award" class="w-3.5 h-3.5 text-amber-400 shrink-0"></i>
+                    <span class="font-extrabold truncate">Logo / Huy Hiệu Thương Hiệu</span>
+                </div>
+                <div class="flex items-center space-x-1 shrink-0">
+                    <span class="text-[8px] font-mono px-1.5 py-0.5 rounded bg-amber-900/80 text-amber-300 border border-amber-700/80">Trên cùng</span>
+                    <button onclick="setCanvasBadgeZOrder('below_layers')" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[9px] font-bold transition" title="Chuyển Logo xuống dưới các lớp">
+                        ⏬ Hạ xuống
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // 2. KHUNG VIỀN BAO GỘP nếu zOrder === 'above_layers'
+    if (isWrapBoxActive && wrapBoxAbove) {
+        html += `
+            <div class="flex items-center justify-between p-1.5 rounded-lg bg-indigo-950/40 border border-indigo-500/40 text-indigo-200">
+                <div class="flex items-center space-x-2 min-w-0">
+                    <span class="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-mono font-bold text-[8.5px] border border-indigo-500/40 shrink-0">ĐÈ LỚP</span>
+                    <i data-lucide="box" class="w-3.5 h-3.5 text-indigo-400 shrink-0"></i>
+                    <span class="font-extrabold truncate">Khung Viền Bao Gộp Cột</span>
+                </div>
+                <div class="flex items-center space-x-1 shrink-0">
+                    <span class="text-[8px] font-mono px-1.5 py-0.5 rounded bg-indigo-900/80 text-indigo-300 border border-indigo-700/80">Đè lên lớp</span>
+                    <button onclick="setColumnBoxWrapperZOrder('below_layers')" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[9px] font-bold transition" title="Hạ khung viền xuống dưới các lớp">
+                        ⏬ Hạ xuống
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // 3. CÁC LỚP NỘI DUNG (Từ Lớp cuối vẽ sau cùng - Tầng cao nhất, xuống Lớp đầu tiên vẽ trước - Tầng thấp nhất)
+    for (let gIdx = totalLayers - 1; gIdx >= 0; gIdx--) {
+        const grp = groups[gIdx];
+        const isSel = (gIdx === paragraphSelectedGroupIdx);
+        const isTop = (gIdx === totalLayers - 1);
+        const isBottom = (gIdx === 0);
+        const levelNum = gIdx + 1;
+        const meta = getGroupPrimaryMeta(grp);
+
+        html += `
+            <div class="p-1.5 rounded-lg border transition ${isSel ? 'bg-indigo-950/80 border-indigo-500 shadow-md ring-1 ring-indigo-500/50' : 'bg-slate-950/70 border-slate-800 hover:border-slate-700'} space-y-1">
+                <div class="flex items-center justify-between cursor-pointer" onclick="selectGridGroup(${gIdx})">
+                    <div class="flex items-center space-x-2 min-w-0 flex-1 mr-1">
+                        <span class="px-1.5 py-0.5 rounded font-mono font-black text-[9px] shrink-0 ${isTop ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50' : (isBottom ? 'bg-slate-800 text-slate-400 border border-slate-700' : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40')}">
+                            T${levelNum}
+                        </span>
+                        <span class="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm" style="background-color: ${grp.trackColor || '#3b82f6'};"></span>
+                        <div class="flex items-center space-x-1.5 min-w-0">
+                            <i data-lucide="${meta.icon}" class="w-3.5 h-3.5 ${meta.colorClass} shrink-0"></i>
+                            <span class="font-extrabold truncate ${isSel ? 'text-white' : 'text-slate-200'}">${grp.name || `Lớp ${levelNum}`}</span>
+                        </div>
+                        <span class="text-[8px] font-bold px-1.5 py-0.2 rounded shrink-0 ${isTop ? 'bg-amber-950 text-amber-300 border border-amber-800' : (isBottom ? 'bg-slate-900 text-slate-500 border border-slate-800' : 'bg-slate-900 text-slate-400 border border-slate-800')}">
+                            ${isTop ? 'Trên cùng' : (isBottom ? 'Dưới cùng' : 'Giữa')}
+                        </span>
+                    </div>
+
+                    <div class="flex items-center space-x-0.5 shrink-0" onclick="event.stopPropagation()">
+                        <button onclick="moveLayerLevel(${gIdx}, 'top')" ${isTop ? 'disabled' : ''} class="p-1 rounded bg-slate-900 hover:bg-indigo-600 disabled:opacity-20 text-slate-300 hover:text-white transition" title="Lên trên cùng (Bring to Front)">
+                            <span class="text-[9px]">⏫</span>
+                        </button>
+                        <button onclick="moveLayerLevel(${gIdx}, 'up')" ${isTop ? 'disabled' : ''} class="p-1 rounded bg-slate-900 hover:bg-teal-600 disabled:opacity-20 text-slate-300 hover:text-white transition" title="Lên 1 tầng (Bring Forward)">
+                            <span class="text-[9px]">🔼</span>
+                        </button>
+                        <button onclick="moveLayerLevel(${gIdx}, 'down')" ${isBottom ? 'disabled' : ''} class="p-1 rounded bg-slate-900 hover:bg-amber-600 disabled:opacity-20 text-slate-300 hover:text-white transition" title="Xuống 1 tầng (Send Backward)">
+                            <span class="text-[9px]">🔽</span>
+                        </button>
+                        <button onclick="moveLayerLevel(${gIdx}, 'bottom')" ${isBottom ? 'disabled' : ''} class="p-1 rounded bg-slate-900 hover:bg-rose-600 disabled:opacity-20 text-slate-300 hover:text-white transition" title="Xuống dưới cùng (Send to Back)">
+                            <span class="text-[9px]">⏬</span>
+                        </button>
+                    </div>
+                </div>
+
+                ${grp.fields && grp.fields.length > 0 ? `
+                    <div class="pl-5 pt-0.5 border-t border-slate-900 flex flex-wrap gap-1 items-center">
+                        <span class="text-[8px] text-slate-500 font-bold shrink-0">Thẻ con:</span>
+                        ${grp.fields.map((fItem, fIdx) => {
+                            const fKey = typeof fItem === 'string' ? fItem : (fItem.key || fItem.type || fItem.text || 'Thẻ');
+                            const isFKeySel = (isSel && ((typeof selectedFieldKeysList !== 'undefined' && selectedFieldKeysList.includes(fKey)) || (typeof selectedCustomTextTarget !== 'undefined' && selectedCustomTextTarget && selectedCustomTextTarget.gIdx === gIdx && selectedCustomTextTarget.fIdx === fIdx) || (typeof selectedCountdownTarget !== 'undefined' && selectedCountdownTarget && selectedCountdownTarget.gIdx === gIdx && selectedCountdownTarget.fIdx === fIdx)));
+                            return `
+                                <div class="flex items-center space-x-0.5 px-1.5 py-0.5 rounded border text-[8.5px] cursor-pointer ${isFKeySel ? 'bg-amber-500/20 text-amber-200 border-amber-500/60 font-bold' : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'}" onclick="event.stopPropagation(); selectLayerFieldByOrder(${gIdx}, ${fIdx})">
+                                    <span class="text-[8px] text-slate-500 font-mono">#${fIdx + 1}</span>
+                                    <span class="truncate max-w-[80px]">${fKey}</span>
+                                    ${grp.fields.length > 1 ? `
+                                        <button onclick="event.stopPropagation(); moveCardLevel(${gIdx}, ${fIdx}, 'up')" ${fIdx === grp.fields.length - 1 ? 'disabled' : ''} class="text-[7.5px] text-slate-400 hover:text-white disabled:opacity-20 px-0.5" title="Đẩy thẻ lên trước">▲</button>
+                                        <button onclick="event.stopPropagation(); moveCardLevel(${gIdx}, ${fIdx}, 'down')" ${fIdx === 0 ? 'disabled' : ''} class="text-[7.5px] text-slate-400 hover:text-white disabled:opacity-20 px-0.5" title="Hạ thẻ xuống sau">▼</button>
+                                    ` : ''}
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    // 4. KHUNG VIỀN BAO GỘP nếu zOrder !== 'above_layers' (nằm dưới các lớp)
+    if (isWrapBoxActive && !wrapBoxAbove) {
+        html += `
+            <div class="flex items-center justify-between p-1.5 rounded-lg bg-indigo-950/40 border border-indigo-500/40 text-indigo-200">
+                <div class="flex items-center space-x-2 min-w-0">
+                    <span class="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-mono font-bold text-[8.5px] border border-indigo-500/40 shrink-0">DƯỚI LỚP</span>
+                    <i data-lucide="box" class="w-3.5 h-3.5 text-indigo-400 shrink-0"></i>
+                    <span class="font-extrabold truncate">Khung Viền Bao Gộp Cột</span>
+                </div>
+                <div class="flex items-center space-x-1 shrink-0">
+                    <span class="text-[8px] font-mono px-1.5 py-0.5 rounded bg-indigo-900/80 text-indigo-300 border border-indigo-700/80">Dưới các lớp</span>
+                    <button onclick="setColumnBoxWrapperZOrder('above_layers')" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[9px] font-bold transition" title="Đưa khung viền lên đè lên các lớp">
+                        ⏫ Đưa lên
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // 5. LOGO nếu zOrder === 'below_layers'
+    if (hasBadge && badgeBelow) {
+        html += `
+            <div class="flex items-center justify-between p-1.5 rounded-lg bg-amber-950/40 border border-amber-600/40 text-amber-200">
+                <div class="flex items-center space-x-2 min-w-0">
+                    <span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono font-bold text-[8.5px] border border-amber-500/40 shrink-0">DƯỚI LỚP</span>
+                    <i data-lucide="award" class="w-3.5 h-3.5 text-amber-400 shrink-0"></i>
+                    <span class="font-extrabold truncate">Logo / Huy Hiệu Thương Hiệu</span>
+                </div>
+                <div class="flex items-center space-x-1 shrink-0">
+                    <span class="text-[8px] font-mono px-1.5 py-0.5 rounded bg-amber-900/80 text-amber-300 border border-amber-700/80">Dưới các lớp</span>
+                    <button onclick="setCanvasBadgeZOrder('top')" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[9px] font-bold transition" title="Chuyển Logo lên trên cùng">
+                        ⏫ Lên trên
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // 6. TẦNG ĐÁY CỐ ĐỊNH: KHUNG NỀN CANVAS
+    html += `
+            <div class="flex items-center justify-between p-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-400">
+                <div class="flex items-center space-x-2 min-w-0">
+                    <span class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono font-bold text-[8.5px] border border-slate-700 shrink-0">ĐÁY 0</span>
+                    <i data-lucide="image" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
+                    <span class="font-extrabold truncate">Khung Nền Canvas (Màu / Ảnh Nền / Blobs)</span>
+                </div>
+                <span class="text-[8px] font-mono px-1.5 py-0.5 rounded bg-slate-900 text-slate-500 border border-slate-800">Cố định đáy</span>
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = html;
+    if (window.lucide && lucide.createIcons) lucide.createIcons();
+}
+
+function toggleCanvasMasterStackContent() {
+    const content = document.getElementById('canvas-master-stack-content');
+    const icon = document.getElementById('master-stack-toggle-icon');
+    if (!content) return;
+    const isHidden = content.classList.contains('hidden');
+    if (isHidden) {
+        content.classList.remove('hidden');
+        if (icon) icon.style.transform = 'rotate(180deg)';
+    } else {
+        content.classList.add('hidden');
+        if (icon) icon.style.transform = 'rotate(0deg)';
+    }
+}
+
+function toggleCanvasMasterStackPanel() {
+    const panel = document.getElementById('canvas-master-stack-panel');
+    const content = document.getElementById('canvas-master-stack-content');
+    const icon = document.getElementById('master-stack-toggle-icon');
+    if (content && content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        if (icon) icon.style.transform = 'rotate(180deg)';
+    }
+    if (panel) {
+        panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        panel.classList.add('ring-2', 'ring-indigo-500', 'bg-indigo-950/40');
+        setTimeout(() => {
+            panel.classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-950/40');
+        }, 1200);
+    }
 }
 
 function duplicateTimelineGroup(gIdx) {
@@ -1055,6 +1549,8 @@ function duplicateTimelineGroup(gIdx) {
     renderTimelineLayersListUI();
     renderTimelineTracksUI();
     drawParagraphCanvasFrame();
+    if (typeof updateCanvasQuickLayerBar === 'function') updateCanvasQuickLayerBar();
+    if (typeof renderCanvasMasterLayerStackUI === 'function') renderCanvasMasterLayerStackUI();
     showToast("Đã nhân bản lớp thành công!");
 }
 
@@ -1140,6 +1636,8 @@ function selectGridGroup(gIdx) {
     renderTimelineTracksUI();
     renderInspectorRibbon();
     drawParagraphCanvasFrame();
+    if (typeof updateCanvasQuickLayerBar === 'function') updateCanvasQuickLayerBar();
+    if (typeof renderCanvasMasterLayerStackUI === 'function') renderCanvasMasterLayerStackUI();
 }
 
 function deleteGridGroup(gIdx) {
@@ -1153,6 +1651,8 @@ function deleteGridGroup(gIdx) {
     renderTimelineTracksUI();
     renderInspectorRibbon();
     drawParagraphCanvasFrame();
+    if (typeof updateCanvasQuickLayerBar === 'function') updateCanvasQuickLayerBar();
+    if (typeof renderCanvasMasterLayerStackUI === 'function') renderCanvasMasterLayerStackUI();
     showToast("Đã xóa lớp!");
 }
 

@@ -222,8 +222,12 @@ function getColumnBoxWrapperConfig() {
             paddingX: 16,
             paddingY: 16,
             bgColor: "transparent",
-            heightMode: "auto"
+            heightMode: "auto",
+            layerOrder: "under"
         };
+    }
+    if (paragraphGridConfig.gridMatrix.columnBoxWrapper.layerOrder === undefined) {
+        paragraphGridConfig.gridMatrix.columnBoxWrapper.layerOrder = "under";
     }
     return paragraphGridConfig.gridMatrix.columnBoxWrapper;
 }
@@ -332,6 +336,11 @@ function syncColumnBoxWrapperUI() {
     if (bgColorPicker && wrapBox.bgColor && wrapBox.bgColor.startsWith('#')) {
         bgColorPicker.value = wrapBox.bgColor;
     }
+
+    const layerOrderSelect = document.getElementById('grid-wrap-box-layer-order');
+    if (layerOrderSelect) {
+        layerOrderSelect.value = wrapBox.layerOrder || "under";
+    }
 }
 
 function toggleColumnBoxWrapper(isChecked) {
@@ -358,6 +367,7 @@ function updateColumnBoxWrapperConfig() {
     const padTopInput = document.getElementById('grid-wrap-box-pad-top');
     const padBottomInput = document.getElementById('grid-wrap-box-pad-bottom');
     const heightModeSelect = document.getElementById('grid-wrap-box-height-mode');
+    const layerOrderSelect = document.getElementById('grid-wrap-box-layer-order');
 
     let sCol = startSelect ? parseInt(startSelect.value) : 1;
     let eCol = endSelect ? parseInt(endSelect.value) : 2;
@@ -389,6 +399,7 @@ function updateColumnBoxWrapperConfig() {
     wrapBox.paddingY = padT;
 
     if (heightModeSelect) wrapBox.heightMode = heightModeSelect.value;
+    if (layerOrderSelect) wrapBox.layerOrder = layerOrderSelect.value || "under";
 
     const isFullGrid = (wrapBox.heightMode === 'full' || wrapBox.heightMode === 'full_grid');
     const colRangeRow = document.getElementById('grid-wrap-box-col-range-row');

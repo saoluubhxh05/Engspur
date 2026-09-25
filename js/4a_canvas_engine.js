@@ -242,61 +242,6 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
         ctx.restore();
     }
 
-    // TÍNH TOÁN & VẼ NỀN KHUNG VIỀN BAO GỘP CỘT (MODE 2 - COLUMN BOX WRAPPER)
-    const wrapBox = matrix.columnBoxWrapper;
-    const isWrapBoxActive = !!(wrapBox && wrapBox.enabled);
-    let wrapBoxX = 0, wrapBoxW = 0, wrapBoxPadLeft = 0, wrapBoxPadRight = 0, wrapBoxPadTop = 0, wrapBoxPadBottom = 0;
-    let wrapStartCol = 1, wrapEndCol = 2;
-    let wrapMaxY = paddingTop;
-    let wrapMinY = height;
-    let wrapActualContentBottom = 0;
-
-    if (isWrapBoxActive) {
-        wrapStartCol = Math.max(1, Math.min(colCount, parseInt(wrapBox.startCol) || 1));
-        wrapEndCol = Math.max(wrapStartCol, Math.min(colCount, parseInt(wrapBox.endCol) || 2));
-        
-        const padXFallback = wrapBox.paddingX !== undefined ? wrapBox.paddingX : 16;
-        const padYFallback = wrapBox.paddingY !== undefined ? wrapBox.paddingY : 16;
-        wrapBoxPadLeft = wrapBox.paddingLeft !== undefined ? wrapBox.paddingLeft : padXFallback;
-        wrapBoxPadRight = wrapBox.paddingRight !== undefined ? wrapBox.paddingRight : padXFallback;
-        wrapBoxPadTop = wrapBox.paddingTop !== undefined ? wrapBox.paddingTop : padYFallback;
-        wrapBoxPadBottom = wrapBox.paddingBottom !== undefined ? wrapBox.paddingBottom : padYFallback;
-
-        const isFullGrid = (wrapBox.heightMode === 'full' || wrapBox.heightMode === 'full_grid');
-        const isFullHeight = (isFullGrid || wrapBox.heightMode === 'full_cols');
-
-        let startColLayout, endColLayout;
-        if (isFullGrid) {
-            startColLayout = colLayouts[0];
-            endColLayout = colLayouts[colLayouts.length - 1];
-        } else {
-            startColLayout = colLayouts[wrapStartCol - 1] || colLayouts[0];
-            endColLayout = colLayouts[wrapEndCol - 1] || colLayouts[colLayouts.length - 1];
-        }
-
-        if (startColLayout && endColLayout) {
-            wrapBoxX = startColLayout.x - wrapBoxPadLeft;
-            wrapBoxW = Math.max(0, (endColLayout.x + endColLayout.w) - startColLayout.x + wrapBoxPadLeft + wrapBoxPadRight);
-        }
-
-        if (wrapBox.bgColor && wrapBox.bgColor !== 'transparent' && wrapBoxW > 0) {
-            const estH = Math.max(10, isFullHeight
-                ? (effectiveHeight + wrapBoxPadTop + wrapBoxPadBottom)
-                : (paragraphGridConfig._cachedWrapBoxH || (effectiveHeight * 0.7)));
-            const estY = isFullHeight
-                ? (paddingTop - wrapBoxPadTop)
-                : ((paragraphGridConfig._cachedWrapBoxY !== undefined ? paragraphGridConfig._cachedWrapBoxY : paddingTop) - wrapBoxPadTop);
-            const boxRadius = Math.max(0, Math.min(Math.min(wrapBoxW / 2, estH / 2), parseInt(wrapBox.borderRadius) !== undefined ? parseInt(wrapBox.borderRadius) : 20));
-            ctx.save();
-            ctx.beginPath();
-            if (ctx.roundRect) ctx.roundRect(wrapBoxX, estY, wrapBoxW, estH, boxRadius);
-            else ctx.rect(wrapBoxX, estY, wrapBoxW, estH);
-            ctx.fillStyle = wrapBox.bgColor;
-            ctx.fill();
-            ctx.restore();
-        }
-    }
-
     let activeTopicList = getParagraphFilteredDatasets();
     if (!activeTopicList || activeTopicList.length === 0) {
         activeTopicList = [{ topic: "Default", drills: [{ cueWord: "", drillText: "" }] }];
@@ -347,6 +292,154 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
         maxSentencesToDraw = isParagraphRunning ? (pCurrentSentenceIndex + 1) : 1;
     }
     const startSentenceIdx = 0;
+
+    // TÍNH TOÁN & VẼ KHUNG VIỀN BAO GỘP CỘT (MODE 2 - COLUMN BOX WRAPPER)
+    const wrapBox = matrix.columnBoxWrapper;
+    const isWrapBoxActive = !!(wrapBox && wrapBox.enabled);
+    const wrapLayerOrder = (wrapBox && wrapBox.layerOrder) ? wrapBox.layerOrder : 'under';
+    let wrapBoxX = 0, wrapBoxW = 0, wrapBoxPadLeft = 0, wrapBoxPadRight = 0, wrapBoxPadTop = 0, wrapBoxPadBottom = 0;
+    let wrapStartCol = 1, wrapEndCol = 2;
+    let wrapMaxY = paddingTop;
+    let wrapMinY = height;
+    let wrapActualContentBottom = 0;
+    let isFullGrid = false, isFullHeight = false;
+    let finalBoxY = paddingTop, finalBoxH = effectiveHeight;
+    let boxRadius = 20;
+
+    if (isWrapBoxActive) {
+        wrapStartCol = Math.max(1, Math.min(colCount, parseInt(wrapBox.startCol) || 1));
+        wrapEndCol = Math.max(wrapStartCol, Math.min(colCount, parseInt(wrapBox.endCol) || 2));
+        
+        const padXFallback = wrapBox.paddingX !== undefined ? wrapBox.paddingX : 16;
+        const padYFallback = wrapBox.paddingY !== undefined ? wrapBox.paddingY : 16;
+        wrapBoxPadLeft = wrapBox.paddingLeft !== undefined ? wrapBox.paddingLeft : padXFallback;
+        wrapBoxPadRight = wrapBox.paddingRight !== undefined ? wrapBox.paddingRight : padXFallback;
+        wrapBoxPadTop = wrapBox.paddingTop !== undefined ? wrapBox.paddingTop : padYFallback;
+        wrapBoxPadBottom = wrapBox.paddingBottom !== undefined ? wrapBox.paddingBottom : padYFallback;
+
+        isFullGrid = (wrapBox.heightMode === 'full' || wrapBox.heightMode === 'full_grid');
+        isFullHeight = (isFullGrid || wrapBox.heightMode === 'full_cols');
+
+        let startColLayout, endColLayout;
+        if (isFullGrid) {
+            startColLayout = colLayouts[0];
+            endColLayout = colLayouts[colLayouts.length - 1];
+        } else {
+            startColLayout = colLayouts[wrapStartCol - 1] || colLayouts[0];
+            endColLayout = colLayouts[wrapEndCol - 1] || colLayouts[colLayouts.length - 1];
+        }
+
+        if (startColLayout && endColLayout) {
+            wrapBoxX = startColLayout.x - wrapBoxPadLeft;
+            wrapBoxW = Math.max(0, (endColLayout.x + endColLayout.w) - startColLayout.x + wrapBoxPadLeft + wrapBoxPadRight);
+        }
+
+        if (isFullHeight) {
+            finalBoxY = paddingTop - wrapBoxPadTop;
+            finalBoxH = Math.max(10, effectiveHeight + wrapBoxPadTop + wrapBoxPadBottom);
+        } else {
+            // Tự động tính toán trước chiều cao ôm sát nội dung bài tập (Auto Height Mode)
+            let estMinY = height;
+            let estMaxBottom = 0;
+            let tempColY = new Array(colCount + 1).fill(paddingTop);
+
+            for (let sIdx = startSentenceIdx; sIdx < maxSentencesToDraw; sIdx++) {
+                const curMap = sentenceDataMaps[sIdx] || sentenceDataMaps[0];
+                let curMaxLockedH = 0;
+                let lockedCols = [];
+
+                paragraphGridConfig.groups.forEach(grp => {
+                    if (grp.visible === false) return;
+                    const grpPos = grp.loopPosition || (grp.isInsideLoop === false ? 'outside' : 'inside');
+                    if (grpPos !== 'inside' && sIdx > 0) return;
+
+                    const tCol = Math.max(1, Math.min(grp.targetColumn || 1, colCount));
+                    const isLocked = matrix.colSyncSettings && matrix.colSyncSettings[tCol] ? matrix.colSyncSettings[tCol].locked : true;
+                    const grpMode = typeof getGroupPresentationMode === 'function' ? getGroupPresentationMode(grp) : (grp.presentationMode || paragraphGridConfig.presentationMode || 'single');
+
+                    if (grpMode === 'single' && sIdx !== activeSentenceIdx) return;
+                    if (grpMode === 'stack' && isParagraphRunning && sIdx > activeSentenceIdx) return;
+
+                    const colLay = colLayouts[tCol - 1] || colLayouts[0];
+                    let gW = colLay.w;
+                    if (grp.colSpan) {
+                        if (grp.colSpan === 'all') {
+                            gW = (colLayouts[colCount - 1].x + colLayouts[colCount - 1].w) - colLayouts[0].x;
+                        } else {
+                            const spanC = Math.min(parseInt(grp.colSpan) || 1, colCount - tCol + 1);
+                            if (spanC > 1 && colLayouts[tCol - 1 + spanC - 1]) {
+                                gW = (colLayouts[tCol - 1 + spanC - 1].x + colLayouts[tCol - 1 + spanC - 1].w) - colLay.x;
+                            }
+                        }
+                    }
+
+                    const rowOff = (grp.startRowOffset || 0) * 45;
+                    const gY = (grpMode === 'single' ? paddingTop : tempColY[tCol]) + rowOff + (grp.offsetY || 0);
+                    const gH = Math.max(20, estimateGroupContentHeight(ctx, grp, curMap, gW, (grpPos === 'inside'), sentenceDataMaps, 1.0));
+
+                    if (tCol >= wrapStartCol && tCol <= wrapEndCol) {
+                        estMinY = Math.min(estMinY, gY);
+                        estMaxBottom = Math.max(estMaxBottom, gY + gH);
+                    }
+
+                    if (isLocked) {
+                        lockedCols.push(tCol);
+                        if (gH > curMaxLockedH) curMaxLockedH = gH;
+                    } else if (grpMode !== 'single') {
+                        tempColY[tCol] = gY + gH;
+                    }
+                });
+
+                if (hasAnyStackLayer || hasAnyAllLayer) {
+                    const nextStartY = (lockedCols.length > 0 ? tempColY[lockedCols[0]] : paddingTop) + curMaxLockedH + blockGap;
+                    for (let c = 1; c <= colCount; c++) {
+                        if (matrix.colSyncSettings && matrix.colSyncSettings[c] && matrix.colSyncSettings[c].locked) {
+                            tempColY[c] = nextStartY;
+                        }
+                    }
+                    if (wrapStartCol <= 2 && wrapEndCol >= 1) {
+                        estMaxBottom = Math.max(estMaxBottom, nextStartY - blockGap);
+                    }
+                }
+            }
+
+            const cTop = (estMinY < height) ? estMinY : (paragraphGridConfig._cachedWrapBoxY !== undefined ? paragraphGridConfig._cachedWrapBoxY : paddingTop);
+            const cBottom = (estMaxBottom > 0) ? estMaxBottom : (paragraphGridConfig._cachedWrapBoxH ? (cTop + paragraphGridConfig._cachedWrapBoxH) : (cTop + effectiveHeight * 0.7));
+
+            finalBoxY = cTop - wrapBoxPadTop;
+            finalBoxH = Math.max(10, cBottom + wrapBoxPadBottom - finalBoxY);
+            paragraphGridConfig._cachedWrapBoxH = finalBoxH;
+            paragraphGridConfig._cachedWrapBoxY = cTop;
+        }
+
+        boxRadius = Math.max(0, Math.min(Math.min(wrapBoxW / 2, finalBoxH / 2), parseInt(wrapBox.borderRadius) !== undefined ? parseInt(wrapBox.borderRadius) : 20));
+
+        // VẼ KHUNG VIỀN NẰM DƯỚI (LAYER ORDER: 'under' - MẶC ĐỊNH CHO PHONG CÁCH TIÊU ĐỀ ĐÈ LÊN VIỀN)
+        // Nếu layerOrder !== 'over', vẽ cả Nền (Fill) và Nét Viền (Stroke) ngay tại đây
+        // Nhờ đó, bất kỳ thẻ tiêu đề nào có màu nền khi vẽ sau sẽ tự nhiên che phủ và nổi lên trên nét viền!
+        if (wrapBoxW > 0 && finalBoxH > 0) {
+            ctx.save();
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(wrapBoxX, finalBoxY, wrapBoxW, finalBoxH, boxRadius);
+            else ctx.rect(wrapBoxX, finalBoxY, wrapBoxW, finalBoxH);
+
+            if (wrapBox.bgColor && wrapBox.bgColor !== 'transparent') {
+                ctx.fillStyle = wrapBox.bgColor;
+                ctx.fill();
+            }
+
+            if (wrapLayerOrder !== 'over') {
+                const bWidth = Math.max(1, parseInt(wrapBox.borderWidth) || 3);
+                const bColor = wrapBox.borderColor || '#d99a14';
+                if (bColor && bColor !== 'transparent') {
+                    ctx.strokeStyle = bColor;
+                    ctx.lineWidth = bWidth;
+                    ctx.stroke();
+                }
+            }
+            ctx.restore();
+        }
+    }
 
     let colVerticalPositions = new Array(colCount + 1).fill(paddingTop);
     let totalLockedBlockTop = paddingTop;
@@ -729,7 +822,7 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
         }
     }
 
-    // VẼ KHUNG VIỀN BAO GỘP CỘT (MODE 2 - COLUMN BOX WRAPPER)
+    // CẬP NHẬT KÍCH THƯỚC ĐO THỰC TẾ & VẼ NÉT VIỀN ĐÈ LÊN NẾU CHỌN CHẾ ĐỘ 'over' (NẰM TRÊN CÙNG)
     if (isWrapBoxActive && wrapBoxW > 0) {
         const isFullGrid = (wrapBox.heightMode === 'full' || wrapBox.heightMode === 'full_grid');
         const isFullHeight = (isFullGrid || wrapBox.heightMode === 'full_cols');
@@ -737,35 +830,39 @@ function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
         const contentTop = (wrapMinY < height) ? wrapMinY : paddingTop;
         const contentBottom = (wrapActualContentBottom > 0) ? wrapActualContentBottom : Math.max(contentTop + 40, wrapMaxY);
 
-        const finalBoxY = isFullHeight
+        const measuredBoxY = isFullHeight
             ? (paddingTop - wrapBoxPadTop)
             : (contentTop - wrapBoxPadTop);
-        const finalBoxBottom = isFullHeight
+        const measuredBoxBottom = isFullHeight
             ? (paddingTop + effectiveHeight + wrapBoxPadBottom)
             : (contentBottom + wrapBoxPadBottom);
             
-        const finalBoxH = Math.max(10, finalBoxBottom - finalBoxY);
-        paragraphGridConfig._cachedWrapBoxH = finalBoxH;
+        const measuredBoxH = Math.max(10, measuredBoxBottom - measuredBoxY);
+        paragraphGridConfig._cachedWrapBoxH = measuredBoxH;
         paragraphGridConfig._cachedWrapBoxY = contentTop;
 
-        const boxRadius = Math.max(0, Math.min(Math.min(wrapBoxW / 2, finalBoxH / 2), parseInt(wrapBox.borderRadius) !== undefined ? parseInt(wrapBox.borderRadius) : 20));
+        // Chỉ vẽ nét viền ở đây nếu người dùng chọn chế độ 'over' (nằm trên cùng đè lên nội dung)
+        // Còn chế độ mặc định 'under' (nằm dưới tiêu đề & nội dung) đã được vẽ ở tầng đáy trước khi vẽ các lớp
+        if (wrapLayerOrder === 'over') {
+            const measuredRadius = Math.max(0, Math.min(Math.min(wrapBoxW / 2, measuredBoxH / 2), parseInt(wrapBox.borderRadius) !== undefined ? parseInt(wrapBox.borderRadius) : 20));
 
-        ctx.save();
-        ctx.beginPath();
-        if (ctx.roundRect) {
-            ctx.roundRect(wrapBoxX, finalBoxY, wrapBoxW, finalBoxH, boxRadius);
-        } else {
-            ctx.rect(wrapBoxX, finalBoxY, wrapBoxW, finalBoxH);
-        }
+            ctx.save();
+            ctx.beginPath();
+            if (ctx.roundRect) {
+                ctx.roundRect(wrapBoxX, measuredBoxY, wrapBoxW, measuredBoxH, measuredRadius);
+            } else {
+                ctx.rect(wrapBoxX, measuredBoxY, wrapBoxW, measuredBoxH);
+            }
 
-        const bWidth = Math.max(1, parseInt(wrapBox.borderWidth) || 3);
-        const bColor = wrapBox.borderColor || '#d99a14';
-        if (bColor && bColor !== 'transparent') {
-            ctx.strokeStyle = bColor;
-            ctx.lineWidth = bWidth;
-            ctx.stroke();
+            const bWidth = Math.max(1, parseInt(wrapBox.borderWidth) || 3);
+            const bColor = wrapBox.borderColor || '#d99a14';
+            if (bColor && bColor !== 'transparent') {
+                ctx.strokeStyle = bColor;
+                ctx.lineWidth = bWidth;
+                ctx.stroke();
+            }
+            ctx.restore();
         }
-        ctx.restore();
     }
 
     // BẢN SẠCH: KHÔNG VẼ LOGO / BADGE THƯƠNG HIỆU

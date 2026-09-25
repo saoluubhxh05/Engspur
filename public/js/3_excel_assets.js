@@ -685,3 +685,40 @@ function switchParagraphFrameSubTab(subKey) {
         if (p1) p1.classList.add('hidden');
     }
 }
+
+function setCanvasBadgeZOrder(order) {
+    if (!videoConfig.badgeStyle) {
+        videoConfig.badgeStyle = { widthPct: 15, heightPct: 10, posX: 82, posY: 4, opacity: 100, borderRadius: 20, isCircle: true, removeWhiteBg: false, maskInsetPct: 5, zOrder: 'top' };
+    }
+    videoConfig.badgeStyle.zOrder = order; // 'top' or 'below_layers'
+    if (paragraphGridConfig && paragraphGridConfig.customMediaEnabled) {
+        if (!paragraphGridConfig.customMedia) paragraphGridConfig.customMedia = {};
+        if (!paragraphGridConfig.customMedia.badgeStyle) paragraphGridConfig.customMedia.badgeStyle = {};
+        paragraphGridConfig.customMedia.badgeStyle.zOrder = order;
+        const found = savedParagraphProfiles.find(p => p.id === activeParagraphProfileId);
+        if (found) {
+            if (!found.customMedia) found.customMedia = {};
+            if (!found.customMedia.badgeStyle) found.customMedia.badgeStyle = {};
+            found.customMedia.badgeStyle.zOrder = order;
+        }
+    } else {
+        if (!studioGlobalBadgeStyle) studioGlobalBadgeStyle = {};
+        studioGlobalBadgeStyle.zOrder = order;
+    }
+
+    const badgeEl = document.getElementById('cfg-bd-zorder-badge');
+    if (badgeEl) {
+        if (order === 'below_layers') {
+            badgeEl.className = "px-1.5 py-0.2 rounded bg-indigo-950 text-indigo-300 border border-indigo-800 text-[8px] font-mono font-bold";
+            badgeEl.innerText = "Dưới lớp";
+        } else {
+            badgeEl.className = "px-1.5 py-0.2 rounded bg-amber-950 text-amber-300 border border-amber-800 text-[8px] font-mono font-bold";
+            badgeEl.innerText = "Trên cùng";
+        }
+    }
+    drawParagraphCanvasFrame();
+    if (typeof updateCanvasQuickLayerBar === 'function') updateCanvasQuickLayerBar();
+    if (typeof renderCanvasMasterLayerStackUI === 'function') renderCanvasMasterLayerStackUI();
+    showToast(order === 'below_layers' ? "Logo thương hiệu: Đã đặt nằm DƯỚI các lớp nội dung!" : "Logo thương hiệu: Đã đặt nằm TRÊN CÙNG mọi lớp!");
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(true);
+}

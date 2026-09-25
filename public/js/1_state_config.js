@@ -4,11 +4,44 @@
  */
 
 var APP_VERSION_INFO = {
-    version: "V16.6",
-    releaseDate: "24/09/2026",
+    version: "V16.9",
+    releaseDate: "25/09/2026",
     status: "Mới nhất & Ổn định",
-    summary: "Bản nâng cấp V16.6: Bổ sung tính năng 'Tùy Chọn Kịch Bản Dùng Ảnh Nền & Logo Riêng Biệt'. Mỗi kịch bản có thể bật công tắc dùng ảnh nền & logo riêng hoặc dùng chung Studio, tự động chuyển đổi nền/logo khi đổi kịch bản và khi Render hàng loạt theo chuỗi.",
+    summary: "Bản nâng cấp V16.9: Nâng cấp Khung Viền Bao Gộp Cột (Mode 2) nằm chìm bên dưới Khung Tiêu Đề và Nội Dung bài học. Tích hợp tùy chọn 'Thứ tự hiển thị viền' linh hoạt (Nằm dưới tiêu đề & nội dung hoặc Nằm trên cùng), giúp các thẻ nhãn tiêu đề bo góc có màu nền tự động nổi lên trên, che phủ viền vàng y như mẫu thiết kế.",
     categories: [
+        {
+            title: "Khung Viền Nằm Dưới Tiêu Đề & Nội Dung (V16.9)",
+            icon: "layers",
+            color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            items: [
+                "Khung viền nằm dưới khung tiêu đề chuẩn xác: Đường nét viền của khung bao cột được vẽ chìm bên dưới các lớp nội dung, cho phép khung tiêu đề (như nhãn xanh than và vàng cam) nằm đè lên trên che phủ đường viền hoàn hảo.",
+                "Tùy chọn thứ tự hiển thị viền linh hoạt: Tích hợp menu lựa chọn giữa 'Nằm dưới tiêu đề & nội dung (Khuyên dùng)' và 'Nằm trên cùng (Đè mép ngoài)' ngay trong bảng Cấu Trúc Lưới (Tab 5).",
+                "Tính toán trước kích thước khung viền thông minh: Tự động đo đạc chính xác chiều cao và tọa độ khung viền trước khi vẽ các lớp, đảm bảo hiển thị hoàn hảo ở cả chế độ tự co giãn (Auto) và toàn chiều cao.",
+                "Đồng bộ lưu trữ & Render video sắc nét: Tự động lưu cấu hình thứ tự lớp vẽ vào kịch bản JSON và hiển thị đồng nhất trên cả Canvas Studio và bản xuất MP4."
+            ]
+        },
+        {
+            title: "Bo Tròn Vệt Highlight Linh Hoạt (V16.8)",
+            icon: "sparkles",
+            color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            items: [
+                "Bo góc vệt Highlight chuẩn xác: Cho phép điều chỉnh độ bo tròn góc (Border Radius 0 - 64px) cho vệt Highlight chữ trên Canvas và video xuất bản.",
+                "Cụm phím chọn nhanh 1 chạm: Hỗ trợ 4 mức chuẩn (0px Vuông, 4px Bo nhẹ, 8px Bo vừa, 16px Tròn mềm) kèm thanh trượt và ô nhập số pixel trực tiếp.",
+                "Hỗ trợ cả Thẻ Chữ Excel & Chữ Tự Do: Tích hợp đầy đủ vào khối Kích Thước Highlight tại thanh Định Dạng Inspector (Tab 4).",
+                "Đồng bộ hàng loạt & Render chuẩn xác: Tự động kế thừa độ bo tròn khi đồng bộ định dạng sang các kịch bản khác và xuất video MP4 sắc nét."
+            ]
+        },
+        {
+            title: "Chuyển Đổi Kiểu Chữ Hoa, Thường, Đầu Dòng, Từng Từ (V16.7)",
+            icon: "type",
+            color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/30",
+            items: [
+                "Cụm nút chuyển đổi kiểu chữ 1 chạm: Tích hợp trực tiếp tại thanh Định Dạng Inspector (Tab 4) cho cả Thẻ Chữ Excel và Thẻ Chữ Tự Do.",
+                "Hỗ trợ đầy đủ 4 chế độ chữ kèm tiếng Việt có dấu: In hoa toàn bộ (ABC), in thường toàn bộ (abc), viết hoa chữ cái đầu dòng / đầu câu sau dấu chấm (Abc..), viết hoa chữ cái đầu mỗi từ (Abc Def), và giữ nguyên gốc (Aa).",
+                "Hiển thị & Render thời gian thực: Tự động tính toán lại ngắt dòng thông minh, kích thước hộp thẻ co giãn ôm sát và vẽ chuẩn xác lên Canvas cũng như file video MP4 xuất bản.",
+                "Đồng bộ hàng loạt & Mẫu thẻ: Tự động kế thừa thuộc tính kiểu chữ khi áp dụng định dạng sang mọi kịch bản khác và khi lưu mẫu thẻ Preset."
+            ]
+        },
         {
             title: "Tùy Chọn Kịch Bản Sử Dụng Ảnh Nền & Logo Riêng (V16.6)",
             icon: "image-plus",
@@ -992,6 +1025,7 @@ function getCustomTextDefaults(item) {
     if (item.highlightColor === undefined) item.highlightColor = "transparent";
     if (item.highlightPaddingX === undefined) item.highlightPaddingX = 8;
     if (item.highlightPaddingY === undefined) item.highlightPaddingY = 4;
+    if (item.highlightRadius === undefined) item.highlightRadius = 6;
     if (item.boxRadius === undefined) item.boxRadius = 16;
     if (item.boxPadding === undefined) item.boxPadding = 12;
     if (item.shrinkToFit === undefined) item.shrinkToFit = true;
@@ -1014,49 +1048,49 @@ var isRightCollapsed = false;
 var paragraphFieldStyles = {
     "Câu hỏi cho mẫu câu": { 
         type: 'text', font: 'Quicksand', style: 'bold', size: 30, color: '#0f172a', highlightColor: 'transparent', 
-        highlightPaddingX: 8, highlightPaddingY: 4,
+        highlightPaddingX: 8, highlightPaddingY: 4, highlightRadius: 6,
         hAlign: 'left', vAlign: 'middle', lineSpacing: 1.25, underline: false, 
         indentLeft: 0, indentRight: 0, spaceBefore: 0, spaceAfter: 0,
         boxBgColor: '#f1f5f9', boxRadius: 18, boxPadding: 14, textWrap: true, shrinkToFit: true 
     },
     "Mẫu câu": { 
         type: 'text', font: 'Quicksand', style: 'bold', size: 26, color: '#0f172a', highlightColor: 'transparent', 
-        highlightPaddingX: 8, highlightPaddingY: 4,
+        highlightPaddingX: 8, highlightPaddingY: 4, highlightRadius: 6,
         hAlign: 'left', vAlign: 'middle', lineSpacing: 1.25, underline: false, 
         indentLeft: 0, indentRight: 0, spaceBefore: 0, spaceAfter: 0,
         boxBgColor: '#ffedd5', boxRadius: 18, boxPadding: 12, textWrap: true, shrinkToFit: true 
     },
     "Substitution words": { 
         type: 'text', font: 'Quicksand', style: 'extrabold', size: 28, color: '#0f172a', highlightColor: 'transparent', 
-        highlightPaddingX: 8, highlightPaddingY: 4,
+        highlightPaddingX: 8, highlightPaddingY: 4, highlightRadius: 6,
         hAlign: 'left', vAlign: 'middle', lineSpacing: 1.25, underline: false, 
         indentLeft: 0, indentRight: 0, spaceBefore: 0, spaceAfter: 0,
         boxBgColor: '#fef08a', boxRadius: 18, boxPadding: 12, textWrap: true, shrinkToFit: true 
     },
     "Dịch Substitution words": { 
         type: 'text', font: 'Quicksand', style: 'normal', size: 20, color: '#475569', highlightColor: 'transparent', 
-        highlightPaddingX: 8, highlightPaddingY: 4,
+        highlightPaddingX: 8, highlightPaddingY: 4, highlightRadius: 6,
         hAlign: 'left', vAlign: 'middle', lineSpacing: 1.25, underline: false, 
         indentLeft: 0, indentRight: 0, spaceBefore: 0, spaceAfter: 0,
         boxBgColor: '#f8fafc', boxRadius: 14, boxPadding: 10, textWrap: true, shrinkToFit: true 
     },
     "Substitution Drills": { 
         type: 'text', font: 'Quicksand', style: 'extrabold', size: 28, color: '#0f172a', highlightColor: 'transparent', 
-        highlightPaddingX: 8, highlightPaddingY: 4,
+        highlightPaddingX: 8, highlightPaddingY: 4, highlightRadius: 6,
         hAlign: 'left', vAlign: 'middle', lineSpacing: 1.25, underline: false, 
         indentLeft: 0, indentRight: 0, spaceBefore: 0, spaceAfter: 0,
         boxBgColor: '#bbf7d0', boxRadius: 18, boxPadding: 12, textWrap: true, shrinkToFit: true 
     },
     "Phiên âm IPA": { 
         type: 'text', font: 'Quicksand', style: 'bold', size: 22, color: '#4f46e5', highlightColor: 'transparent', 
-        highlightPaddingX: 8, highlightPaddingY: 4,
+        highlightPaddingX: 8, highlightPaddingY: 4, highlightRadius: 6,
         hAlign: 'left', vAlign: 'middle', lineSpacing: 1.25, underline: false, 
         indentLeft: 0, indentRight: 0, spaceBefore: 0, spaceAfter: 0,
         boxBgColor: '#e0e7ff', boxRadius: 14, boxPadding: 8, textWrap: true, shrinkToFit: true 
     },
     "Dịch Substitution Drills": { 
         type: 'text', font: 'Quicksand', style: 'normal', size: 20, color: '#1e293b', highlightColor: 'transparent', 
-        highlightPaddingX: 8, highlightPaddingY: 4,
+        highlightPaddingX: 8, highlightPaddingY: 4, highlightRadius: 6,
         hAlign: 'left', vAlign: 'middle', lineSpacing: 1.25, underline: false, 
         indentLeft: 0, indentRight: 0, spaceBefore: 0, spaceAfter: 0,
         boxBgColor: '#f8fafc', boxRadius: 14, boxPadding: 10, textWrap: true, shrinkToFit: true 
@@ -1099,7 +1133,8 @@ var DEFAULT_TEMPLATES_JSON = {
                 paddingTop: 16,
                 paddingBottom: 16,
                 bgColor: "transparent",
-                heightMode: "auto"
+                heightMode: "auto",
+                layerOrder: "under"
             }
         },
         groups: [
@@ -1205,7 +1240,8 @@ var DEFAULT_TEMPLATES_JSON = {
                 paddingTop: 16,
                 paddingBottom: 16,
                 bgColor: "transparent",
-                heightMode: "auto"
+                heightMode: "auto",
+                layerOrder: "under"
             }
         },
         groups: [

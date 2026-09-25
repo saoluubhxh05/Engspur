@@ -88,6 +88,8 @@ function renderCountdownInspectorRibbon(item, gIdx, fIdx) {
 
     body.innerHTML = `
         <div class="space-y-3 text-xs">
+            ${(typeof renderCardZOrderToolbarHtml === 'function') ? renderCardZOrderToolbarHtml(gIdx, fIdx, 'countdown') : ''}
+
             <!-- NÚT ÁP DỤNG CHUNG CHO TOÀN BỘ ĐỒNG HỒ (ACCORDION MỌI KỊCH BẢN) -->
             ${(typeof renderBatchStyleAccordionUI === 'function') ? renderBatchStyleAccordionUI('countdown') : ''}
 
@@ -976,6 +978,8 @@ function renderProgressTrackerInspectorRibbon(item, gIdx, fIdx) {
 
     body.innerHTML = `
         <div class="space-y-3 text-xs">
+            ${(typeof renderCardZOrderToolbarHtml === 'function') ? renderCardZOrderToolbarHtml(gIdx, fIdx, 'progress_tracker') : ''}
+
             <!-- NÚT ÁP DỤNG CHUNG CHO TOÀN BỘ THẺ TIẾN ĐỘ (ACCORDION MỌI KỊCH BẢN) -->
             ${(typeof renderBatchStyleAccordionUI === 'function') ? renderBatchStyleAccordionUI('progress_tracker') : ''}
 
@@ -1266,6 +1270,8 @@ function renderAudioSfxInspectorRibbon(item, gIdx, fIdx) {
 
     body.innerHTML = `
         <div class="space-y-3 text-xs">
+            ${(typeof renderCardZOrderToolbarHtml === 'function') ? renderCardZOrderToolbarHtml(gIdx, fIdx, 'audio_sfx') : ''}
+
             <!-- NÚT ÁP DỤNG CHUNG CHO TOÀN BỘ THẺ SFX (ACCORDION MỌI KỊCH BẢN) -->
             ${(typeof renderBatchStyleAccordionUI === 'function') ? renderBatchStyleAccordionUI('audio_sfx') : ''}
 
@@ -1427,6 +1433,8 @@ function renderVideoInspectorRibbon(item, gIdx, fIdx) {
 
     body.innerHTML = `
         <div class="space-y-3 pb-8">
+            ${(typeof renderCardZOrderToolbarHtml === 'function') ? renderCardZOrderToolbarHtml(gIdx, fIdx, 'video') : ''}
+
             <!-- ACCORDION ĐỒNG BỘ ĐỊNH DẠNG MỌI KỊCH BẢN -->
             ${typeof renderBatchStyleAccordionUI === 'function' ? renderBatchStyleAccordionUI('video') : ''}
 

@@ -4,6 +4,37 @@
  * hộp thẻ co giãn tự ôm sát (drawAutoFlowCardBox) và thẻ chữ tự do (drawCustomTextCardBox)
  */
 
+function applyCanvasTextCase(text, textCase) {
+    if (!text || !textCase || textCase === 'none') return text;
+    const str = String(text);
+    if (textCase === 'uppercase') {
+        return str.toUpperCase();
+    }
+    if (textCase === 'lowercase') {
+        return str.toLowerCase();
+    }
+    if (textCase === 'capitalize') {
+        // Viết hoa chữ cái đầu mỗi từ (Title Case)
+        return str.replace(/\S+/gu, (word) => {
+            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        });
+    }
+    if (textCase === 'sentence') {
+        // Viết hoa chữ cái đầu dòng / đầu câu (sau dấu chấm, chấm than, hỏi chấm hoặc đầu dòng)
+        const lower = str.toLowerCase();
+        try {
+            return lower.replace(/(^\s*|[.!?\n\r]\s*)([\p{L}])/gu, (match, prefix, char) => {
+                return prefix + char.toUpperCase();
+            });
+        } catch (e) {
+            return lower.replace(/(^\s*|[.!?\n\r]\s*)([a-z\u00C0-\u024F\u1EA0-\u1EF9])/gi, (match, prefix, char) => {
+                return prefix + char.toUpperCase();
+            });
+        }
+    }
+    return str;
+}
+
 function drawAutoFlowCardBox(ctx, startX, startY, maxGroupW, textVal, st, scaleFactor = 1.0) {
     if (!textVal || String(textVal).trim() === "") {
         return 0;
@@ -18,13 +49,19 @@ function drawAutoFlowCardBox(ctx, startX, startY, maxGroupW, textVal, st, scaleF
 
     const effectiveW = Math.max(40, maxGroupW - pad * 2 - indentL - indentR);
     
+    // Áp dụng kiểu chữ (Text Case: hoa toàn bộ, thường, hoa đầu dòng/câu, hoa từng từ)
+    let renderedText = String(textVal);
+    if (st && st.textCase) {
+        renderedText = applyCanvasTextCase(renderedText, st.textCase);
+    }
+
     ctx.font = `${st.style === 'bold' || st.style === 'extrabold' ? 'bold' : (st.style === 'italic' ? 'italic' : 'normal')} ${size}px "${st.font || 'Quicksand'}", sans-serif`;
-    let lines = calculateTextLines(ctx, textVal, effectiveW, size, st.font);
+    let lines = calculateTextLines(ctx, renderedText, effectiveW, size, st.font);
     
     if (st.shrinkToFit !== false && lines.length > 3) {
         size = Math.max(11, Math.round(size * 0.85));
         ctx.font = `${st.style === 'bold' || st.style === 'extrabold' ? 'bold' : (st.style === 'italic' ? 'italic' : 'normal')} ${size}px "${st.font || 'Quicksand'}", sans-serif`;
-        lines = calculateTextLines(ctx, textVal, effectiveW, size, st.font);
+        lines = calculateTextLines(ctx, renderedText, effectiveW, size, st.font);
     }
 
     let actualBoxW = maxGroupW;
@@ -78,7 +115,16 @@ function drawAutoFlowCardBox(ctx, startX, startY, maxGroupW, textVal, st, scaleF
             const hlH = size * 1.05 + hlPadY * 2;
             const hlY = textY - size * 0.8 - hlPadY;
 
-            ctx.fillRect(hlX, hlY, hlW, hlH);
+            const rawRadius = (st.highlightRadius !== undefined ? st.highlightRadius : 6);
+            const hlRadius = Math.max(0, Math.min(Math.round(rawRadius * scaleFactor), Math.floor(hlH / 2), Math.floor(hlW / 2)));
+
+            ctx.beginPath();
+            if (hlRadius > 0 && ctx.roundRect) {
+                ctx.roundRect(hlX, hlY, hlW, hlH, hlRadius);
+            } else {
+                ctx.rect(hlX, hlY, hlW, hlH);
+            }
+            ctx.fill();
             ctx.restore();
         }
 
@@ -117,11 +163,7 @@ function drawCustomTextCardBox(ctx, startX, startY, maxGroupW, rawItem, gIdx, fI
     let fullText = (item.prefix ? item.prefix + ' ' : '') + (item.text || '') + (item.suffix ? ' ' + item.suffix : '');
     if (!fullText.trim()) fullText = item.text || "Chữ tự do";
 
-    if (item.textCase === 'uppercase') {
-        fullText = fullText.toUpperCase();
-    } else if (item.textCase === 'capitalize') {
-        fullText = fullText.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-    }
+    fullText = applyCanvasTextCase(fullText, item.textCase);
 
     ctx.save();
 
@@ -250,7 +292,16 @@ function drawCustomTextCardBox(ctx, startX, startY, maxGroupW, rawItem, gIdx, fI
             const hlH = size * 1.05 + hlPadY * 2;
             const hlY = textY - size * 0.8 - hlPadY;
 
-            ctx.fillRect(hlX, hlY, hlW, hlH);
+            const rawRadius = (item.highlightRadius !== undefined ? item.highlightRadius : 6);
+            const hlRadius = Math.max(0, Math.min(Math.round(rawRadius * scaleFactor), Math.floor(hlH / 2), Math.floor(hlW / 2)));
+
+            ctx.beginPath();
+            if (hlRadius > 0 && ctx.roundRect) {
+                ctx.roundRect(hlX, hlY, hlW, hlH, hlRadius);
+            } else {
+                ctx.rect(hlX, hlY, hlW, hlH);
+            }
+            ctx.fill();
             ctx.restore();
         }
 
@@ -321,3 +372,8 @@ function calculateTextLines(ctx, text, maxW, fontSize, fontFam) {
     return lines;
 }
 
+// Window global bindings for Canvas Text Engine
+window.applyCanvasTextCase = applyCanvasTextCase;
+window.drawAutoFlowCardBox = drawAutoFlowCardBox;
+window.drawCustomTextCardBox = drawCustomTextCardBox;
+window.calculateTextLines = calculateTextLines;

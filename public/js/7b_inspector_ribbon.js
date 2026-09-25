@@ -495,9 +495,14 @@ function renderCustomTextInspectorRibbon(item, gIdx, fIdx) {
     const isUnderline = !!item.underline;
 
     const textCase = item.textCase || 'none';
+    const ctHlPadX = item.highlightPaddingX !== undefined ? item.highlightPaddingX : 8;
+    const ctHlPadY = item.highlightPaddingY !== undefined ? item.highlightPaddingY : 4;
+    const ctHlRadius = item.highlightRadius !== undefined ? item.highlightRadius : 6;
 
     body.innerHTML = `
         <div class="space-y-3 text-xs">
+            ${renderCardZOrderToolbarHtml(gIdx, fIdx, 'custom_text')}
+
             <!-- NHÓM 0: NHẬP NỘI DUNG TRỰC TIẾP -->
             <div class="space-y-2 bg-slate-900 p-2.5 rounded-xl border border-teal-500/50 shadow-md">
                 <div class="flex items-center justify-between">
@@ -555,10 +560,12 @@ function renderCustomTextInspectorRibbon(item, gIdx, fIdx) {
                         <button onclick="toggleCustomTextStyle(${gIdx}, ${fIdx}, 'underline')" title="Gạch Chân" class="w-7 h-6 rounded flex items-center justify-center underline text-xs transition ${isUnderline ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}">U</button>
                     </div>
 
-                    <div class="flex items-center space-x-1 bg-slate-950 p-1 rounded-lg border border-slate-800" title="Kiểu chữ hoa">
-                        <button onclick="updateCustomTextProp(${gIdx}, ${fIdx}, 'textCase', 'none')" class="px-1.5 py-0.5 rounded text-[10px] font-bold transition ${textCase === 'none' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}">abc</button>
-                        <button onclick="updateCustomTextProp(${gIdx}, ${fIdx}, 'textCase', 'uppercase')" class="px-1.5 py-0.5 rounded text-[10px] font-bold transition ${textCase === 'uppercase' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}">ABC</button>
-                        <button onclick="updateCustomTextProp(${gIdx}, ${fIdx}, 'textCase', 'capitalize')" class="px-1.5 py-0.5 rounded text-[10px] font-bold transition ${textCase === 'capitalize' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}">Abc</button>
+                    <div class="flex items-center space-x-0.5 bg-slate-950 p-0.5 rounded-lg border border-slate-800" title="Chuyển đổi kiểu chữ">
+                        <button onclick="updateCustomTextProp(${gIdx}, ${fIdx}, 'textCase', 'none')" title="Mặc định (Giữ nguyên gốc)" class="px-1.5 py-0.5 rounded text-[9px] font-bold transition ${(!textCase || textCase === 'none') ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}">Aa</button>
+                        <button onclick="updateCustomTextProp(${gIdx}, ${fIdx}, 'textCase', 'uppercase')" title="CHỮ IN HOA TOÀN BỘ" class="px-1.5 py-0.5 rounded text-[9px] font-bold transition ${textCase === 'uppercase' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}">ABC</button>
+                        <button onclick="updateCustomTextProp(${gIdx}, ${fIdx}, 'textCase', 'lowercase')" title="chữ thường toàn bộ" class="px-1.5 py-0.5 rounded text-[9px] font-bold transition ${textCase === 'lowercase' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}">abc</button>
+                        <button onclick="updateCustomTextProp(${gIdx}, ${fIdx}, 'textCase', 'sentence')" title="Chữ hoa đầu dòng / đầu câu" class="px-1.5 py-0.5 rounded text-[9px] font-bold transition ${textCase === 'sentence' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}">Abc..</button>
+                        <button onclick="updateCustomTextProp(${gIdx}, ${fIdx}, 'textCase', 'capitalize')" title="Chữ Hoa Từng Từ (Title Case)" class="px-1.5 py-0.5 rounded text-[9px] font-bold transition ${textCase === 'capitalize' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}">Abc Def</button>
                     </div>
                 </div>
             </div>
@@ -653,6 +660,45 @@ function renderCustomTextInspectorRibbon(item, gIdx, fIdx) {
                         <button onclick="updateCustomTextProp(${gIdx}, ${fIdx}, 'highlightColor', '#86efac')" class="w-5 h-5 rounded bg-emerald-300 border border-emerald-500 shadow-sm" title="Xanh mint"></button>
                         <button onclick="updateCustomTextProp(${gIdx}, ${fIdx}, 'highlightColor', '#fdba74')" class="w-5 h-5 rounded bg-orange-300 border border-orange-500 shadow-sm" title="Cam pastel"></button>
                         <button onclick="updateCustomTextProp(${gIdx}, ${fIdx}, 'highlightColor', '#f472b6')" class="w-5 h-5 rounded bg-pink-400 border border-pink-500 shadow-sm" title="Hồng phấn"></button>
+                    </div>
+                </div>
+
+                <!-- Kích Thước & Bo Góc Vệt Highlight Chữ Tự Do -->
+                <div class="p-2 bg-slate-950 rounded-lg border border-amber-500/40 space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[9px] font-bold text-amber-300 uppercase">Kích Thước Vệt Highlight:</span>
+                        <div class="flex items-center space-x-1">
+                            <button onclick="updateCustomTextProp(${gIdx}, ${fIdx}, 'highlightPaddingX', 4); updateCustomTextProp(${gIdx}, ${fIdx}, 'highlightPaddingY', 2);" class="px-1 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[8px] font-bold rounded">Mảnh</button>
+                            <button onclick="updateCustomTextProp(${gIdx}, ${fIdx}, 'highlightPaddingX', 8); updateCustomTextProp(${gIdx}, ${fIdx}, 'highlightPaddingY', 4);" class="px-1 py-0.5 bg-indigo-900/60 hover:bg-indigo-800 text-indigo-200 text-[8px] font-bold rounded">Vừa</button>
+                            <button onclick="updateCustomTextProp(${gIdx}, ${fIdx}, 'highlightPaddingX', 14); updateCustomTextProp(${gIdx}, ${fIdx}, 'highlightPaddingY', 8);" class="px-1 py-0.5 bg-amber-950/60 hover:bg-amber-900 text-amber-200 text-[8px] font-bold rounded">Dày</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <div>
+                            <label class="text-[8px] text-slate-400 block">Dãn ngang (Padding X px):</label>
+                            <input type="number" value="${ctHlPadX}" onchange="updateCustomTextProp(${gIdx}, ${fIdx}, 'highlightPaddingX', parseInt(this.value, 10))" class="w-full bg-slate-900 border border-slate-700 rounded p-1 font-bold text-amber-300 text-[10px]">
+                        </div>
+                        <div>
+                            <label class="text-[8px] text-slate-400 block">Dãn dọc (Padding Y px):</label>
+                            <input type="number" value="${ctHlPadY}" onchange="updateCustomTextProp(${gIdx}, ${fIdx}, 'highlightPaddingY', parseInt(this.value, 10))" class="w-full bg-slate-900 border border-slate-700 rounded p-1 font-bold text-amber-300 text-[10px]">
+                        </div>
+                    </div>
+
+                    <!-- Bo góc vệt Highlight -->
+                    <div class="pt-1 border-t border-slate-800/80 space-y-1">
+                        <div class="flex items-center justify-between">
+                            <label class="text-[8px] font-bold text-amber-300 block">Bo góc vệt Highlight (Radius px):</label>
+                            <div class="flex items-center space-x-1">
+                                <button onclick="updateCustomTextProp(${gIdx}, ${fIdx}, 'highlightRadius', 0)" class="px-1.5 py-0.5 rounded text-[8px] font-bold ${ctHlRadius === 0 ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-300 hover:text-white'}">0px Vuông</button>
+                                <button onclick="updateCustomTextProp(${gIdx}, ${fIdx}, 'highlightRadius', 4)" class="px-1.5 py-0.5 rounded text-[8px] font-bold ${ctHlRadius === 4 ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-300 hover:text-white'}">4px</button>
+                                <button onclick="updateCustomTextProp(${gIdx}, ${fIdx}, 'highlightRadius', 8)" class="px-1.5 py-0.5 rounded text-[8px] font-bold ${ctHlRadius === 8 ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-300 hover:text-white'}">8px</button>
+                                <button onclick="updateCustomTextProp(${gIdx}, ${fIdx}, 'highlightRadius', 16)" class="px-1.5 py-0.5 rounded text-[8px] font-bold ${ctHlRadius === 16 ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-300 hover:text-white'}">16px Tròn</button>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-1.5">
+                            <input type="range" min="0" max="32" step="1" value="${ctHlRadius}" oninput="updateCustomTextProp(${gIdx}, ${fIdx}, 'highlightRadius', parseInt(this.value, 10))" class="w-full accent-amber-400 cursor-pointer">
+                            <input type="number" min="0" max="64" value="${ctHlRadius}" onchange="updateCustomTextProp(${gIdx}, ${fIdx}, 'highlightRadius', Math.max(0, parseInt(this.value, 10) || 0))" class="w-12 bg-slate-900 border border-slate-700 rounded p-0.5 font-bold text-amber-300 text-[10px] text-center shrink-0">
+                        </div>
                     </div>
                 </div>
 
@@ -857,6 +903,8 @@ function renderTtsInspectorRibbon(item, gIdx, fIdx) {
 
     body.innerHTML = `
         <div class="space-y-3 text-xs">
+            ${renderCardZOrderToolbarHtml(gIdx, fIdx, 'tts')}
+
             <div class="space-y-2.5 bg-slate-900 p-2.5 rounded-xl border border-indigo-500/50 shadow">
                 <div class="flex items-center justify-between">
                     <span class="text-[10px] font-extrabold text-indigo-300 uppercase tracking-wider flex items-center space-x-1.5">
@@ -1232,8 +1280,8 @@ function applyCurrentStylesToSpecificTarget(type, profileId, targetKey, gIdx, fI
         if (!srcSt) return;
 
         const textProps = [
-            'font', 'style', 'size', 'color', 'highlightColor', 'highlightPaddingX', 'highlightPaddingY',
-            'hAlign', 'vAlign', 'lineSpacing', 'underline', 'indentLeft', 'indentRight', 'spaceBefore',
+            'font', 'style', 'size', 'color', 'highlightColor', 'highlightPaddingX', 'highlightPaddingY', 'highlightRadius',
+            'hAlign', 'vAlign', 'lineSpacing', 'underline', 'textCase', 'indentLeft', 'indentRight', 'spaceBefore',
             'spaceAfter', 'boxBgColor', 'boxRadius', 'boxPadding', 'textWrap', 'shrinkToFit'
         ];
 
@@ -1591,8 +1639,8 @@ function applyCurrentStylesToAllSameType(type) {
             }
 
             const textProps = [
-                'font', 'style', 'size', 'color', 'highlightColor', 'highlightPaddingX', 'highlightPaddingY',
-                'hAlign', 'vAlign', 'lineSpacing', 'underline', 'indentLeft', 'indentRight', 'spaceBefore',
+                'font', 'style', 'size', 'color', 'highlightColor', 'highlightPaddingX', 'highlightPaddingY', 'highlightRadius',
+                'hAlign', 'vAlign', 'lineSpacing', 'underline', 'textCase', 'indentLeft', 'indentRight', 'spaceBefore',
                 'spaceAfter', 'boxBgColor', 'boxRadius', 'boxPadding', 'textWrap', 'shrinkToFit'
             ];
 
@@ -1828,6 +1876,44 @@ function applyCurrentStylesToAllSameType(type) {
     renderInspectorRibbon();
 }
 
+function renderCardZOrderToolbarHtml(gIdx, fIdx, cardTypeName) {
+    if (gIdx === undefined || gIdx === null || gIdx < 0) return '';
+    const totalGroups = paragraphGridConfig && paragraphGridConfig.groups ? paragraphGridConfig.groups.length : 1;
+    const grp = paragraphGridConfig && paragraphGridConfig.groups ? paragraphGridConfig.groups[gIdx] : null;
+    const totalFields = (grp && grp.fields) ? grp.fields.length : 1;
+    const isTopLayer = (gIdx === totalGroups - 1);
+    const isBottomLayer = (gIdx === 0);
+
+    return `
+        <!-- THANH ĐIỀU HƯỚNG TẦNG NHANH CHO THẺ / LỚP ĐANG CHỌN (V16.9) -->
+        <div class="flex flex-wrap items-center justify-between gap-1.5 p-2 bg-slate-950/80 rounded-xl border border-indigo-500/40 text-[9.5px] shadow-sm mb-2">
+            <div class="flex items-center space-x-1.5 min-w-0">
+                <span class="text-indigo-300 font-bold shrink-0 flex items-center space-x-1">
+                    <i data-lucide="layers" class="w-3.5 h-3.5 text-indigo-400"></i>
+                    <span>Tầng:</span>
+                </span>
+                <span class="px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/50 text-[9px] font-black text-amber-300 font-mono shrink-0">
+                    Lớp T${gIdx + 1}/${totalGroups} ${isTopLayer ? '• Trên cùng' : (isBottomLayer ? '• Dưới cùng' : '')} ${fIdx !== undefined ? `(Thẻ #${fIdx + 1}/${totalFields})` : ''}
+                </span>
+            </div>
+            <div class="flex items-center space-x-1 shrink-0">
+                <button onclick="moveLayerLevel(${gIdx}, 'top')" ${isTopLayer ? 'disabled' : ''} title="Đưa toàn bộ Lớp lên trên cùng mọi lớp" class="px-1.5 py-0.5 bg-slate-800 hover:bg-indigo-600 disabled:opacity-20 text-slate-200 hover:text-white rounded text-[9px] font-black transition cursor-pointer">
+                    <span>⏫ Trên cùng</span>
+                </button>
+                <button onclick="moveLayerLevel(${gIdx}, 'up')" ${isTopLayer ? 'disabled' : ''} title="Đưa toàn bộ Lớp lên 1 tầng" class="px-1.5 py-0.5 bg-slate-800 hover:bg-teal-600 disabled:opacity-20 text-slate-200 hover:text-white rounded text-[9px] font-black transition cursor-pointer">
+                    <span>🔼 Lên 1</span>
+                </button>
+                <button onclick="moveLayerLevel(${gIdx}, 'down')" ${isBottomLayer ? 'disabled' : ''} title="Đưa toàn bộ Lớp xuống 1 tầng" class="px-1.5 py-0.5 bg-slate-800 hover:bg-amber-600 disabled:opacity-20 text-slate-200 hover:text-white rounded text-[9px] font-black transition cursor-pointer">
+                    <span>🔽 Xuống 1</span>
+                </button>
+                <button onclick="moveLayerLevel(${gIdx}, 'bottom')" ${isBottomLayer ? 'disabled' : ''} title="Đưa toàn bộ Lớp xuống dưới cùng mọi lớp" class="px-1.5 py-0.5 bg-slate-800 hover:bg-rose-600 disabled:opacity-20 text-slate-200 hover:text-white rounded text-[9px] font-black transition cursor-pointer">
+                    <span>⏬ Dưới cùng</span>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
 function renderInspectorRibbon() {
     const body = document.getElementById('inspector-panel-body');
     const targetLabel = document.getElementById('inspector-target-label');
@@ -1992,8 +2078,12 @@ function renderInspectorRibbon() {
 
     const curPadX = st.highlightPaddingX !== undefined ? st.highlightPaddingX : 8;
     const curPadY = st.highlightPaddingY !== undefined ? st.highlightPaddingY : 4;
+    const curHlRadius = st.highlightRadius !== undefined ? st.highlightRadius : 6;
 
     body.innerHTML = `
+        <!-- THANH ĐIỀU HƯỚNG TẦNG NHANH 1-CHẠM (LEVEL & Z-INDEX) -->
+        ${renderCardZOrderToolbarHtml(paragraphSelectedGroupIdx)}
+
         <!-- NÚT ÁP DỤNG CHUNG CHO TOÀN BỘ THẺ CHỮ EXCEL (ACCORDION MỌI KỊCH BẢN) -->
         ${renderBatchStyleAccordionUI('excel_text')}
 
@@ -2015,6 +2105,21 @@ function renderInspectorRibbon() {
                     <button onclick="toggleMultiFieldStyle('bold')" class="p-1 rounded font-black text-[10px] min-w-[20px] ${isBold ? 'btn-tb-active' : 'text-slate-300 hover:bg-slate-800'}">B</button>
                     <button onclick="toggleMultiFieldStyle('italic')" class="p-1 rounded italic font-serif text-[10px] min-w-[20px] ${isItalic ? 'btn-tb-active' : 'text-slate-300 hover:bg-slate-800'}">I</button>
                     <button onclick="toggleMultiFieldStyle('underline')" class="p-1 rounded underline text-[10px] min-w-[20px] ${isUnderline ? 'btn-tb-active' : 'text-slate-300 hover:bg-slate-800'}">U</button>
+                </div>
+            </div>
+
+            <!-- CHUYỂN ĐỔI KIỂU CHỮ (TEXT CASE) CHO THẺ EXCEL -->
+            <div class="flex items-center justify-between pt-0.5">
+                <span class="text-[9px] text-slate-400 font-bold flex items-center space-x-1">
+                    <i data-lucide="type" class="w-3 h-3 text-indigo-400"></i>
+                    <span>Kiểu chữ:</span>
+                </span>
+                <div class="flex items-center space-x-0.5 bg-slate-950 p-0.5 rounded-lg border border-slate-800" title="Chuyển đổi kiểu chữ">
+                    <button onclick="applyMultiFieldProp('textCase', 'none')" title="Mặc định (Giữ nguyên gốc từ Excel)" class="px-1.5 py-0.5 rounded text-[9px] font-bold transition ${(!st.textCase || st.textCase === 'none') ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}">Aa</button>
+                    <button onclick="applyMultiFieldProp('textCase', 'uppercase')" title="CHỮ IN HOA TOÀN BỘ" class="px-1.5 py-0.5 rounded text-[9px] font-bold transition ${st.textCase === 'uppercase' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}">ABC</button>
+                    <button onclick="applyMultiFieldProp('textCase', 'lowercase')" title="chữ thường toàn bộ" class="px-1.5 py-0.5 rounded text-[9px] font-bold transition ${st.textCase === 'lowercase' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}">abc</button>
+                    <button onclick="applyMultiFieldProp('textCase', 'sentence')" title="Chữ hoa đầu dòng / đầu câu" class="px-1.5 py-0.5 rounded text-[9px] font-bold transition ${st.textCase === 'sentence' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}">Abc..</button>
+                    <button onclick="applyMultiFieldProp('textCase', 'capitalize')" title="Chữ Hoa Từng Từ (Title Case)" class="px-1.5 py-0.5 rounded text-[9px] font-bold transition ${st.textCase === 'capitalize' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}">Abc Def</button>
                 </div>
             </div>
 
@@ -2047,6 +2152,23 @@ function renderInspectorRibbon() {
                     <div>
                         <label class="text-[8px] text-slate-400 block">Dãn dọc (Padding Y px):</label>
                         <input type="number" value="${curPadY}" onchange="applyMultiFieldProp('highlightPaddingY', parseInt(this.value))" class="w-full bg-slate-900 border border-slate-700 rounded p-1 font-bold text-amber-300 text-[10px]">
+                    </div>
+                </div>
+
+                <!-- Bo góc vệt Highlight -->
+                <div class="pt-1 border-t border-slate-800/80 space-y-1">
+                    <div class="flex items-center justify-between">
+                        <label class="text-[8px] font-bold text-amber-300 block">Bo góc vệt Highlight (Radius px):</label>
+                        <div class="flex items-center space-x-1">
+                            <button onclick="applyMultiFieldProp('highlightRadius', 0)" class="px-1.5 py-0.5 rounded text-[8px] font-bold ${curHlRadius === 0 ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-300 hover:text-white'}">0px Vuông</button>
+                            <button onclick="applyMultiFieldProp('highlightRadius', 4)" class="px-1.5 py-0.5 rounded text-[8px] font-bold ${curHlRadius === 4 ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-300 hover:text-white'}">4px</button>
+                            <button onclick="applyMultiFieldProp('highlightRadius', 8)" class="px-1.5 py-0.5 rounded text-[8px] font-bold ${curHlRadius === 8 ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-300 hover:text-white'}">8px</button>
+                            <button onclick="applyMultiFieldProp('highlightRadius', 16)" class="px-1.5 py-0.5 rounded text-[8px] font-bold ${curHlRadius === 16 ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-300 hover:text-white'}">16px Tròn</button>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-1.5">
+                        <input type="range" min="0" max="32" step="1" value="${curHlRadius}" oninput="applyMultiFieldProp('highlightRadius', parseInt(this.value))" class="w-full accent-amber-400 cursor-pointer">
+                        <input type="number" min="0" max="64" value="${curHlRadius}" onchange="applyMultiFieldProp('highlightRadius', Math.max(0, parseInt(this.value) || 0))" class="w-12 bg-slate-900 border border-slate-700 rounded p-0.5 font-bold text-amber-300 text-[10px] text-center shrink-0">
                     </div>
                 </div>
             </div>
@@ -2231,7 +2353,7 @@ function onMailMergeChipClicked(fieldKey) {
         } else {
             paragraphFieldStyles[fieldKey] = { 
                 type: 'text', font: 'Quicksand', style: 'bold', size: 28, color: '#0f172a', highlightColor: 'transparent', 
-                highlightPaddingX: 8, highlightPaddingY: 4,
+                highlightPaddingX: 8, highlightPaddingY: 4, highlightRadius: 6,
                 hAlign: 'left', vAlign: 'middle', lineSpacing: 1.25, underline: false,
                 indentLeft: 0, indentRight: 0, spaceBefore: 0, spaceAfter: 0,
                 boxBgColor: '#fef08a', boxRadius: 18, boxPadding: 12, 
