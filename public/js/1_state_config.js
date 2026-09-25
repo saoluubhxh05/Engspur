@@ -4,11 +4,32 @@
  */
 
 var APP_VERSION_INFO = {
-    version: "V16.9",
+    version: "V17.0",
     releaseDate: "25/09/2026",
-    status: "Mới nhất & Ổn định",
-    summary: "Bản nâng cấp V16.9: Nâng cấp Khung Viền Bao Gộp Cột (Mode 2) nằm chìm bên dưới Khung Tiêu Đề và Nội Dung bài học. Tích hợp tùy chọn 'Thứ tự hiển thị viền' linh hoạt (Nằm dưới tiêu đề & nội dung hoặc Nằm trên cùng), giúp các thẻ nhãn tiêu đề bo góc có màu nền tự động nổi lên trên, che phủ viền vàng y như mẫu thiết kế.",
+    status: "Mới nhất & Siêu mượt",
+    summary: "Bản nâng cấp V17.0: Đột phá hiệu năng Render Hàng Loạt (Batch Render) chống giật lag và nóng máy khi render nhiều chủ đề liên tục. Khóa chuẩn 30 FPS khi xuất video, loại bỏ tiến trình ghi âm PCM dư thừa của chế độ Render Nhanh, tối ưu Mini Live Monitor và làm sạch RAM triệt để giữa các chủ đề. Đồng thời, nâng cấp nút Xuất File tự động thu thập và lưu trọn vẹn toàn bộ thông số Nền & Logo riêng của từng kịch bản vào file JSON.",
     categories: [
+        {
+            title: "Tối Ưu Siêu Mượt Render MP4 Nhanh (V17.0)",
+            icon: "zap",
+            color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+            items: [
+                "Khóa tần số vẽ 30 FPS chuẩn khi Render: Loại bỏ triệt để hiện tượng vẽ thừa khung hình theo màn hình tần số cao (60Hz - 144Hz), giảm ngay 50% - 70% áp lực CPU và GPU.",
+                "Tắt ghi âm PCM ngầm ở chế độ Render MP4 Nhanh: Chỉ chạy bộ thu âm PCM khi thực sự xuất file WAV hoặc Render Kép, ngăn chặn hoàn toàn việc cấp phát hàng nghìn mảng đệm vào RAM gây giật cục.",
+                "Tối ưu Mini Live Monitor & Vùng bấm: Tinh gọn tần số quét Mini Monitor góc phải xuống 10 FPS và tắt hoàn toàn tính toán vùng chọn chuột (hit-boxes) khi đang render.",
+                "Thu gom rác RAM triệt để giữa các chủ đề: Tự động giải phóng buffer video, audio và bộ nhớ lịch sử Undo sau mỗi chủ đề trước khi chuyển tiếp bài mới."
+            ]
+        },
+        {
+            title: "Lưu Trọn Bộ Thông Số Nền & Logo Riêng Khi Xuất File (V17.0)",
+            icon: "download",
+            color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/30",
+            items: [
+                "Tự động đồng bộ trước khi xuất JSON: Nút 'Xuất File' trên Header và nút 'Xuất' trong Tab 2 tự động thu thập đầy đủ vị trí (X, Y), kích thước (W, H), độ mờ, bo góc, khử nền của Nền & Logo riêng.",
+                "Bảo toàn 100% khi nhập lại file: File JSON xuất ra chứa trọn vẹn thông số riêng của từng kịch bản, nạp lại trên máy khác hiển thị chính xác từng pixel.",
+                "Hỗ trợ cả 3 chế độ xuất: Hoạt động trơn tru trên cả Bản Siêu Nhẹ, Bản Nén Tối Ưu và Bản Gốc Đầy Đủ."
+            ]
+        },
         {
             title: "Khung Viền Nằm Dưới Tiêu Đề & Nội Dung (V16.9)",
             icon: "layers",

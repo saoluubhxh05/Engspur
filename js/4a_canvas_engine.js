@@ -162,7 +162,7 @@ function drawParagraphCanvasFrame() {
         if (pCleanCtx && pCleanCanvas) {
             renderSingleFrameToContext(pCleanCtx, pCleanCanvas.width, pCleanCanvas.height, true);
         }
-        if (!isBatchRunning || (miniBatchFrameCounter++ % 2 === 0)) {
+        if (!isBatchRunning || (miniBatchFrameCounter++ % 6 === 0)) {
             syncToMiniBatchCanvas(true);
         }
         return;
@@ -171,13 +171,15 @@ function drawParagraphCanvasFrame() {
     // Pha quay bản Full (hoặc Preview / Render đơn): chỉ vẽ lên pCanvas chính, giải phóng 100% tài nguyên dư thừa
     renderSingleFrameToContext(pCtx, pCanvas.width, pCanvas.height, false);
 
-    if (!isBatchRunning || (miniBatchFrameCounter++ % 2 === 0)) {
+    // Khi đang Batch Render, đồng bộ Mini Live Monitor ở nhịp 5-6 FPS (thay vì 30-60 FPS) giúp tiết kiệm 70% tải GPU
+    if (!isBatchRunning || (miniBatchFrameCounter++ % 6 === 0)) {
         syncToMiniBatchCanvas(false);
     }
 }
 
 function renderSingleFrameToContext(ctx, width, height, isCleanMode = false) {
-    if (!isCleanMode) {
+    // Chỉ tính toán và lưu Hit-Boxes khi người dùng đang ở Studio Canvas để click chọn thẻ; bỏ qua hoàn toàn khi đang render
+    if (!isCleanMode && !isBatchRunning) {
         canvasCustomTextHitBoxes = [];
         canvasFieldHitBoxes = [];
         canvasCountdownHitBoxes = [];

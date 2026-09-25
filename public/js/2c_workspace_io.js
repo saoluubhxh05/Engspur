@@ -369,6 +369,11 @@ function exportFullWorkspaceToJSON(mode) {
  * @param {'light' | 'optimized' | 'full'} mode
  */
 async function executeExportWorkspaceByMode(mode = 'light') {
+    // 0. Đồng bộ ngay lập tức thông số Nền & Logo riêng của kịch bản đang chọn vào cấu hình trước khi đóng gói
+    if (typeof syncCurrentMediaToActiveProfile === 'function') {
+        syncCurrentMediaToActiveProfile();
+    }
+
     const overlay = document.getElementById('export-compress-loading-overlay');
     const progressText = document.getElementById('export-compress-progress-text');
 

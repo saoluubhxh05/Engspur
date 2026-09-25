@@ -474,6 +474,8 @@ function stopStudioRenderClock() {
 function resumeUnifiedSentenceSequence() {
     let sentenceStartTs = performance.now() - (currentTimelinePlayTime * 1000);
     let isTransitioningToNext = false;
+    let lastRenderCanvasFrameTs = 0;
+    const RENDER_FRAME_INTERVAL_MS = 32.5; // Khóa 30 FPS chuẩn cho Canvas khi render (loại bỏ vẽ thừa 60-144 FPS)
 
     const sentenceStep = (nowTs) => {
         if (!isParagraphRunning || isParagraphPaused || isTransitioningToNext) return;
@@ -488,10 +490,20 @@ function resumeUnifiedSentenceSequence() {
             : masterTimelineDuration;
 
         if (currentTimelinePlayTime < curSentenceTotalDur) {
-            const timeDisplay = document.getElementById('timeline-current-time-display');
-            if (timeDisplay) timeDisplay.innerText = `${currentTimelinePlayTime.toFixed(1)}s / ${curSentenceTotalDur.toFixed(1)}s`;
-            updatePlayheadNeedlePosition();
-            drawParagraphCanvasFrame();
+            // Khi đang chạy Batch Render nền, không cập nhật DOM thanh trượt Studio để tiết kiệm tối đa CPU/GPU
+            if (!isBatchRunning) {
+                const timeDisplay = document.getElementById('timeline-current-time-display');
+                if (timeDisplay) timeDisplay.innerText = `${currentTimelinePlayTime.toFixed(1)}s / ${curSentenceTotalDur.toFixed(1)}s`;
+                updatePlayheadNeedlePosition();
+            }
+
+            // Khóa nhịp vẽ 30 FPS khi đang render hàng loạt để GPU không bị quá tải
+            const curNow = nowTs || performance.now();
+            if (!isBatchRunning || (curNow - lastRenderCanvasFrameTs >= RENDER_FRAME_INTERVAL_MS)) {
+                lastRenderCanvasFrameTs = curNow;
+                drawParagraphCanvasFrame();
+            }
+
             checkAndTriggerTimelineAudio(currentTimelinePlayTime);
         } else {
             isTransitioningToNext = true;
@@ -514,14 +526,19 @@ function resumeUnifiedSentenceSequence() {
             const transitionStartTs = performance.now();
             const pauseDurationMs = 500; // Khoảng dừng 0.5s tự nhiên giữa các câu
             currentTimelinePlayTime = Math.max(0, curSentenceTotalDur - 0.02);
+            let lastTransitionFrameTs = 0;
 
-            const transitionStep = () => {
+            const transitionStep = (tNowTs) => {
                 if (!isParagraphRunning || isParagraphPaused) {
                     stopStudioRenderClock();
                     return;
                 }
                 currentTimelinePlayTime = Math.max(0, curSentenceTotalDur - 0.02);
-                drawParagraphCanvasFrame();
+                const curTNow = tNowTs || performance.now();
+                if (!isBatchRunning || (curTNow - lastTransitionFrameTs >= RENDER_FRAME_INTERVAL_MS)) {
+                    lastTransitionFrameTs = curTNow;
+                    drawParagraphCanvasFrame();
+                }
 
                 if (performance.now() - transitionStartTs >= pauseDurationMs) {
                     stopStudioRenderClock();
@@ -546,10 +563,15 @@ function finishParagraphExport() {
         ? getEffectiveSentenceDuration(Math.max(0, pCurrentSentenceIndex - 1))
         : masterTimelineDuration;
     currentTimelinePlayTime = Math.max(0, curSentenceTotalDur - 0.02);
+    let lastFinishFrameTs = 0;
 
-    const finishStep = () => {
+    const finishStep = (fNowTs) => {
         currentTimelinePlayTime = Math.max(0, curSentenceTotalDur - 0.02);
-        drawParagraphCanvasFrame();
+        const curFNow = fNowTs || performance.now();
+        if (!isBatchRunning || (curFNow - lastFinishFrameTs >= 32.5)) {
+            lastFinishFrameTs = curFNow;
+            drawParagraphCanvasFrame();
+        }
         if (performance.now() - finishStartTs >= 500) {
             stopStudioRenderClock();
             if (isBatchRunning && typeof batchExecutionMode !== 'undefined' && batchExecutionMode === 'dual_parallel' && typeof batchCurrentSubPhase !== 'undefined' && batchCurrentSubPhase === 'clean') {

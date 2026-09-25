@@ -391,8 +391,9 @@ async function runCurrentBatchQueueItem() {
     drawParagraphCanvasFrame();
     syncToMiniBatchCanvas();
 
-    // Khởi tạo luồng ghi âm PCM
-    if (batchSharedAudioTrack && batchSharedAudioTrack.readyState === 'live') {
+    // Khởi tạo luồng ghi âm PCM (Chỉ kích hoạt khi cần xuất WAV hoặc Render Kép, giải phóng 100% RAM và CPU cho Render Nhanh)
+    const needPcmAudioRecording = (batchExecutionMode === 'separate_wav' || batchExecutionMode === 'dual_parallel');
+    if (needPcmAudioRecording && batchSharedAudioTrack && batchSharedAudioTrack.readyState === 'live') {
         try {
             const AudioCtx = window.AudioContext || window.webkitAudioContext;
             if (!batchAudioContext || batchAudioContext.state === 'closed') {
@@ -502,22 +503,20 @@ async function runCurrentBatchQueueItem() {
         // Tần số lấy mẫu đồng bộ với AudioContext phần cứng
         const targetWavRate = (typeof sharedStudioAudioCtx !== 'undefined' && sharedStudioAudioCtx && sharedStudioAudioCtx.sampleRate) ? sharedStudioAudioCtx.sampleRate : 44100;
 
-        // Tạo blob audio WAV chuẩn phòng thu (Đồng bộ tuyệt đối từng frame với Video và Mini Live Monitor)
-        let wavBlob = null;
-        if (batchTopicScheduledAudioList && batchTopicScheduledAudioList.length > 0 && typeof createMasterWavBlobFromSentenceAudios === 'function') {
-            wavBlob = createMasterWavBlobFromSentenceAudios(batchTopicScheduledAudioList, durationMs, targetWavRate);
-        } else if (batchCurrentTopicPcmChunks && batchCurrentTopicPcmChunks.length > 0 && typeof encodePcmChunksToWavBlob === 'function') {
-            wavBlob = encodePcmChunksToWavBlob(batchCurrentTopicPcmChunks, durationMs, batchAudioSampleRate);
-        } else {
-            wavBlob = createWavHeader(Math.floor((durationMs / 1000) * targetWavRate * 4), targetWavRate, 2, 16);
-        }
-
         // LƯU CÁC FILE VÀO MÁY THEO ĐÚNG ĐẶC TẢ CỦA TỪNG NÚT:
         // Lưu file Full.mp4
         await saveBatchVideoFileDirectly(videoBlob, fullVideoFilename);
 
-        // Nếu là Separate WAV hoặc Dual: Lưu file .wav
+        // Nếu là Separate WAV hoặc Dual: Tạo và lưu file .wav
         if (batchExecutionMode === 'separate_wav' || batchExecutionMode === 'dual_parallel') {
+            let wavBlob = null;
+            if (batchTopicScheduledAudioList && batchTopicScheduledAudioList.length > 0 && typeof createMasterWavBlobFromSentenceAudios === 'function') {
+                wavBlob = createMasterWavBlobFromSentenceAudios(batchTopicScheduledAudioList, durationMs, targetWavRate);
+            } else if (batchCurrentTopicPcmChunks && batchCurrentTopicPcmChunks.length > 0 && typeof encodePcmChunksToWavBlob === 'function') {
+                wavBlob = encodePcmChunksToWavBlob(batchCurrentTopicPcmChunks, durationMs, batchAudioSampleRate);
+            } else {
+                wavBlob = createWavHeader(Math.floor((durationMs / 1000) * targetWavRate * 4), targetWavRate, 2, 16);
+            }
             await saveBatchVideoFileDirectly(wavBlob, audioFilename);
         }
 
@@ -590,8 +589,8 @@ async function runCurrentBatchQueueItem() {
                 completeCurrentBatchQueueItem(currentItem, currentScriptTag, baseName, fullVideoFilename, cleanVideoFilename, audioFilename, durationMs, sizeMb);
             };
 
-            // Bắt đầu chuỗi quay cho bản Clean
-            pCleanMediaRecorder.start(100);
+            // Bắt đầu chuỗi quay cho bản Clean (timeslice 500ms giảm tải chu kỳ ngắt I/O)
+            pCleanMediaRecorder.start(500);
             isParagraphRunning = true;
             isStaticOutsideLoopRunning = !!currentItem.isOutsideLoopOnly;
             pCurrentSentenceIndex = 0;
@@ -617,7 +616,8 @@ async function runCurrentBatchQueueItem() {
 
     batchCurrentVideoStartTime = performance.now();
 
-    pMediaRecorder.start(100);
+    // Timeslice 500ms giúp giảm 80% số lượng tạo Blob nhỏ, hạn chế triệt để nghẽn RAM khi render nhiều chủ đề
+    pMediaRecorder.start(500);
 
     isParagraphRunning = true;
     isStaticOutsideLoopRunning = !!currentItem.isOutsideLoopOnly;
@@ -724,6 +724,9 @@ function completeCurrentBatchQueueItem(currentItem, scriptTag, baseName, fullVid
     pCleanRecordedChunks = [];
     batchCurrentTopicPcmChunks = [];
     batchTopicScheduledAudioList = [];
+    if (typeof releaseStudioHistoryMemory === 'function') {
+        releaseStudioHistoryMemory();
+    }
 
     // Tăng chỉ số hàng đợi và cập nhật giao diện
     currentBatchQueueIndex++;

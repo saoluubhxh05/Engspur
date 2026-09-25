@@ -245,6 +245,9 @@ function loadDefaultJSONTemplate(modeNum, showNotif = true) {
 }
 
 function exportCurrentProfileToJSON() {
+    if (typeof syncCurrentMediaToActiveProfile === 'function') {
+        syncCurrentMediaToActiveProfile();
+    }
     paragraphGridConfig.masterDuration = masterTimelineDuration;
     paragraphGridConfig.fieldStyles = paragraphFieldStyles;
     const jsonStr = JSON.stringify(paragraphGridConfig, null, 2);
