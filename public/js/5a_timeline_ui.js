@@ -267,6 +267,14 @@ function renderTimelineTracksUI() {
         updatePreviewButtonLabel();
     }
 
+    if (paragraphGridConfig.groups.length === 0) {
+        const emptyMsg = document.createElement('div');
+        emptyMsg.className = "flex items-center justify-center h-20 text-slate-400 text-[11px] font-medium italic border border-dashed border-slate-800/80 rounded-xl m-1.5 bg-slate-950/40";
+        emptyMsg.innerHTML = '<span class="flex items-center space-x-2"><i data-lucide="sparkles" class="w-4 h-4 text-indigo-400"></i><span>Kịch bản trắng chưa có ray Timeline. Hãy bấm <strong>"+ Thêm Lớp"</strong> ở cột trái để bắt đầu.</span></span>';
+        tracksContainer.appendChild(emptyMsg);
+        if (window.lucide && lucide.createIcons) lucide.createIcons();
+    }
+
     paragraphGridConfig.groups.forEach((grp, gIdx) => {
         const trackRow = document.createElement('div');
         trackRow.className = "relative bg-slate-900/90 rounded-md border border-slate-800 overflow-hidden flex items-center transition-all duration-150";

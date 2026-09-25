@@ -412,6 +412,12 @@ async function saveFullSystemState(showToastMsg = true) {
             localPCImageBase64Map,
             canvasBgBase64,
             canvasBadgeBase64,
+            studioGlobalBgBase64: (typeof studioGlobalBgBase64 !== 'undefined') ? studioGlobalBgBase64 : null,
+            studioGlobalBadgeBase64: (typeof studioGlobalBadgeBase64 !== 'undefined') ? studioGlobalBadgeBase64 : null,
+            studioGlobalBgFileName: (typeof studioGlobalBgFileName !== 'undefined') ? studioGlobalBgFileName : "",
+            studioGlobalBadgeFileName: (typeof studioGlobalBadgeFileName !== 'undefined') ? studioGlobalBadgeFileName : "",
+            studioGlobalBgImageStyle: (typeof studioGlobalBgImageStyle !== 'undefined') ? studioGlobalBgImageStyle : null,
+            studioGlobalBadgeStyle: (typeof studioGlobalBadgeStyle !== 'undefined') ? studioGlobalBadgeStyle : null,
             paragraphSelectedTopic,
             paragraphFilterMode: paragraphFilterMode || 'topic',
             paragraphSelectedGenre: paragraphSelectedGenre || 'ALL',
@@ -419,6 +425,7 @@ async function saveFullSystemState(showToastMsg = true) {
             batchTargetPracticeMode: targetPracticeMode,
             batchNamingPattern: namingPattern,
             batchNamingPresets: (typeof batchNamingPresets !== 'undefined') ? batchNamingPresets : [],
+            savedCardPresets: (typeof savedCardPresets !== 'undefined') ? savedCardPresets : [],
             batchSeparateOutputType: separateOutputType,
             batchSelectedChainProfiles: (typeof batchSelectedChainProfiles !== 'undefined') ? batchSelectedChainProfiles : [],
             batchCustomScriptNamingMap: (typeof batchCustomScriptNamingMap !== 'undefined') ? batchCustomScriptNamingMap : {},
@@ -530,6 +537,9 @@ async function loadFullSystemState(isManual = false) {
             if (saved.batchNamingPresets && Array.isArray(saved.batchNamingPresets) && saved.batchNamingPresets.length > 0) {
                 batchNamingPresets = saved.batchNamingPresets;
             }
+            if (saved.savedCardPresets && Array.isArray(saved.savedCardPresets) && saved.savedCardPresets.length > 0) {
+                savedCardPresets = saved.savedCardPresets;
+            }
             if (saved.batchSeparateOutputType) {
                 const sepSelect = document.getElementById('batch-separate-output-type');
                 if (sepSelect) sepSelect.value = saved.batchSeparateOutputType;
@@ -557,6 +567,13 @@ async function loadFullSystemState(isManual = false) {
                 const pcBadge = document.getElementById('pc-image-badge');
                 if (pcBadge) pcBadge.innerText = `${Object.keys(localPCImageMap).length} Ảnh Local`;
             }
+            if (saved.studioGlobalBgBase64 !== undefined) studioGlobalBgBase64 = saved.studioGlobalBgBase64;
+            if (saved.studioGlobalBadgeBase64 !== undefined) studioGlobalBadgeBase64 = saved.studioGlobalBadgeBase64;
+            if (saved.studioGlobalBgFileName !== undefined) studioGlobalBgFileName = saved.studioGlobalBgFileName;
+            if (saved.studioGlobalBadgeFileName !== undefined) studioGlobalBadgeFileName = saved.studioGlobalBadgeFileName;
+            if (saved.studioGlobalBgImageStyle) studioGlobalBgImageStyle = saved.studioGlobalBgImageStyle;
+            if (saved.studioGlobalBadgeStyle) studioGlobalBadgeStyle = saved.studioGlobalBadgeStyle;
+
             if (saved.canvasBgBase64) {
                 canvasBgBase64 = saved.canvasBgBase64;
                 const bgImg = new Image();
@@ -574,6 +591,11 @@ async function loadFullSystemState(isManual = false) {
                     canvasBadgeImage = bdImg;
                     drawParagraphCanvasFrame();
                 };
+            }
+
+            // Áp dụng Nền & Logo theo cấu hình kịch bản đang chọn
+            if (typeof applyProfileMediaState === 'function') {
+                applyProfileMediaState(paragraphGridConfig);
             }
 
             if (saved.batchDirectoryHandle) {

@@ -2255,6 +2255,509 @@ function toggleAllFieldChipsVisibility() {
     if (container) container.classList.toggle('hidden');
 }
 
+// =========================================================================
+// KHO THẺ MẪU PRESET (CARD PRESET LIBRARY) - V16.5
+// =========================================================================
+
+var activeCardPresetEditingId = null;
+
+/**
+ * Thu thập thông tin và dữ liệu cấu hình của thẻ đối tượng đang được chọn
+ */
+function getCurrentSelectedCardInfo() {
+    const gIdx = Math.max(0, Math.min(paragraphSelectedGroupIdx, (paragraphGridConfig.groups ? paragraphGridConfig.groups.length - 1 : 0)));
+    const grp = paragraphGridConfig.groups ? paragraphGridConfig.groups[gIdx] : null;
+    const layerName = grp ? (grp.name || `Lớp ${gIdx + 1}`) : `Lớp ${gIdx + 1}`;
+
+    // 1. THẺ CHỮ TỰ DO
+    if (selectedCustomTextTarget) {
+        const { gIdx: cG, fIdx: cF } = selectedCustomTextTarget;
+        const targetGrp = paragraphGridConfig.groups ? paragraphGridConfig.groups[cG] : null;
+        const item = (targetGrp && targetGrp.fields) ? targetGrp.fields[cF] : null;
+        if (item && item.type === 'custom_text') {
+            const txt = (item.text || 'Chữ tự do').trim();
+            const shortTxt = txt.length > 25 ? txt.substring(0, 25) + '...' : txt;
+            return {
+                cardType: 'custom_text',
+                icon: 'type',
+                colorClass: 'text-teal-400 bg-teal-950/80 border-teal-700/60',
+                badge: 'Chữ Tự Do',
+                badgeClass: 'bg-teal-900 text-teal-200 border-teal-700',
+                layerName: targetGrp ? targetGrp.name : layerName,
+                summary: `"${shortTxt}" • ${item.font || 'Quicksand'} ${item.size || 28}px`,
+                defaultName: `Chữ: ${shortTxt}`,
+                data: JSON.parse(JSON.stringify(item))
+            };
+        }
+    }
+
+    // 2. THẺ ĐỒNG HỒ ĐẾM NGƯỢC
+    if (selectedCountdownTarget) {
+        const { gIdx: cdG, fIdx: cdF } = selectedCountdownTarget;
+        const targetGrp = paragraphGridConfig.groups ? paragraphGridConfig.groups[cdG] : null;
+        const item = (targetGrp && targetGrp.fields) ? targetGrp.fields[cdF] : null;
+        if (item && item.type === 'countdown') {
+            const sec = item.seconds !== undefined ? item.seconds : 3;
+            const pName = item.preset === 'green_to_red' ? 'Xanh➔Đỏ' : (item.preset === 'neon_ring' ? 'Neon' : (item.preset || 'Đếm'));
+            return {
+                cardType: 'countdown',
+                icon: 'timer',
+                colorClass: 'text-rose-400 bg-rose-950/80 border-rose-700/60',
+                badge: 'Đồng Hồ',
+                badgeClass: 'bg-rose-900 text-rose-200 border-rose-700',
+                layerName: targetGrp ? targetGrp.name : layerName,
+                summary: `Đếm ngược ${sec}s (${pName}) • Góc ${item.position || 'top_right'}`,
+                defaultName: `Đồng Hồ ${sec}s (${pName})`,
+                data: JSON.parse(JSON.stringify(item))
+            };
+        }
+    }
+
+    // 3. THẺ TIẾN ĐỘ & ĐẾM CÂU
+    if (selectedProgressTrackerTarget) {
+        const { gIdx: ptG, fIdx: ptF } = selectedProgressTrackerTarget;
+        const targetGrp = paragraphGridConfig.groups ? paragraphGridConfig.groups[ptG] : null;
+        const item = (targetGrp && targetGrp.fields) ? targetGrp.fields[ptF] : null;
+        if (item && item.type === 'progress_tracker') {
+            const tmpl = item.textTemplate || 'Câu {STT}/{Tổng_câu}';
+            return {
+                cardType: 'progress_tracker',
+                icon: 'sliders',
+                colorClass: 'text-emerald-400 bg-emerald-950/80 border-emerald-700/60',
+                badge: 'Tiến Độ',
+                badgeClass: 'bg-emerald-900 text-emerald-200 border-emerald-700',
+                layerName: targetGrp ? targetGrp.name : layerName,
+                summary: `Mẫu: "${tmpl}" • Chế độ: ${item.displayMode || 'both'}`,
+                defaultName: `Tiến Độ: ${tmpl}`,
+                data: JSON.parse(JSON.stringify(item))
+            };
+        }
+    }
+
+    // 4. THẺ ÂM THANH SFX
+    if (selectedAudioSfxTarget) {
+        const { gIdx: sG, fIdx: sF } = selectedAudioSfxTarget;
+        const targetGrp = paragraphGridConfig.groups ? paragraphGridConfig.groups[sG] : null;
+        const item = (targetGrp && targetGrp.fields) ? targetGrp.fields[sF] : null;
+        if (item && item.type === 'audio_sfx') {
+            const sName = item.customAudioName || (item.soundType === 'ding' ? 'Ting Ting' : (item.soundType === 'tick' ? 'Tích tắc' : (item.soundType || 'Âm thanh')));
+            return {
+                cardType: 'audio_sfx',
+                icon: 'music',
+                colorClass: 'text-purple-400 bg-purple-950/80 border-purple-700/60',
+                badge: 'Âm Thanh SFX',
+                badgeClass: 'bg-purple-900 text-purple-200 border-purple-700',
+                layerName: targetGrp ? targetGrp.name : layerName,
+                summary: `SFX: ${sName} • Âm lượng: ${item.volume || 80}%`,
+                defaultName: `SFX: ${sName}`,
+                data: JSON.parse(JSON.stringify(item))
+            };
+        }
+    }
+
+    // 5. THẺ VIDEO CLIP & NỀN
+    if (selectedVideoTarget) {
+        const { gIdx: vG, fIdx: vF } = selectedVideoTarget;
+        const targetGrp = paragraphGridConfig.groups ? paragraphGridConfig.groups[vG] : null;
+        const item = (targetGrp && targetGrp.fields) ? targetGrp.fields[vF] : null;
+        if (item && item.type === 'video') {
+            const vLabel = item.sourceMode === 'excel' ? `Excel: {{${item.excelColumn}}}` : (item.videoFileName || 'Video Clip');
+            return {
+                cardType: 'video',
+                icon: 'video',
+                colorClass: 'text-sky-400 bg-sky-950/80 border-sky-700/60',
+                badge: 'Video Clip',
+                badgeClass: 'bg-sky-900 text-sky-200 border-sky-700',
+                layerName: targetGrp ? targetGrp.name : layerName,
+                summary: `${vLabel} • ${item.width || 640}x${item.height || 360}px`,
+                defaultName: `Video: ${vLabel}`,
+                data: JSON.parse(JSON.stringify(item))
+            };
+        }
+    }
+
+    // 6. THẺ GIỌNG ĐỌC AI (TTS)
+    if (selectedTtsTarget) {
+        const { gIdx: tG, fIdx: tF } = selectedTtsTarget;
+        const targetGrp = paragraphGridConfig.groups ? paragraphGridConfig.groups[tG] : null;
+        const item = (targetGrp && targetGrp.fields) ? targetGrp.fields[tF] : null;
+        if (item && item.type === 'tts') {
+            const fieldsCount = (item.ttsSpeakFields || []).length;
+            const ttsSummary = item.sourceMode === 'custom' ? `Text riêng (${(item.customText || '').trim().split(/\s+/).filter(Boolean).length} từ)` : `Đọc ${fieldsCount} trường Excel`;
+            return {
+                cardType: 'tts',
+                icon: 'volume-2',
+                colorClass: 'text-indigo-400 bg-indigo-950/80 border-indigo-700/60',
+                badge: 'Giọng Đọc AI',
+                badgeClass: 'bg-indigo-900 text-indigo-200 border-indigo-700',
+                layerName: targetGrp ? targetGrp.name : layerName,
+                summary: ttsSummary,
+                defaultName: `Giọng Đọc AI (${(item.ttsSpeakFields || []).join(', ') || 'TTS'})`,
+                data: JSON.parse(JSON.stringify(item))
+            };
+        }
+    }
+
+    // 7. THẺ CỘT DỮ LIỆU EXCEL (CHỮ HOẶC KHUNG ẢNH)
+    const activeKey = paragraphSelectedFieldKey || (selectedFieldKeysList && selectedFieldKeysList[0]) || "Substitution words";
+    const st = paragraphFieldStyles[activeKey] || {};
+    const isImg = activeKey === 'ten_file_dinh_kem' || activeKey.toLowerCase().includes('anh') || activeKey.toLowerCase().includes('dinh_kem') || (st.type === 'image');
+
+    if (isImg) {
+        return {
+            cardType: 'excel_image',
+            icon: 'image',
+            colorClass: 'text-amber-400 bg-amber-950/80 border-amber-700/60',
+            badge: 'Khung Ảnh',
+            badgeClass: 'bg-amber-900 text-amber-200 border-amber-700',
+            layerName: layerName,
+            summary: `{{${activeKey}}} • ${st.width || 520}x${st.height || 880}px (Bo góc ${st.boxRadius || 20}px)`,
+            defaultName: `Khung Ảnh: {{${activeKey}}}`,
+            data: { key: activeKey },
+            style: JSON.parse(JSON.stringify(st))
+        };
+    } else {
+        return {
+            cardType: 'excel_text',
+            icon: 'type',
+            colorClass: 'text-indigo-400 bg-indigo-950/80 border-indigo-700/60',
+            badge: 'Chữ Excel',
+            badgeClass: 'bg-indigo-900 text-indigo-200 border-indigo-700',
+            layerName: layerName,
+            summary: `{{${activeKey}}} • ${st.font || 'Quicksand'} ${st.size || 28}px • Màu: ${st.color || '#0f172a'}`,
+            defaultName: `Thẻ Chữ: {{${activeKey}}}`,
+            data: { key: activeKey },
+            style: JSON.parse(JSON.stringify(st))
+        };
+    }
+}
+
+/**
+ * Mở modal lưu thẻ đối tượng đang chọn làm Preset
+ */
+function openSaveCardPresetModal() {
+    activeCardPresetEditingId = null;
+    const info = getCurrentSelectedCardInfo();
+
+    const modal = document.getElementById('save-card-preset-modal');
+    const input = document.getElementById('preset-card-name-input');
+    const titleEl = document.getElementById('preset-modal-main-title');
+    const confirmBtnText = document.getElementById('preset-modal-confirm-text');
+    const typeBadge = document.getElementById('preset-target-type-badge');
+    const layerInfo = document.getElementById('preset-target-layer-info');
+    const summaryEl = document.getElementById('preset-target-summary');
+    const iconWrapper = document.getElementById('preset-target-icon-wrapper');
+
+    if (!modal) return;
+
+    if (titleEl) titleEl.innerText = "Lưu Thẻ Thành Mẫu (Preset)";
+    if (confirmBtnText) confirmBtnText.innerText = "Lưu Mẫu Preset Ngay";
+    if (input) {
+        input.value = info.defaultName || "Mẫu thẻ mới";
+    }
+    if (typeBadge) {
+        typeBadge.innerText = info.badge;
+        typeBadge.className = `text-[9px] font-bold px-1.5 py-0.2 rounded border ${info.badgeClass}`;
+    }
+    if (layerInfo) layerInfo.innerText = info.layerName;
+    if (summaryEl) summaryEl.innerText = info.summary;
+    if (iconWrapper) {
+        iconWrapper.className = `w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${info.colorClass}`;
+        iconWrapper.innerHTML = `<i data-lucide="${info.icon}" class="w-4 h-4"></i>`;
+    }
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    if (input) {
+        setTimeout(() => {
+            try {
+                input.focus();
+                input.select();
+            } catch (e) {}
+        }, 60);
+    }
+    if (window.lucide && lucide.createIcons) lucide.createIcons();
+}
+
+/**
+ * Đóng modal lưu thẻ preset
+ */
+function closeSaveCardPresetModal() {
+    const modal = document.getElementById('save-card-preset-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+    activeCardPresetEditingId = null;
+}
+
+/**
+ * Xác nhận lưu hoặc đổi tên thẻ preset
+ */
+function confirmSaveCardPreset() {
+    const input = document.getElementById('preset-card-name-input');
+    const name = input ? input.value.trim() : "";
+    if (!name) {
+        showToast("Vui lòng nhập tên gợi nhớ cho mẫu thẻ!", "warning");
+        return;
+    }
+
+    if (typeof savedCardPresets === 'undefined' || !Array.isArray(savedCardPresets)) {
+        savedCardPresets = [];
+    }
+
+    // 1. Chế độ đổi tên preset đã có
+    if (activeCardPresetEditingId) {
+        const found = savedCardPresets.find(p => p.id === activeCardPresetEditingId);
+        if (found) {
+            found.name = name;
+            showToast(`Đã đổi tên thẻ mẫu thành: "${name}"!`);
+        }
+    } else {
+        // 2. Chế độ tạo mới thẻ preset từ thẻ đang chọn
+        const info = getCurrentSelectedCardInfo();
+        const newPreset = {
+            id: "preset_" + Date.now(),
+            name: name,
+            cardType: info.cardType,
+            description: info.summary,
+            createdAt: new Date().toLocaleDateString('vi-VN'),
+            data: info.data,
+            style: info.style || null
+        };
+        savedCardPresets.unshift(newPreset);
+        showToast(`Đã lưu thẻ "${name}" vào Kho Thẻ Mẫu thành công!`);
+    }
+
+    closeSaveCardPresetModal();
+    renderCardPresetsLibraryUI();
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
+    if (typeof saveFullSystemState === 'function') saveFullSystemState(false);
+}
+
+/**
+ * Mở modal đổi tên thẻ preset đã lưu
+ */
+function openRenameCardPresetModal(presetId) {
+    if (typeof savedCardPresets === 'undefined' || !Array.isArray(savedCardPresets)) return;
+    const preset = savedCardPresets.find(p => p.id === presetId);
+    if (!preset) return;
+
+    activeCardPresetEditingId = presetId;
+    const modal = document.getElementById('save-card-preset-modal');
+    const input = document.getElementById('preset-card-name-input');
+    const titleEl = document.getElementById('preset-modal-main-title');
+    const confirmBtnText = document.getElementById('preset-modal-confirm-text');
+    const typeBadge = document.getElementById('preset-target-type-badge');
+    const layerInfo = document.getElementById('preset-target-layer-info');
+    const summaryEl = document.getElementById('preset-target-summary');
+
+    if (!modal) return;
+
+    if (titleEl) titleEl.innerText = "Đổi Tên Thẻ Mẫu (Preset)";
+    if (confirmBtnText) confirmBtnText.innerText = "Cập Nhật Tên Mới";
+    if (input) input.value = preset.name;
+    if (typeBadge) typeBadge.innerText = getPresetTypeBadgeText(preset.cardType);
+    if (layerInfo) layerInfo.innerText = "Thẻ Mẫu Đã Lưu";
+    if (summaryEl) summaryEl.innerText = preset.description || preset.name;
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    if (input) {
+        setTimeout(() => {
+            try {
+                input.focus();
+                input.select();
+            } catch (e) {}
+        }, 60);
+    }
+    if (window.lucide && lucide.createIcons) lucide.createIcons();
+}
+
+/**
+ * Xóa một thẻ preset khỏi kho mẫu
+ */
+function deleteCardPreset(presetId) {
+    if (typeof savedCardPresets === 'undefined' || !Array.isArray(savedCardPresets)) return;
+    const idx = savedCardPresets.findIndex(p => p.id === presetId);
+    if (idx < 0) return;
+
+    const pName = savedCardPresets[idx].name;
+    savedCardPresets.splice(idx, 1);
+    renderCardPresetsLibraryUI();
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
+    if (typeof saveFullSystemState === 'function') saveFullSystemState(false);
+    showToast(`Đã xóa thẻ mẫu "${pName}" khỏi danh sách!`);
+}
+
+function getPresetTypeBadgeText(type) {
+    switch (type) {
+        case 'countdown': return 'Đồng Hồ';
+        case 'custom_text': return 'Chữ Tự Do';
+        case 'progress_tracker': return 'Tiến Độ';
+        case 'audio_sfx': return 'Âm SFX';
+        case 'video': return 'Video Clip';
+        case 'tts': return 'Giọng Đọc AI';
+        case 'excel_image': return 'Khung Ảnh';
+        case 'excel_text': default: return 'Chữ Excel';
+    }
+}
+
+function getPresetTypeIconMeta(type) {
+    switch (type) {
+        case 'countdown': return { icon: 'timer', color: 'text-rose-400', bg: 'bg-rose-950/80 border-rose-800/80', badgeColor: 'bg-rose-950 text-rose-300 border-rose-800' };
+        case 'custom_text': return { icon: 'type', color: 'text-teal-400', bg: 'bg-teal-950/80 border-teal-800/80', badgeColor: 'bg-teal-950 text-teal-300 border-teal-800' };
+        case 'progress_tracker': return { icon: 'sliders', color: 'text-emerald-400', bg: 'bg-emerald-950/80 border-emerald-800/80', badgeColor: 'bg-emerald-950 text-emerald-300 border-emerald-800' };
+        case 'audio_sfx': return { icon: 'music', color: 'text-purple-400', bg: 'bg-purple-950/80 border-purple-800/80', badgeColor: 'bg-purple-950 text-purple-300 border-purple-800' };
+        case 'video': return { icon: 'video', color: 'text-sky-400', bg: 'bg-sky-950/80 border-sky-800/80', badgeColor: 'bg-sky-950 text-sky-300 border-sky-800' };
+        case 'tts': return { icon: 'volume-2', color: 'text-indigo-400', bg: 'bg-indigo-950/80 border-indigo-800/80', badgeColor: 'bg-indigo-950 text-indigo-300 border-indigo-800' };
+        case 'excel_image': return { icon: 'image', color: 'text-amber-400', bg: 'bg-amber-950/80 border-amber-800/80', badgeColor: 'bg-amber-950 text-amber-300 border-amber-800' };
+        case 'excel_text': default: return { icon: 'file-text', color: 'text-amber-300', bg: 'bg-indigo-950/80 border-indigo-800/80', badgeColor: 'bg-indigo-950 text-indigo-300 border-indigo-800' };
+    }
+}
+
+/**
+ * Chèn một thẻ preset vào Lớp đang chọn trên Timeline của kịch bản hiện tại
+ */
+function insertCardPresetToActiveLayer(presetId) {
+    if (typeof savedCardPresets === 'undefined' || !Array.isArray(savedCardPresets)) return;
+    const preset = savedCardPresets.find(p => p.id === presetId);
+    if (!preset) {
+        showToast("Không tìm thấy thẻ mẫu!", "error");
+        return;
+    }
+
+    // Nếu kịch bản chưa có lớp nào (ví dụ kịch bản trắng mới tạo), tự động tạo 1 lớp mới
+    if (!paragraphGridConfig.groups || paragraphGridConfig.groups.length === 0) {
+        if (typeof addNewGridGroupRow === 'function') {
+            addNewGridGroupRow('inside');
+        }
+    }
+
+    const gIdx = Math.max(0, Math.min(paragraphSelectedGroupIdx, paragraphGridConfig.groups.length - 1));
+    const grp = paragraphGridConfig.groups[gIdx];
+    if (!grp) {
+        showToast("Vui lòng chọn 1 lớp trên Timeline để chèn thẻ!", "error");
+        return;
+    }
+
+    if (!Array.isArray(grp.fields)) grp.fields = [];
+
+    const newIdx = grp.fields.length;
+    const type = preset.cardType;
+    const clonedData = JSON.parse(JSON.stringify(preset.data || {}));
+
+    if (type === 'custom_text') {
+        grp.fields.push(clonedData);
+        if (typeof selectCustomTextItem === 'function') selectCustomTextItem(gIdx, newIdx);
+    } else if (type === 'countdown') {
+        grp.fields.push(clonedData);
+        if (typeof selectCountdownItem === 'function') selectCountdownItem(gIdx, newIdx);
+    } else if (type === 'progress_tracker') {
+        grp.fields.push(clonedData);
+        if (typeof selectProgressTrackerItem === 'function') selectProgressTrackerItem(gIdx, newIdx);
+    } else if (type === 'audio_sfx') {
+        grp.fields.push(clonedData);
+        if (typeof selectAudioSfxItem === 'function') selectAudioSfxItem(gIdx, newIdx);
+    } else if (type === 'video') {
+        grp.fields.push(clonedData);
+        if (typeof selectVideoItem === 'function') selectVideoItem(gIdx, newIdx);
+    } else if (type === 'tts') {
+        grp.fields.push(clonedData);
+        if (typeof autoRecalculateAudioLayersDuration === 'function') autoRecalculateAudioLayersDuration();
+        if (typeof selectTtsItem === 'function') selectTtsItem(gIdx, newIdx);
+    } else if (type === 'excel_image' || type === 'excel_text') {
+        const fKey = clonedData.key || "Substitution words";
+        grp.fields.push({ type: "field", key: fKey });
+        if (preset.style) {
+            paragraphFieldStyles[fKey] = JSON.parse(JSON.stringify(preset.style));
+        }
+        if (typeof selectLayerFieldItem === 'function') selectLayerFieldItem(gIdx, fKey);
+    } else {
+        grp.fields.push(clonedData);
+    }
+
+    if (typeof renderTimelineLayersListUI === 'function') renderTimelineLayersListUI();
+    if (typeof renderTimelineTracksUI === 'function') renderTimelineTracksUI();
+    if (typeof renderInspectorRibbon === 'function') renderInspectorRibbon();
+    if (typeof drawParagraphCanvasFrame === 'function') drawParagraphCanvasFrame();
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
+
+    showToast(`Đã thêm mẫu "${preset.name}" vào ${grp.name}!`, "success");
+}
+
+/**
+ * Hiển thị danh sách thẻ mẫu Preset trong Tab 3 (Kho Thẻ Đối Tượng)
+ */
+function renderCardPresetsLibraryUI() {
+    const container = document.getElementById('card-presets-library-container');
+    const badge = document.getElementById('card-presets-count-badge');
+    if (!container) return;
+
+    if (typeof savedCardPresets === 'undefined' || !Array.isArray(savedCardPresets)) {
+        savedCardPresets = [];
+    }
+
+    if (badge) {
+        badge.innerText = `${savedCardPresets.length} mẫu`;
+    }
+
+    if (savedCardPresets.length === 0) {
+        container.innerHTML = `
+            <div class="p-3 text-center bg-slate-900/60 rounded-xl border border-slate-800 space-y-1.5">
+                <p class="text-xs text-slate-400">Chưa có thẻ mẫu nào được lưu.</p>
+                <p class="text-[10px] text-slate-500">Hãy chọn một thẻ bất kỳ trên Timeline và bấm "⭐ Lưu Preset" ở bảng Định dạng để thêm vào kho.</p>
+                <button onclick="openSaveCardPresetModal()" class="py-1 px-3 bg-amber-600 hover:bg-amber-500 text-black font-extrabold rounded-lg text-[10px] transition active:scale-95 shadow inline-flex items-center space-x-1">
+                    <i data-lucide="star" class="w-3 h-3 text-black"></i>
+                    <span>Lưu Thẻ Đang Chọn Làm Mẫu</span>
+                </button>
+            </div>
+        `;
+        if (window.lucide && lucide.createIcons) lucide.createIcons();
+        return;
+    }
+
+    container.innerHTML = savedCardPresets.map(preset => {
+        const meta = getPresetTypeIconMeta(preset.cardType);
+        const badgeText = getPresetTypeBadgeText(preset.cardType);
+        const desc = preset.description || '';
+
+        return `
+            <div class="group p-2 rounded-xl bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-amber-500/50 transition flex items-center justify-between gap-2 shadow-sm">
+                <div class="flex items-center space-x-2 min-w-0 flex-1 cursor-pointer" onclick="insertCardPresetToActiveLayer('${preset.id}')" title="Nhấp để thêm thẻ này vào lớp đang chọn">
+                    <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${meta.bg}">
+                        <i data-lucide="${meta.icon}" class="w-3.5 h-3.5 ${meta.color}"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center space-x-1.5">
+                            <span class="text-xs font-bold text-slate-200 group-hover:text-amber-300 truncate transition">${preset.name}</span>
+                            <span class="text-[8px] font-bold px-1.5 py-0.2 rounded border shrink-0 ${meta.badgeColor}">${badgeText}</span>
+                        </div>
+                        ${desc ? `<p class="text-[9.5px] text-slate-400 truncate mt-0.5">${desc}</p>` : ''}
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-1 shrink-0">
+                    <button onclick="insertCardPresetToActiveLayer('${preset.id}')" class="py-1 px-2 bg-indigo-600/30 hover:bg-indigo-600 border border-indigo-500/50 text-indigo-200 hover:text-white rounded-lg text-[10px] font-bold transition flex items-center space-x-1 active:scale-95" title="Thêm ngay vào Lớp đang chọn">
+                        <i data-lucide="plus" class="w-3 h-3"></i>
+                        <span class="hidden sm:inline">Chèn</span>
+                    </button>
+                    <button onclick="openRenameCardPresetModal('${preset.id}')" class="p-1 text-slate-400 hover:text-amber-300 hover:bg-slate-800 rounded-lg transition" title="Đổi tên mẫu">
+                        <i data-lucide="pencil" class="w-3 h-3"></i>
+                    </button>
+                    <button onclick="deleteCardPreset('${preset.id}')" class="p-1 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition" title="Xóa thẻ mẫu">
+                        <i data-lucide="trash-2" class="w-3 h-3"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    if (window.lucide && lucide.createIcons) lucide.createIcons();
+}
+
 // Window global bindings for batch styling and preview
 window.toggleBatchStyleAccordion = toggleBatchStyleAccordion;
 window.previewBatchStyleTarget = previewBatchStyleTarget;
@@ -2262,4 +2765,14 @@ window.toggleBatchTargetCheckbox = toggleBatchTargetCheckbox;
 window.toggleBatchSelectAllTargets = toggleBatchSelectAllTargets;
 window.applyCurrentStylesToAllSameType = applyCurrentStylesToAllSameType;
 window.renderBatchStyleAccordionUI = renderBatchStyleAccordionUI;
+
+// Window global bindings for Card Presets - V16.5
+window.getCurrentSelectedCardInfo = getCurrentSelectedCardInfo;
+window.openSaveCardPresetModal = openSaveCardPresetModal;
+window.closeSaveCardPresetModal = closeSaveCardPresetModal;
+window.confirmSaveCardPreset = confirmSaveCardPreset;
+window.openRenameCardPresetModal = openRenameCardPresetModal;
+window.deleteCardPreset = deleteCardPreset;
+window.insertCardPresetToActiveLayer = insertCardPresetToActiveLayer;
+window.renderCardPresetsLibraryUI = renderCardPresetsLibraryUI;
 

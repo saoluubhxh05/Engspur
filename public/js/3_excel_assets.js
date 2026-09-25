@@ -342,8 +342,25 @@ function handleCanvasBgUpload(e) {
         img.onload = () => {
             canvasBgImage = img;
             if (document.getElementById('p-bg-file-name-badge')) document.getElementById('p-bg-file-name-badge').innerText = file.name;
+
+            if (paragraphGridConfig && paragraphGridConfig.customMediaEnabled) {
+                if (!paragraphGridConfig.customMedia) paragraphGridConfig.customMedia = {};
+                paragraphGridConfig.customMedia.bgBase64 = canvasBgBase64;
+                paragraphGridConfig.customMedia.bgFileName = file.name;
+                const found = savedParagraphProfiles.find(p => p.id === activeParagraphProfileId);
+                if (found) {
+                    if (!found.customMedia) found.customMedia = {};
+                    found.customMedia.bgBase64 = canvasBgBase64;
+                    found.customMedia.bgFileName = file.name;
+                }
+                showToast(`Đã tải ảnh nền riêng cho kịch bản "${paragraphGridConfig.name || "hiện tại"}"!`);
+            } else {
+                studioGlobalBgBase64 = canvasBgBase64;
+                studioGlobalBgFileName = file.name;
+                showToast("Đã tải ảnh nền dùng chung Studio!");
+            }
+
             drawParagraphCanvasFrame();
-            showToast("Đã tải ảnh nền Canvas!");
             if (typeof triggerAutoSave === 'function') triggerAutoSave(true);
         };
     };
@@ -354,8 +371,24 @@ function clearCanvasBgImage() {
     canvasBgImage = null;
     canvasBgBase64 = null;
     if (document.getElementById('p-bg-file-name-badge')) document.getElementById('p-bg-file-name-badge').innerText = "Chưa chọn ảnh nền";
+
+    if (paragraphGridConfig && paragraphGridConfig.customMediaEnabled) {
+        if (!paragraphGridConfig.customMedia) paragraphGridConfig.customMedia = {};
+        paragraphGridConfig.customMedia.bgBase64 = null;
+        paragraphGridConfig.customMedia.bgFileName = "";
+        const found = savedParagraphProfiles.find(p => p.id === activeParagraphProfileId);
+        if (found && found.customMedia) {
+            found.customMedia.bgBase64 = null;
+            found.customMedia.bgFileName = "";
+        }
+        showToast(`Đã xóa ảnh nền riêng của kịch bản "${paragraphGridConfig.name || "hiện tại"}"!`);
+    } else {
+        studioGlobalBgBase64 = null;
+        studioGlobalBgFileName = "";
+        showToast("Đã xóa ảnh nền chung Studio!");
+    }
+
     drawParagraphCanvasFrame();
-    showToast("Đã xóa ảnh nền Canvas!");
     if (typeof triggerAutoSave === 'function') triggerAutoSave(true);
 }
 
@@ -370,8 +403,29 @@ function handleCanvasBadgeUpload(e) {
         img.onload = () => {
             canvasBadgeImage = img;
             if (document.getElementById('p-badge-file-name-info')) document.getElementById('p-badge-file-name-info').innerText = file.name;
+
+            // Reset bộ đệm lọc khử nền trắng
+            window._cachedFilteredBadgeImg = null;
+            window._cachedFilteredBadgeSrc = null;
+
+            if (paragraphGridConfig && paragraphGridConfig.customMediaEnabled) {
+                if (!paragraphGridConfig.customMedia) paragraphGridConfig.customMedia = {};
+                paragraphGridConfig.customMedia.badgeBase64 = canvasBadgeBase64;
+                paragraphGridConfig.customMedia.badgeFileName = file.name;
+                const found = savedParagraphProfiles.find(p => p.id === activeParagraphProfileId);
+                if (found) {
+                    if (!found.customMedia) found.customMedia = {};
+                    found.customMedia.badgeBase64 = canvasBadgeBase64;
+                    found.customMedia.badgeFileName = file.name;
+                }
+                showToast(`Đã tải Logo riêng cho kịch bản "${paragraphGridConfig.name || "hiện tại"}"!`);
+            } else {
+                studioGlobalBadgeBase64 = canvasBadgeBase64;
+                studioGlobalBadgeFileName = file.name;
+                showToast("Đã tải Logo dùng chung Studio!");
+            }
+
             drawParagraphCanvasFrame();
-            showToast("Đã tải Logo/Badge!");
             if (typeof triggerAutoSave === 'function') triggerAutoSave(true);
         };
     };
@@ -381,15 +435,49 @@ function handleCanvasBadgeUpload(e) {
 function clearCanvasBadgeImage() {
     canvasBadgeImage = null;
     canvasBadgeBase64 = null;
+    window._cachedFilteredBadgeImg = null;
+    window._cachedFilteredBadgeSrc = null;
     if (document.getElementById('p-badge-file-name-info')) document.getElementById('p-badge-file-name-info').innerText = "Chưa tải Logo/Badge";
+
+    if (paragraphGridConfig && paragraphGridConfig.customMediaEnabled) {
+        if (!paragraphGridConfig.customMedia) paragraphGridConfig.customMedia = {};
+        paragraphGridConfig.customMedia.badgeBase64 = null;
+        paragraphGridConfig.customMedia.badgeFileName = "";
+        const found = savedParagraphProfiles.find(p => p.id === activeParagraphProfileId);
+        if (found && found.customMedia) {
+            found.customMedia.badgeBase64 = null;
+            found.customMedia.badgeFileName = "";
+        }
+        showToast(`Đã xóa Logo riêng của kịch bản "${paragraphGridConfig.name || "hiện tại"}"!`);
+    } else {
+        studioGlobalBadgeBase64 = null;
+        studioGlobalBadgeFileName = "";
+        showToast("Đã xóa Logo chung Studio!");
+    }
+
     drawParagraphCanvasFrame();
-    showToast("Đã xóa Logo/Badge!");
     if (typeof triggerAutoSave === 'function') triggerAutoSave(true);
 }
 
 function updateCanvasBgProp(prop, val) {
     if (!videoConfig.bgImageStyle) videoConfig.bgImageStyle = { widthPct: 100, heightPct: 100, posX: 0, posY: 0, opacity: 100 };
     videoConfig.bgImageStyle[prop] = isNaN(val) ? 0 : val;
+
+    if (paragraphGridConfig && paragraphGridConfig.customMediaEnabled) {
+        if (!paragraphGridConfig.customMedia) paragraphGridConfig.customMedia = {};
+        if (!paragraphGridConfig.customMedia.bgImageStyle) paragraphGridConfig.customMedia.bgImageStyle = {};
+        paragraphGridConfig.customMedia.bgImageStyle[prop] = isNaN(val) ? 0 : val;
+        const found = savedParagraphProfiles.find(p => p.id === activeParagraphProfileId);
+        if (found) {
+            if (!found.customMedia) found.customMedia = {};
+            if (!found.customMedia.bgImageStyle) found.customMedia.bgImageStyle = {};
+            found.customMedia.bgImageStyle[prop] = isNaN(val) ? 0 : val;
+        }
+    } else {
+        if (!studioGlobalBgImageStyle) studioGlobalBgImageStyle = {};
+        studioGlobalBgImageStyle[prop] = isNaN(val) ? 0 : val;
+    }
+
     drawParagraphCanvasFrame();
     if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
 }
@@ -397,6 +485,22 @@ function updateCanvasBgProp(prop, val) {
 function updateCanvasBadgeProp(prop, val) {
     if (!videoConfig.badgeStyle) videoConfig.badgeStyle = { widthPct: 15, heightPct: 10, posX: 82, posY: 4, opacity: 100, borderRadius: 20, isCircle: true, removeWhiteBg: false };
     videoConfig.badgeStyle[prop] = isNaN(val) ? 0 : val;
+
+    if (paragraphGridConfig && paragraphGridConfig.customMediaEnabled) {
+        if (!paragraphGridConfig.customMedia) paragraphGridConfig.customMedia = {};
+        if (!paragraphGridConfig.customMedia.badgeStyle) paragraphGridConfig.customMedia.badgeStyle = {};
+        paragraphGridConfig.customMedia.badgeStyle[prop] = isNaN(val) ? 0 : val;
+        const found = savedParagraphProfiles.find(p => p.id === activeParagraphProfileId);
+        if (found) {
+            if (!found.customMedia) found.customMedia = {};
+            if (!found.customMedia.badgeStyle) found.customMedia.badgeStyle = {};
+            found.customMedia.badgeStyle[prop] = isNaN(val) ? 0 : val;
+        }
+    } else {
+        if (!studioGlobalBadgeStyle) studioGlobalBadgeStyle = {};
+        studioGlobalBadgeStyle[prop] = isNaN(val) ? 0 : val;
+    }
+
     drawParagraphCanvasFrame();
     if (typeof triggerAutoSave === 'function') triggerAutoSave(false);
 }
@@ -404,6 +508,21 @@ function updateCanvasBadgeProp(prop, val) {
 function setLogoShapeMode(isCircle) {
     if (!videoConfig.badgeStyle) videoConfig.badgeStyle = { widthPct: 15, heightPct: 10, posX: 82, posY: 4, opacity: 100, borderRadius: 20, isCircle: true, removeWhiteBg: false };
     videoConfig.badgeStyle.isCircle = !!isCircle;
+
+    if (paragraphGridConfig && paragraphGridConfig.customMediaEnabled) {
+        if (!paragraphGridConfig.customMedia) paragraphGridConfig.customMedia = {};
+        if (!paragraphGridConfig.customMedia.badgeStyle) paragraphGridConfig.customMedia.badgeStyle = {};
+        paragraphGridConfig.customMedia.badgeStyle.isCircle = !!isCircle;
+        const found = savedParagraphProfiles.find(p => p.id === activeParagraphProfileId);
+        if (found) {
+            if (!found.customMedia) found.customMedia = {};
+            if (!found.customMedia.badgeStyle) found.customMedia.badgeStyle = {};
+            found.customMedia.badgeStyle.isCircle = !!isCircle;
+        }
+    } else {
+        if (!studioGlobalBadgeStyle) studioGlobalBadgeStyle = {};
+        studioGlobalBadgeStyle.isCircle = !!isCircle;
+    }
 
     const btnCircle = document.getElementById('btn-logo-shape-circle');
     const btnRect = document.getElementById('btn-logo-shape-rect');
@@ -435,6 +554,22 @@ function setLogoShapeMode(isCircle) {
 function updateLogoMaskInset(val) {
     if (!videoConfig.badgeStyle) videoConfig.badgeStyle = { widthPct: 15, heightPct: 10, posX: 82, posY: 4, opacity: 100, borderRadius: 20, isCircle: true, removeWhiteBg: false, maskInsetPct: 5 };
     videoConfig.badgeStyle.maskInsetPct = isNaN(val) ? 0 : val;
+
+    if (paragraphGridConfig && paragraphGridConfig.customMediaEnabled) {
+        if (!paragraphGridConfig.customMedia) paragraphGridConfig.customMedia = {};
+        if (!paragraphGridConfig.customMedia.badgeStyle) paragraphGridConfig.customMedia.badgeStyle = {};
+        paragraphGridConfig.customMedia.badgeStyle.maskInsetPct = isNaN(val) ? 0 : val;
+        const found = savedParagraphProfiles.find(p => p.id === activeParagraphProfileId);
+        if (found) {
+            if (!found.customMedia) found.customMedia = {};
+            if (!found.customMedia.badgeStyle) found.customMedia.badgeStyle = {};
+            found.customMedia.badgeStyle.maskInsetPct = isNaN(val) ? 0 : val;
+        }
+    } else {
+        if (!studioGlobalBadgeStyle) studioGlobalBadgeStyle = {};
+        studioGlobalBadgeStyle.maskInsetPct = isNaN(val) ? 0 : val;
+    }
+
     const valSpan = document.getElementById('cfg-bd-inset-val');
     if (valSpan) valSpan.innerText = `${videoConfig.badgeStyle.maskInsetPct}%`;
     drawParagraphCanvasFrame();
@@ -445,6 +580,21 @@ function toggleLogoRemoveWhiteBg(enabled) {
     if (!videoConfig.badgeStyle) videoConfig.badgeStyle = { widthPct: 15, heightPct: 10, posX: 82, posY: 4, opacity: 100, borderRadius: 20, isCircle: true, removeWhiteBg: false };
     videoConfig.badgeStyle.removeWhiteBg = !!enabled;
 
+    if (paragraphGridConfig && paragraphGridConfig.customMediaEnabled) {
+        if (!paragraphGridConfig.customMedia) paragraphGridConfig.customMedia = {};
+        if (!paragraphGridConfig.customMedia.badgeStyle) paragraphGridConfig.customMedia.badgeStyle = {};
+        paragraphGridConfig.customMedia.badgeStyle.removeWhiteBg = !!enabled;
+        const found = savedParagraphProfiles.find(p => p.id === activeParagraphProfileId);
+        if (found) {
+            if (!found.customMedia) found.customMedia = {};
+            if (!found.customMedia.badgeStyle) found.customMedia.badgeStyle = {};
+            found.customMedia.badgeStyle.removeWhiteBg = !!enabled;
+        }
+    } else {
+        if (!studioGlobalBadgeStyle) studioGlobalBadgeStyle = {};
+        studioGlobalBadgeStyle.removeWhiteBg = !!enabled;
+    }
+
     // Reset cache xử lý ảnh
     window._cachedFilteredBadgeImg = null;
     window._cachedFilteredBadgeSrc = null;
@@ -453,6 +603,69 @@ function toggleLogoRemoveWhiteBg(enabled) {
     showToast(enabled ? "Đã bật tự động khử nền trắng cho Logo!" : "Đã tắt khử nền trắng cho Logo!");
     if (typeof triggerAutoSave === 'function') triggerAutoSave(true);
 }
+
+/**
+ * Bật / tắt tùy chọn sử dụng Ảnh Nền & Logo riêng cho kịch bản đang chọn
+ */
+function toggleCustomMediaForActiveProfile(enabled) {
+    if (!paragraphGridConfig) return;
+    paragraphGridConfig.customMediaEnabled = !!enabled;
+
+    if (enabled) {
+        if (!paragraphGridConfig.customMedia) {
+            paragraphGridConfig.customMedia = {
+                bgBase64: canvasBgBase64 || studioGlobalBgBase64 || null,
+                badgeBase64: canvasBadgeBase64 || studioGlobalBadgeBase64 || null,
+                bgImageStyle: JSON.parse(JSON.stringify(videoConfig.bgImageStyle || studioGlobalBgImageStyle || { widthPct: 100, heightPct: 100, posX: 0, posY: 0, opacity: 100 })),
+                badgeStyle: JSON.parse(JSON.stringify(videoConfig.badgeStyle || studioGlobalBadgeStyle || { widthPct: 15, heightPct: 10, posX: 82, posY: 4, opacity: 100, borderRadius: 20, isCircle: true, removeWhiteBg: false, maskInsetPct: 5 })),
+                bgFileName: document.getElementById('p-bg-file-name-badge')?.innerText || studioGlobalBgFileName || "",
+                badgeFileName: document.getElementById('p-badge-file-name-info')?.innerText || studioGlobalBadgeFileName || ""
+            };
+        }
+        applyProfileMediaState(paragraphGridConfig);
+        showToast(`Đã BẬT Nền & Logo riêng cho kịch bản "${paragraphGridConfig.name || "hiện tại"}"! Bạn có thể tải ảnh khác tùy ý.`);
+    } else {
+        applyProfileMediaState({ customMediaEnabled: false });
+        showToast(`Đã TẮT Nền & Logo riêng! Kịch bản "${paragraphGridConfig.name || "hiện tại"}" đang dùng chung Nền & Logo Studio.`);
+    }
+
+    const currentProf = savedParagraphProfiles.find(p => p.id === activeParagraphProfileId);
+    if (currentProf) {
+        currentProf.customMediaEnabled = paragraphGridConfig.customMediaEnabled;
+        currentProf.customMedia = paragraphGridConfig.customMedia ? JSON.parse(JSON.stringify(paragraphGridConfig.customMedia)) : null;
+    }
+
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(true);
+}
+
+/**
+ * 1-Chạm sao chép Nền & Logo mặc định từ Studio sang kịch bản đang chọn để tinh chỉnh riêng
+ */
+function copyStudioMediaToActiveProfile() {
+    if (!paragraphGridConfig) return;
+    paragraphGridConfig.customMediaEnabled = true;
+
+    paragraphGridConfig.customMedia = {
+        bgBase64: studioGlobalBgBase64 || canvasBgBase64 || null,
+        badgeBase64: studioGlobalBadgeBase64 || canvasBadgeBase64 || null,
+        bgImageStyle: JSON.parse(JSON.stringify(studioGlobalBgImageStyle || videoConfig.bgImageStyle || { widthPct: 100, heightPct: 100, posX: 0, posY: 0, opacity: 100 })),
+        badgeStyle: JSON.parse(JSON.stringify(studioGlobalBadgeStyle || videoConfig.badgeStyle || { widthPct: 15, heightPct: 10, posX: 82, posY: 4, opacity: 100, borderRadius: 20, isCircle: true, removeWhiteBg: false, maskInsetPct: 5 })),
+        bgFileName: studioGlobalBgFileName || "Ảnh nền Studio",
+        badgeFileName: studioGlobalBadgeFileName || "Logo Studio"
+    };
+
+    applyProfileMediaState(paragraphGridConfig);
+
+    const currentProf = savedParagraphProfiles.find(p => p.id === activeParagraphProfileId);
+    if (currentProf) {
+        currentProf.customMediaEnabled = true;
+        currentProf.customMedia = JSON.parse(JSON.stringify(paragraphGridConfig.customMedia));
+    }
+
+    showToast(`Đã sao chép Nền & Logo Studio sang kịch bản "${paragraphGridConfig.name}"!`);
+    if (typeof triggerAutoSave === 'function') triggerAutoSave(true);
+}
+
 
 function switchParagraphFrameSubTab(subKey) {
     const b1 = document.getElementById('p-sub-tab-bg-btn');

@@ -4,11 +4,47 @@
  */
 
 var APP_VERSION_INFO = {
-    version: "V16.3",
-    releaseDate: "23/09/2026",
+    version: "V16.6",
+    releaseDate: "24/09/2026",
     status: "Mới nhất & Ổn định",
-    summary: "Bản nâng cấp V16.3: Thiết kế Giao diện Phân Tầng 2 Dòng (2-Row Studio Bar) chuyên nghiệp. Dòng 1 tích hợp Logo, 2 chế độ Studio Canvas / Render hàng loạt, Undo/Redo và Xuất/Nhập file; Dòng 2 trải rộng 100% thanh 5 Subtabs thao tác thoáng đãng và mượt mà.",
+    summary: "Bản nâng cấp V16.6: Bổ sung tính năng 'Tùy Chọn Kịch Bản Dùng Ảnh Nền & Logo Riêng Biệt'. Mỗi kịch bản có thể bật công tắc dùng ảnh nền & logo riêng hoặc dùng chung Studio, tự động chuyển đổi nền/logo khi đổi kịch bản và khi Render hàng loạt theo chuỗi.",
     categories: [
+        {
+            title: "Tùy Chọn Kịch Bản Sử Dụng Ảnh Nền & Logo Riêng (V16.6)",
+            icon: "image-plus",
+            color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            items: [
+                "Công tắc độc lập từng kịch bản: Cho phép bật/tắt tùy chọn 'Nền & Logo riêng cho kịch bản này' trực tiếp tại Tab 2 (Kịch Bản & Nền).",
+                "Mỗi kịch bản một phong cách: Kịch bản có thể dùng ảnh nền, logo, độ mờ đục, vị trí, bo góc và khử nền trắng riêng biệt mà không ảnh hưởng tới kịch bản khác.",
+                "Tự động đồng bộ khi chuyển kịch bản: Chuyển đổi giữa các kịch bản trong Studio, Canvas lập tức nạp đúng nền và logo của kịch bản đó.",
+                "Render hàng loạt chuỗi đa kịch bản (Multi-Chain): Khi xuất video hàng loạt, mỗi bài học tự động hiển thị đúng bộ Nền & Logo tương ứng của kịch bản đó.",
+                "Nút 'Chép từ Studio' 1-chạm: Dễ dàng kế thừa nhanh bộ nền & logo chung của Studio sang kịch bản để tinh chỉnh riêng.",
+                "Lưu trữ IndexedDB & Xuất nhập Workspace an toàn: Dữ liệu ảnh nền và logo riêng của từng kịch bản được lưu trữ vĩnh viễn và đồng bộ trọn vẹn trong file JSON."
+            ]
+        },
+        {
+            title: "Lưu Thẻ Đối Tượng Làm Preset & Dùng Cho Mọi Kịch Bản (V16.5)",
+            icon: "bookmark-check",
+            color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+            items: [
+                "Lưu thẻ làm mẫu 1 chạm (Save as Preset): Nút '⭐ Lưu Preset' nổi bật ngay trên đầu bảng Định dạng Inspector (Tab 4) cho phép chụp trọn vẹn kiểu dáng, màu sắc, bóng đổ, viền nét, phông chữ và kích thước của thẻ đang chọn.",
+                "Kho Thẻ Mẫu Đã Lưu (Preset Library) tại Tab 3: Hiển thị danh sách các thẻ mẫu trực quan kèm biểu tượng theo loại đối tượng, số lượng và ngày tạo.",
+                "Tái sử dụng cho mọi kịch bản khác: Chuyển sang bất kỳ kịch bản nào, chọn 1 Lớp trên Timeline và bấm 1 chạm để chèn ngay thẻ mẫu vào đúng lớp.",
+                "Đổi tên & Quản lý mẫu tiện lợi: Hỗ trợ đặt tên gợi nhớ, đổi tên hoặc xóa bỏ các mẫu không còn nhu cầu; có sẵn bộ mẫu khởi đầu phong phú.",
+                "Lưu trữ vĩnh viễn & Đồng bộ JSON: Tự động ghi nhớ vào IndexedDB và bảo toàn trọn vẹn trong file xuất/nhập JSON của Workspace."
+            ]
+        },
+        {
+            title: "Tạo Kịch Bản Trắng Mới Tự Do & Nhanh Chóng (V16.4)",
+            icon: "file-plus-2",
+            color: "text-sky-400 bg-sky-500/10 border-sky-500/30",
+            items: [
+                "Nút '+ Kịch Bản Trắng' tiện lợi: Đặt ngay cạnh nút '+ Lưu Mẫu Mới' trong thẻ Quản Lý Kịch Bản (Subtab 2), thao tác 1 chạm nhanh gọn.",
+                "Kịch bản sạch 100%: Khởi tạo với 0 lớp Timeline, lưới chuẩn 1 cột độ rộng 100%, thời lượng chuẩn 8.0s, sẵn sàng để người dùng thiết kế theo ý muốn.",
+                "Giao diện chào đón thông minh: Khi kịch bản chưa có lớp, hệ thống hiển thị khối thông báo sinh động cùng 3 nút thêm nhanh (+ Thêm Lớp Drills, + Thêm Intro, + Thêm Cố Định).",
+                "Đồng bộ & Lưu trữ hoàn hảo: Tự động lưu trữ kịch bản trắng vào danh sách quản lý, chuyển đổi kịch bản mượt mà không lo mất dữ liệu."
+            ]
+        },
         {
             title: "Giao Diện Phân Tầng 2 Dòng & 5 Subtabs Trải Rộng (V16.3)",
             icon: "layout",
@@ -542,6 +578,153 @@ var canvasBgBase64 = null;
 var canvasBadgeImage = null;
 var canvasBadgeBase64 = null;
 
+// BIẾN LƯU ẢNH NỀN & LOGO MẶC ĐỊNH TOÀN CỤC CỦA STUDIO (CHO KỊCH BẢN KHÔNG DÙNG NỀN RIÊNG)
+var studioGlobalBgBase64 = null;
+var studioGlobalBadgeBase64 = null;
+var studioGlobalBgFileName = "";
+var studioGlobalBadgeFileName = "";
+var studioGlobalBgImageStyle = { widthPct: 100, heightPct: 100, posX: 0, posY: 0, opacity: 100 };
+var studioGlobalBadgeStyle = { widthPct: 15, heightPct: 10, posX: 82, posY: 4, opacity: 100, borderRadius: 20, isCircle: true, removeWhiteBg: false, maskInsetPct: 5 };
+
+/**
+ * Áp dụng trạng thái Nền & Logo của một Kịch bản (Profile):
+ * Nếu kịch bản bật customMediaEnabled -> dùng Nền & Logo riêng của nó.
+ * Nếu tắt customMediaEnabled -> dùng Nền & Logo chung mặc định của Studio.
+ */
+function applyProfileMediaState(prof) {
+    if (!prof) prof = (typeof paragraphGridConfig !== 'undefined') ? paragraphGridConfig : null;
+    if (!prof) return;
+
+    const hasCustom = !!(prof.customMediaEnabled && prof.customMedia);
+    const media = hasCustom ? prof.customMedia : {
+        bgBase64: studioGlobalBgBase64 || canvasBgBase64 || null,
+        badgeBase64: studioGlobalBadgeBase64 || canvasBadgeBase64 || null,
+        bgImageStyle: studioGlobalBgImageStyle || (typeof videoConfig !== 'undefined' ? videoConfig.bgImageStyle : null),
+        badgeStyle: studioGlobalBadgeStyle || (typeof videoConfig !== 'undefined' ? videoConfig.badgeStyle : null),
+        bgFileName: studioGlobalBgFileName || "",
+        badgeFileName: studioGlobalBadgeFileName || ""
+    };
+
+    if (typeof videoConfig !== 'undefined') {
+        if (media.bgImageStyle) {
+            videoConfig.bgImageStyle = JSON.parse(JSON.stringify(media.bgImageStyle));
+        }
+        if (media.badgeStyle) {
+            videoConfig.badgeStyle = JSON.parse(JSON.stringify(media.badgeStyle));
+        }
+    }
+
+    // Cập nhật Ảnh Nền
+    canvasBgBase64 = media.bgBase64 || null;
+    if (canvasBgBase64) {
+        const bgImg = new Image();
+        bgImg.src = canvasBgBase64;
+        bgImg.onload = () => {
+            canvasBgImage = bgImg;
+            if (typeof drawParagraphCanvasFrame === 'function') drawParagraphCanvasFrame();
+        };
+        canvasBgImage = bgImg;
+    } else {
+        canvasBgImage = null;
+    }
+
+    // Cập nhật Logo
+    canvasBadgeBase64 = media.badgeBase64 || null;
+    if (canvasBadgeBase64) {
+        const bdImg = new Image();
+        bdImg.src = canvasBadgeBase64;
+        bdImg.onload = () => {
+            canvasBadgeImage = bdImg;
+            if (typeof drawParagraphCanvasFrame === 'function') drawParagraphCanvasFrame();
+        };
+        canvasBadgeImage = bdImg;
+    } else {
+        canvasBadgeImage = null;
+    }
+
+    // Reset bộ đệm lọc khử nền trắng
+    window._cachedFilteredBadgeImg = null;
+    window._cachedFilteredBadgeSrc = null;
+
+    // Cập nhật nhãn tên file trong UI nếu các phần tử DOM tồn tại
+    const bgBadgeEl = document.getElementById('p-bg-file-name-badge');
+    if (bgBadgeEl) {
+        bgBadgeEl.innerText = media.bgFileName || (canvasBgBase64 ? "Ảnh nền kịch bản" : "Chưa chọn ảnh nền");
+    }
+    const badgeInfoEl = document.getElementById('p-badge-file-name-info');
+    if (badgeInfoEl) {
+        badgeInfoEl.innerText = media.badgeFileName || (canvasBadgeBase64 ? "Logo kịch bản" : "Chưa tải Logo/Badge");
+    }
+
+    // Cập nhật công tắc và huy hiệu trạng thái
+    const toggleEl = document.getElementById('p-custom-media-toggle');
+    if (toggleEl) {
+        toggleEl.checked = hasCustom;
+    }
+    const statusBadge = document.getElementById('p-custom-media-status-badge');
+    if (statusBadge) {
+        if (hasCustom) {
+            statusBadge.className = "px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold flex items-center space-x-1";
+            statusBadge.innerHTML = `<i data-lucide="check-circle-2" class="w-3 h-3 text-emerald-400"></i><span>Đang dùng Nền & Logo riêng của kịch bản</span>`;
+        } else {
+            statusBadge.className = "px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300 font-semibold flex items-center space-x-1";
+            statusBadge.innerHTML = `<i data-lucide="globe" class="w-2.5 h-2.5 text-indigo-400"></i><span>Đang dùng chung Nền & Logo của Studio</span>`;
+        }
+        if (window.lucide && lucide.createIcons) lucide.createIcons();
+    }
+
+    if (typeof syncMediaInputsFromConfig === 'function') {
+        syncMediaInputsFromConfig();
+    }
+    if (typeof drawParagraphCanvasFrame === 'function') {
+        drawParagraphCanvasFrame();
+    }
+}
+
+/**
+ * Đồng bộ trạng thái Nền & Logo đang hiển thị vào đúng kịch bản đang chọn:
+ * Nếu kịch bản đang bật customMediaEnabled -> lưu vào customMedia của nó.
+ * Nếu tắt customMediaEnabled -> lưu vào studioGlobalMedia.
+ */
+function syncCurrentMediaToActiveProfile() {
+    if (typeof paragraphGridConfig === 'undefined' || !paragraphGridConfig) return;
+    if (paragraphGridConfig.customMediaEnabled) {
+        if (!paragraphGridConfig.customMedia) {
+            paragraphGridConfig.customMedia = {};
+        }
+        paragraphGridConfig.customMedia.bgBase64 = canvasBgBase64 || null;
+        paragraphGridConfig.customMedia.badgeBase64 = canvasBadgeBase64 || null;
+        if (typeof videoConfig !== 'undefined') {
+            paragraphGridConfig.customMedia.bgImageStyle = JSON.parse(JSON.stringify(videoConfig.bgImageStyle || {}));
+            paragraphGridConfig.customMedia.badgeStyle = JSON.parse(JSON.stringify(videoConfig.badgeStyle || {}));
+        }
+        const bgLabel = document.getElementById('p-bg-file-name-badge')?.innerText;
+        if (bgLabel && bgLabel !== "Chưa chọn ảnh nền") {
+            paragraphGridConfig.customMedia.bgFileName = bgLabel;
+        }
+        const bdLabel = document.getElementById('p-badge-file-name-info')?.innerText;
+        if (bdLabel && bdLabel !== "Chưa tải Logo/Badge") {
+            paragraphGridConfig.customMedia.badgeFileName = bdLabel;
+        }
+    } else {
+        studioGlobalBgBase64 = canvasBgBase64 || null;
+        studioGlobalBadgeBase64 = canvasBadgeBase64 || null;
+        if (typeof videoConfig !== 'undefined') {
+            studioGlobalBgImageStyle = JSON.parse(JSON.stringify(videoConfig.bgImageStyle || {}));
+            studioGlobalBadgeStyle = JSON.parse(JSON.stringify(videoConfig.badgeStyle || {}));
+        }
+        const bgLabel = document.getElementById('p-bg-file-name-badge')?.innerText;
+        if (bgLabel && bgLabel !== "Chưa chọn ảnh nền") {
+            studioGlobalBgFileName = bgLabel;
+        }
+        const bdLabel = document.getElementById('p-badge-file-name-info')?.innerText;
+        if (bdLabel && bdLabel !== "Chưa tải Logo/Badge") {
+            studioGlobalBadgeFileName = bdLabel;
+        }
+    }
+}
+
+
 var pCanvas = null, pCtx = null;
 var pCleanCanvas = null, pCleanCtx = null; // Canvas ngầm cho bản Clean (nền trắng, không logo)
 var isParagraphRunning = false;
@@ -577,6 +760,151 @@ var batchNamingPresets = [
     { id: "preset_script_topic_stt", name: "Đầy đủ (Kịch bản - Chủ đề - STT)", pattern: "[{script}]-[{topic}]-No.{stt}" },
     { id: "preset_genre_topic_stt", name: "Phân loại (Thể loại - Chủ đề - STT)", pattern: "[{genre}]-[{topic}]-{stt}" },
     { id: "preset_date_stt", name: "Kèm ngày tháng (YYYYMMDD - STT - Chủ đề)", pattern: "{ngay}-{stt}-{topic}" }
+];
+
+// KHO THẺ MẪU ĐÃ LƯU (CARD PRESET LIBRARY - V16.5)
+// Cho phép lưu bất kỳ thẻ đối tượng nào thành Preset và 1-chạm chèn vào lớp ở mọi kịch bản khác
+var savedCardPresets = [
+    {
+        id: "preset_countdown_5s_ring",
+        name: "Đồng Hồ 5s Vòng Tròn (Góc Trên Phải)",
+        cardType: "countdown",
+        description: "Đếm ngược 5s chuyển màu Xanh ➔ Đỏ, đĩa chống lóa, tiếng tích tắc",
+        createdAt: "Hệ thống",
+        isBuiltIn: true,
+        data: {
+            type: "countdown",
+            seconds: 5,
+            preset: "green_to_red",
+            colorShift: true,
+            enableTickSound: true,
+            tickSoundType: "mechanical",
+            tickVolume: 80,
+            playEndChime: true,
+            endSoundType: "ding",
+            position: "top_right",
+            size: "medium",
+            radius: 36,
+            posX: 1845,
+            posY: 70,
+            opacity: 100,
+            textColor: "#ffffff",
+            textStroke: true,
+            strokeColor: "#000000",
+            strokeWidth: 3,
+            bgColor: "#0f172a",
+            bgOpacity: 85
+        }
+    },
+    {
+        id: "preset_custom_text_title",
+        name: "Chữ Tự Do: Tiêu Đề Bài Học (Vàng Nghệ Bo Tròn)",
+        cardType: "custom_text",
+        description: "Phông Quicksand Đậm 32px, nền tối bo góc 18px, căn trái nổi bật",
+        createdAt: "Hệ thống",
+        isBuiltIn: true,
+        data: {
+            type: "custom_text",
+            text: "Tiêu Đề Bài Học Mẫu",
+            font: "Quicksand",
+            size: 32,
+            style: "bold",
+            color: "#fef08a",
+            boxBgColor: "#0f172a",
+            boxRadius: 18,
+            boxPadding: 14,
+            hAlign: "left",
+            lineSpacing: 1.25,
+            shrinkToFit: true,
+            strokeEnabled: false,
+            shadowEnabled: true,
+            shadowColor: "rgba(0, 0, 0, 0.7)",
+            shadowBlur: 8,
+            shadowOffsetX: 3,
+            shadowOffsetY: 3
+        }
+    },
+    {
+        id: "preset_progress_counter",
+        name: "Tiến Độ: Câu {STT}/{Tổng_câu} & Thanh Xanh",
+        cardType: "progress_tracker",
+        description: "Thanh tiến trình mượt mà kèm huy hiệu góc trên màn hình",
+        createdAt: "Hệ thống",
+        isBuiltIn: true,
+        data: {
+            type: "progress_tracker",
+            displayMode: "both",
+            textTemplate: "Câu {STT}/{Tổng_câu}",
+            position: "top_bar",
+            barThickness: 8,
+            barColor: "#10b981",
+            barBgColor: "#ffffff",
+            barBgOpacity: 25,
+            pillBgColor: "#0f172a",
+            pillBgOpacity: 85,
+            borderColor: "#ffffff",
+            borderOpacity: 25,
+            borderWidth: 1.5,
+            borderRadius: 14,
+            opacity: 100,
+            textColor: "#ffffff",
+            fontSize: 22,
+            fontWeight: 900,
+            posX: 1520,
+            posY: 30,
+            shadow: true
+        }
+    },
+    {
+        id: "preset_audio_sfx_ting",
+        name: "Âm Thanh SFX: Chuông Ting Ting Báo Đáp Án",
+        cardType: "audio_sfx",
+        description: "Âm lượng 80%, tự động né tiếng Audio Ducking",
+        createdAt: "Hệ thống",
+        isBuiltIn: true,
+        data: {
+            type: "audio_sfx",
+            soundType: "ding",
+            customAudioName: "",
+            customAudioData: null,
+            volume: 80,
+            ducking: true
+        }
+    },
+    {
+        id: "preset_tts_voice_std",
+        name: "Giọng Đọc AI: Đọc Cột Bài Tập & Khóa Timeline",
+        cardType: "tts",
+        description: "Đọc tự động trường Substitution Drills với độ dài timeline chuẩn xác",
+        createdAt: "Hệ thống",
+        isBuiltIn: true,
+        data: {
+            type: "tts",
+            sourceMode: "fields",
+            ttsSpeakFields: ["Substitution Drills"],
+            customText: ""
+        }
+    },
+    {
+        id: "preset_image_vertical",
+        name: "Khung Ảnh Minh Họa Đứng (520x880px)",
+        cardType: "excel_image",
+        description: "Định dạng thẻ ảnh chuẩn cột phải, bo góc 24px, đổ bóng mờ",
+        createdAt: "Hệ thống",
+        isBuiltIn: true,
+        data: {
+            key: "ten_file_dinh_kem"
+        },
+        style: {
+            type: "image",
+            posX: 1300,
+            posY: 100,
+            width: 520,
+            height: 880,
+            boxRadius: 24,
+            opacity: 100
+        }
+    }
 ];
 var isBatchRunning = false;
 var isBatchPaused = false;

@@ -138,6 +138,15 @@ function switchLeftSubTab(subTabNum) {
         mobBtnGrid.className = "px-2.5 py-1 rounded-lg text-[10px] font-bold text-teal-400 hover:text-white whitespace-nowrap";
     }
 
+    if (subTabNum === 3) {
+        if (typeof renderCardPresetsLibraryUI === 'function') {
+            renderCardPresetsLibraryUI();
+        }
+        if (typeof renderMailMergeFieldChips === 'function') {
+            renderMailMergeFieldChips();
+        }
+    }
+
     if (subTabNum === 4) {
         const scrollContainer = document.getElementById('col-left-scroll-container');
         if (scrollContainer) scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
@@ -483,6 +492,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (typeof initFloatingPopoverDraggable === 'function') initFloatingPopoverDraggable();
     if (typeof populateVoiceList === 'function') populateVoiceList();
     if (typeof renderMailMergeFieldChips === 'function') renderMailMergeFieldChips();
+    if (typeof renderCardPresetsLibraryUI === 'function') renderCardPresetsLibraryUI();
     if (typeof renderTimelineLayersListUI === 'function') renderTimelineLayersListUI();
     if (typeof renderTimelineTracksUI === 'function') renderTimelineTracksUI();
     if (typeof renderInspectorRibbon === 'function') renderInspectorRibbon();
@@ -490,6 +500,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (typeof renderDatasetTable === 'function') renderDatasetTable();
     if (typeof refreshBatchTopicsTable === 'function') refreshBatchTopicsTable();
     if (typeof renderBatchNamingExcelFields === 'function') renderBatchNamingExcelFields();
+    if (typeof renderBatchNamingPresetsList === 'function') renderBatchNamingPresetsList();
     if (typeof updateBatchNamingPreview === 'function') updateBatchNamingPreview();
     if (typeof syncMediaInputsFromConfig === 'function') syncMediaInputsFromConfig();
     if (typeof syncInlineGridSettingsInputs === 'function') syncInlineGridSettingsInputs();

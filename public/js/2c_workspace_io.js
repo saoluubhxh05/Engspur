@@ -67,6 +67,22 @@ function syncMediaInputsFromConfig() {
     const maskInset = bdSt.maskInsetPct !== undefined ? bdSt.maskInsetPct : 5;
     if (document.getElementById('cfg-bd-inset')) document.getElementById('cfg-bd-inset').value = maskInset;
     if (document.getElementById('cfg-bd-inset-val')) document.getElementById('cfg-bd-inset-val').innerText = `${maskInset}%`;
+
+    // Đồng bộ công tắc Nền & Logo riêng cho kịch bản
+    const isCustom = !!(typeof paragraphGridConfig !== 'undefined' && paragraphGridConfig && paragraphGridConfig.customMediaEnabled);
+    const toggleEl = document.getElementById('p-custom-media-toggle');
+    if (toggleEl) toggleEl.checked = isCustom;
+    const statusBadge = document.getElementById('p-custom-media-status-badge');
+    if (statusBadge) {
+        if (isCustom) {
+            statusBadge.className = "px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold flex items-center space-x-1";
+            statusBadge.innerHTML = `<i data-lucide="check-circle-2" class="w-3 h-3 text-emerald-400"></i><span>Đang dùng Nền & Logo riêng của kịch bản</span>`;
+        } else {
+            statusBadge.className = "px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300 font-semibold flex items-center space-x-1";
+            statusBadge.innerHTML = `<i data-lucide="globe" class="w-2.5 h-2.5 text-indigo-400"></i><span>Đang dùng chung Nền & Logo của Studio</span>`;
+        }
+        if (window.lucide && lucide.createIcons) lucide.createIcons();
+    }
 }
 
 /**
@@ -412,6 +428,29 @@ async function executeExportWorkspaceByMode(mode = 'light') {
             if (progressText) progressText.innerText = "Đang nén logo badge...";
             exportCanvasBadge = await compressBase64Image(canvasBadgeBase64, 400, 400, 0.75);
         }
+
+        // Tối ưu hóa ảnh nền & logo riêng trong từng kịch bản
+        if (Array.isArray(exportSavedProfiles)) {
+            for (const prof of exportSavedProfiles) {
+                if (prof && prof.customMedia) {
+                    if (prof.customMedia.bgBase64) {
+                        prof.customMedia.bgBase64 = await compressBase64Image(prof.customMedia.bgBase64, 720, 1280, 0.7);
+                    }
+                    if (prof.customMedia.badgeBase64) {
+                        prof.customMedia.badgeBase64 = await compressBase64Image(prof.customMedia.badgeBase64, 400, 400, 0.75);
+                    }
+                }
+            }
+        }
+        if (exportGridConfig && exportGridConfig.customMedia) {
+            if (exportGridConfig.customMedia.bgBase64) {
+                exportGridConfig.customMedia.bgBase64 = await compressBase64Image(exportGridConfig.customMedia.bgBase64, 720, 1280, 0.7);
+            }
+            if (exportGridConfig.customMedia.badgeBase64) {
+                exportGridConfig.customMedia.badgeBase64 = await compressBase64Image(exportGridConfig.customMedia.badgeBase64, 400, 400, 0.75);
+            }
+        }
+
         isMinified = true;
     } else {
         // Chế độ Đầy Đủ: Giữ nguyên 100% bản gốc
@@ -423,7 +462,7 @@ async function executeExportWorkspaceByMode(mode = 'light') {
 
     const backupData = {
         app: "EngSpur Auto Video Studio",
-        version: (typeof APP_VERSION_INFO !== 'undefined' && APP_VERSION_INFO.version) ? APP_VERSION_INFO.version : "V15.3",
+        version: (typeof APP_VERSION_INFO !== 'undefined' && APP_VERSION_INFO.version) ? APP_VERSION_INFO.version : "V16.6",
         exportMode: mode,
         exportDate: new Date().toISOString(),
         importedDatasets: exportDatasets,
@@ -436,10 +475,17 @@ async function executeExportWorkspaceByMode(mode = 'light') {
         localPCImageBase64Map: exportImagesMap,
         canvasBgBase64: exportCanvasBg,
         canvasBadgeBase64: exportCanvasBadge,
+        studioGlobalBgBase64: (typeof studioGlobalBgBase64 !== 'undefined') ? studioGlobalBgBase64 : null,
+        studioGlobalBadgeBase64: (typeof studioGlobalBadgeBase64 !== 'undefined') ? studioGlobalBadgeBase64 : null,
+        studioGlobalBgFileName: (typeof studioGlobalBgFileName !== 'undefined') ? studioGlobalBgFileName : "",
+        studioGlobalBadgeFileName: (typeof studioGlobalBadgeFileName !== 'undefined') ? studioGlobalBadgeFileName : "",
+        studioGlobalBgImageStyle: (typeof studioGlobalBgImageStyle !== 'undefined') ? studioGlobalBgImageStyle : null,
+        studioGlobalBadgeStyle: (typeof studioGlobalBadgeStyle !== 'undefined') ? studioGlobalBadgeStyle : null,
         paragraphSelectedTopic,
         paragraphFilterMode: (typeof paragraphFilterMode !== 'undefined') ? paragraphFilterMode : 'topic',
         paragraphSelectedGenre: (typeof paragraphSelectedGenre !== 'undefined') ? paragraphSelectedGenre : 'ALL',
         masterTimelineDuration,
+        savedCardPresets: (typeof savedCardPresets !== 'undefined') ? savedCardPresets : [],
         // Cấu hình Tab 3: Render Hàng Loạt (Batch Multi-Chain Pipeline)
         batchRenderConfig: {
             targetPracticeMode,
@@ -528,6 +574,9 @@ function handleImportFullWorkspaceJSON(e) {
                 if (data.paragraphFilterMode && typeof paragraphFilterMode !== 'undefined') paragraphFilterMode = data.paragraphFilterMode;
                 if (data.paragraphSelectedGenre && typeof paragraphSelectedGenre !== 'undefined') paragraphSelectedGenre = data.paragraphSelectedGenre;
                 if (data.masterTimelineDuration) masterTimelineDuration = data.masterTimelineDuration;
+                if (data.savedCardPresets && Array.isArray(data.savedCardPresets) && data.savedCardPresets.length > 0) {
+                    savedCardPresets = data.savedCardPresets;
+                }
 
                 // Khôi phục lại customAudioData nếu file nhập là bản siêu nhẹ và máy có sẵn âm thanh
                 if (paragraphGridConfig && Array.isArray(paragraphGridConfig.groups)) {
@@ -646,6 +695,13 @@ function handleImportFullWorkspaceJSON(e) {
                     document.getElementById('pc-image-badge').innerText = `${Object.keys(localPCImageMap || {}).length} Ảnh Local`;
                 }
 
+                if (data.studioGlobalBgBase64 !== undefined) studioGlobalBgBase64 = data.studioGlobalBgBase64;
+                if (data.studioGlobalBadgeBase64 !== undefined) studioGlobalBadgeBase64 = data.studioGlobalBadgeBase64;
+                if (data.studioGlobalBgFileName !== undefined) studioGlobalBgFileName = data.studioGlobalBgFileName;
+                if (data.studioGlobalBadgeFileName !== undefined) studioGlobalBadgeFileName = data.studioGlobalBadgeFileName;
+                if (data.studioGlobalBgImageStyle) studioGlobalBgImageStyle = data.studioGlobalBgImageStyle;
+                if (data.studioGlobalBadgeStyle) studioGlobalBadgeStyle = data.studioGlobalBadgeStyle;
+
                 if (data.canvasBgBase64) {
                     canvasBgBase64 = data.canvasBgBase64;
                     const bgImg = new Image();
@@ -659,6 +715,11 @@ function handleImportFullWorkspaceJSON(e) {
                     bdImg.onload = () => { canvasBadgeImage = bdImg; drawParagraphCanvasFrame(); };
                 }
 
+                // Áp dụng Nền & Logo chuẩn xác của kịch bản đang chọn
+                if (typeof applyProfileMediaState === 'function') {
+                    applyProfileMediaState(paragraphGridConfig);
+                }
+
                 if (document.getElementById('master-loop-duration-input')) {
                     document.getElementById('master-loop-duration-input').value = masterTimelineDuration;
                 }
@@ -666,6 +727,7 @@ function handleImportFullWorkspaceJSON(e) {
                 syncMediaInputsFromConfig();
                 renderSavedParagraphProfilesDropdown();
                 renderMailMergeFieldChips();
+                if (typeof renderCardPresetsLibraryUI === 'function') renderCardPresetsLibraryUI();
                 renderTimelineLayersListUI();
                 renderTimelineTracksUI();
                 renderInspectorRibbon();

@@ -452,7 +452,35 @@ function renderTimelineLayersListUI() {
     if (!container) return;
 
     if (!paragraphGridConfig.groups || paragraphGridConfig.groups.length === 0) {
-        addNewGridGroupRow('inside');
+        paragraphSelectedGroupIdx = -1;
+        container.innerHTML = `
+            <div class="p-4 sm:p-5 text-center bg-slate-950/80 rounded-2xl border border-dashed border-slate-700/80 space-y-3 my-2 shadow-inner">
+                <div class="w-12 h-12 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl flex items-center justify-center mx-auto text-indigo-400 shadow-md">
+                    <i data-lucide="layers" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <p class="text-xs font-black text-white">Kịch bản trắng chưa có lớp nào</p>
+                    <p class="text-[10px] text-slate-400 mt-0.5">Bắt đầu thiết kế bố cục của bạn bằng cách thêm lớp hiển thị hoặc giọng đọc đầu tiên</p>
+                </div>
+                <div class="pt-1 flex flex-wrap items-center justify-center gap-2">
+                    <button onclick="addNewGridGroupRow('inside')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow active:scale-95 transition inline-flex items-center space-x-1.5 cursor-pointer">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                        <span>+ Thêm Lớp (Drills)</span>
+                    </button>
+                    <button onclick="addNewGridGroupRow('before')" class="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs shadow active:scale-95 transition inline-flex items-center space-x-1.5 cursor-pointer">
+                        <i data-lucide="arrow-left-to-line" class="w-3.5 h-3.5"></i>
+                        <span>+ Thêm Intro</span>
+                    </button>
+                    <button onclick="addNewGridGroupRow('outside')" class="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-black font-extrabold rounded-xl text-xs shadow active:scale-95 transition inline-flex items-center space-x-1.5 cursor-pointer">
+                        <i data-lucide="lock" class="w-3.5 h-3.5"></i>
+                        <span>+ Thêm Cố Định</span>
+                    </button>
+                </div>
+            </div>
+        `;
+        const layerBadge = document.getElementById('layer-count-badge');
+        if (layerBadge) layerBadge.innerText = `0 Lớp`;
+        if (window.lucide && lucide.createIcons) lucide.createIcons();
         return;
     }
 

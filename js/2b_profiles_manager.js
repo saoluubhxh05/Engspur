@@ -16,6 +16,9 @@ async function saveCurrentProfileOver() {
     const input = document.getElementById('script-profile-name-input');
     if (input && input.value.trim()) paragraphGridConfig.name = input.value.trim();
 
+    if (typeof syncCurrentMediaToActiveProfile === 'function') {
+        syncCurrentMediaToActiveProfile();
+    }
     paragraphGridConfig.masterDuration = masterTimelineDuration;
     paragraphGridConfig.fieldStyles = JSON.parse(JSON.stringify(paragraphFieldStyles));
 
@@ -33,8 +36,17 @@ async function saveCurrentProfileOver() {
 
 async function saveCurrentProfileAsNew() {
     const currentName = paragraphGridConfig.name || "Kịch bản";
-    const newName = prompt("Nhập tên cho kịch bản mới:", `${currentName} (Bản mới)`);
-    if (!newName || !newName.trim()) return;
+    let newName = `${currentName} (Bản mới)`;
+    try {
+        const userPrompt = window.prompt("Nhập tên cho kịch bản mới:", newName);
+        if (userPrompt && userPrompt.trim()) newName = userPrompt.trim();
+    } catch (e) {
+        console.warn("IFrame sandbox prevented prompt dialog:", e);
+    }
+
+    if (typeof syncCurrentMediaToActiveProfile === 'function') {
+        syncCurrentMediaToActiveProfile();
+    }
 
     const newProfile = JSON.parse(JSON.stringify(paragraphGridConfig));
     newProfile.id = "profile_" + Date.now();
@@ -47,12 +59,150 @@ async function saveCurrentProfileAsNew() {
     paragraphGridConfig = newProfile;
 
     const nameInput = document.getElementById('script-profile-name-input');
-    if (nameInput) nameInput.value = newProfile.name;
+    if (nameInput) {
+        nameInput.value = newProfile.name;
+        try {
+            nameInput.focus();
+            nameInput.select();
+        } catch(e) {}
+    }
+
+    if (typeof applyProfileMediaState === 'function') {
+        applyProfileMediaState(newProfile);
+    }
 
     renderSavedParagraphProfilesDropdown();
     await saveFullSystemState();
     showToast(`Đã tạo và lưu kịch bản mới: "${newProfile.name}"!`);
 }
+
+async function createNewBlankProfile() {
+    try {
+        // 1. Đồng bộ và lưu lại trạng thái kịch bản hiện tại trước khi chuyển đổi
+        if (typeof syncCurrentActiveProfileState === 'function') {
+            syncCurrentActiveProfileState();
+        } else if (typeof activeParagraphProfileId !== 'undefined' && activeParagraphProfileId && Array.isArray(savedParagraphProfiles)) {
+            const cur = savedParagraphProfiles.find(p => p.id === activeParagraphProfileId);
+            if (cur) {
+                cur.fieldStyles = JSON.parse(JSON.stringify(paragraphFieldStyles || {}));
+                cur.groups = JSON.parse(JSON.stringify(paragraphGridConfig.groups || []));
+                cur.gridMatrix = JSON.parse(JSON.stringify(paragraphGridConfig.gridMatrix || {}));
+                cur.presentationMode = paragraphGridConfig.presentationMode || "normal";
+                cur.loopBlockGap = paragraphGridConfig.loopBlockGap || 0;
+                cur.masterDuration = masterTimelineDuration;
+            }
+        }
+
+        // 2. Tự động xác định tên kịch bản mới mà không bị chặn bởi iFrame sandbox
+        const defaultNum = (Array.isArray(savedParagraphProfiles) ? savedParagraphProfiles.length : 0) + 1;
+        let newName = `Kịch bản trắng ${defaultNum}`;
+        try {
+            const promptVal = window.prompt("Nhập tên cho kịch bản trắng mới:", newName);
+            if (promptVal && promptVal.trim()) {
+                newName = promptVal.trim();
+            }
+        } catch (e) {
+            console.warn("IFrame sandbox prevented prompt modal, using default name:", e);
+        }
+
+        // 3. Khởi tạo đối tượng kịch bản trắng hoàn toàn (0 lớp, 1 cột chuẩn, 8.0s)
+        const blankProfile = {
+            id: "profile_" + Date.now(),
+            name: newName,
+            date: new Date().toISOString().split('T')[0],
+            presentationMode: "normal",
+            masterDuration: 8.0,
+            loopBlockGap: 0,
+            zoneDurations: { intro: 2.0, drills: 4.5, outro: 1.5 },
+            customMediaEnabled: false,
+            customMedia: null,
+            gridMatrix: {
+                columnCount: 1,
+                columnWidths: [100],
+                paddingTopPct: 6,
+                paddingBottomPct: 6,
+                paddingLeftPct: 4,
+                paddingRightPct: 4,
+                columnGapPct: 2,
+                showGridOverlay: false,
+                autoRowSync: true,
+                columnBoxWrapper: {
+                    enabled: false,
+                    startCol: 1,
+                    endCol: 1,
+                    borderColor: "#d99a14",
+                    borderWidth: 3,
+                    borderRadius: 20,
+                    paddingX: 16,
+                    paddingY: 16,
+                    paddingLeft: 16,
+                    paddingRight: 16,
+                    paddingTop: 16,
+                    paddingBottom: 16,
+                    bgColor: "transparent",
+                    heightMode: "auto"
+                }
+            },
+            fieldStyles: (typeof paragraphFieldStyles !== 'undefined') ? JSON.parse(JSON.stringify(paragraphFieldStyles)) : {},
+            groups: []
+        };
+
+        if (!Array.isArray(savedParagraphProfiles)) {
+            savedParagraphProfiles = [];
+        }
+        savedParagraphProfiles.push(blankProfile);
+        activeParagraphProfileId = blankProfile.id;
+        paragraphGridConfig = JSON.parse(JSON.stringify(blankProfile));
+        masterTimelineDuration = blankProfile.masterDuration;
+
+        if (typeof applyProfileMediaState === 'function') {
+            applyProfileMediaState(blankProfile);
+        }
+
+        // Reset trạng thái chọn lớp & thẻ
+        paragraphSelectedGroupIdx = -1;
+        paragraphSelectedFieldKey = null;
+        selectedFieldKeysList = [];
+        selectedCustomTextTarget = null;
+        if (typeof selectedCountdownTarget !== 'undefined') selectedCountdownTarget = null;
+        if (typeof selectedTtsTarget !== 'undefined') selectedTtsTarget = null;
+        if (typeof selectedAudioSfxTarget !== 'undefined') selectedAudioSfxTarget = null;
+        if (typeof selectedVideoTarget !== 'undefined') selectedVideoTarget = null;
+        if (typeof selectedProgressTrackerTarget !== 'undefined') selectedProgressTrackerTarget = null;
+
+        const nameInput = document.getElementById('script-profile-name-input');
+        if (nameInput) {
+            nameInput.value = blankProfile.name;
+            try {
+                nameInput.focus();
+                nameInput.select();
+            } catch(e) {}
+        }
+
+        const durInput = document.getElementById('master-loop-duration-input');
+        if (durInput) {
+            durInput.value = masterTimelineDuration;
+        }
+
+        if (typeof updateLoopPresentationModeUI === 'function') updateLoopPresentationModeUI();
+        if (typeof renderSavedParagraphProfilesDropdown === 'function') renderSavedParagraphProfilesDropdown();
+        if (typeof renderTimelineLayersListUI === 'function') renderTimelineLayersListUI();
+        if (typeof renderTimelineTracksUI === 'function') renderTimelineTracksUI();
+        if (typeof renderInspectorRibbon === 'function') renderInspectorRibbon();
+        if (typeof syncInlineGridSettingsInputs === 'function') syncInlineGridSettingsInputs();
+        if (typeof seekTimeline === 'function') seekTimeline(0);
+        if (typeof drawParagraphCanvasFrame === 'function') drawParagraphCanvasFrame();
+
+        if (typeof saveFullSystemState === 'function') await saveFullSystemState();
+        showToast(`Đã tạo kịch bản trắng mới: "${blankProfile.name}"! Bạn có thể đổi tên ở ô bên dưới hoặc thêm lớp mới.`);
+    } catch (err) {
+        console.error("Lỗi khi tạo kịch bản trắng:", err);
+        showToast("Đã xảy ra lỗi khi tạo kịch bản: " + (err.message || err), "error");
+    }
+}
+
+window.createNewBlankProfile = createNewBlankProfile;
+window.saveCurrentProfileAsNew = saveCurrentProfileAsNew;
 
 function loadDefaultJSONTemplate(modeNum, showNotif = true) {
     const template = (modeNum === 1) ? DEFAULT_TEMPLATES_JSON.mode1 : DEFAULT_TEMPLATES_JSON.mode2;
@@ -88,6 +238,7 @@ function loadDefaultJSONTemplate(modeNum, showNotif = true) {
     renderTimelineTracksUI();
     renderInspectorRibbon();
     syncInlineGridSettingsInputs();
+    if (typeof applyProfileMediaState === 'function') applyProfileMediaState(paragraphGridConfig);
     seekTimeline(0);
 
     if (showNotif) showToast(`Đã nạp Kịch Bản Mẫu: ${template.name}!`);
@@ -130,6 +281,7 @@ function handleImportProfileJSON(e) {
                 renderTimelineTracksUI();
                 renderInspectorRibbon();
                 syncInlineGridSettingsInputs();
+                if (typeof applyProfileMediaState === 'function') applyProfileMediaState(parsed);
                 seekTimeline(0);
                 saveFullSystemState();
                 showToast(`Đã nhập kịch bản Timeline JSON: ${parsed.name || "Thành công"}!`);
@@ -176,6 +328,9 @@ function loadSelectedParagraphProfile(profileId) {
             currentProfile.presentationMode = paragraphGridConfig.presentationMode;
             currentProfile.loopBlockGap = paragraphGridConfig.loopBlockGap;
             currentProfile.masterDuration = masterTimelineDuration;
+            if (typeof syncCurrentMediaToActiveProfile === 'function') syncCurrentMediaToActiveProfile();
+            currentProfile.customMediaEnabled = paragraphGridConfig.customMediaEnabled;
+            currentProfile.customMedia = paragraphGridConfig.customMedia ? JSON.parse(JSON.stringify(paragraphGridConfig.customMedia)) : null;
         }
     }
 
@@ -194,6 +349,11 @@ function loadSelectedParagraphProfile(profileId) {
             paragraphFieldStyles = JSON.parse(JSON.stringify(found.fieldStyles));
         }
 
+        // Tự động nạp hoặc khôi phục Nền & Logo tương ứng của kịch bản này
+        if (typeof applyProfileMediaState === 'function') {
+            applyProfileMediaState(found);
+        }
+
         paragraphSelectedGroupIdx = 0;
         paragraphSelectedFieldKey = "Substitution words";
         selectedFieldKeysList = [paragraphSelectedFieldKey];
@@ -206,7 +366,7 @@ function loadSelectedParagraphProfile(profileId) {
         seekTimeline(0);
         saveFullSystemState();
 
-        showToast(`Đã chuyển sang kịch bản: ${found.name}! Toàn bộ Lưới, Timeline & Định dạng đã được làm mới.`);
+        showToast(`Đã chuyển sang kịch bản: ${found.name}! Toàn bộ Lưới, Timeline, Nền & Logo đã được làm mới.`);
     }
 }
 

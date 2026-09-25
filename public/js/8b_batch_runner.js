@@ -315,6 +315,7 @@ async function runCurrentBatchQueueItem() {
         if (typeof renderTimelineLayersListUI === 'function') renderTimelineLayersListUI();
         if (typeof renderTimelineTracksUI === 'function') renderTimelineTracksUI();
         if (typeof autoRecalculateAudioLayersDuration === 'function') autoRecalculateAudioLayersDuration();
+        if (typeof applyProfileMediaState === 'function') applyProfileMediaState(scriptProf);
     }
 
     if (currentItem.groupMode === 'genre') {
@@ -856,6 +857,9 @@ function cancelBatchRender() {
         masterTimelineDuration = studioSavedBackupState.masterTimelineDuration;
         activeParagraphProfileId = studioSavedBackupState.activeParagraphProfileId;
         paragraphSelectedTopic = studioSavedBackupState.paragraphSelectedTopic;
+        if (typeof applyProfileMediaState === 'function') {
+            applyProfileMediaState(paragraphGridConfig);
+        }
     }
 
     renderBatchTableUI();
@@ -934,6 +938,10 @@ function finishBatchPipeline() {
 
         const durInput = document.getElementById('master-loop-duration-input');
         if (durInput) durInput.value = masterTimelineDuration;
+
+        if (typeof applyProfileMediaState === 'function') {
+            applyProfileMediaState(paragraphGridConfig);
+        }
     }
 
     // Tự động tải về file Excel báo cáo 2 Sheet chuẩn xác theo từng ms
