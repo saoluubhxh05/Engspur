@@ -36,6 +36,7 @@ Dự án tạo video tự động từ file Excel & ảnh, hỗ trợ xem trư�
     ├── 8a_batch_queue.js       # Hàng đợi Batch Render: định dạng tên file, chuỗi kịch bản, chọn thư mục
     ├── 8b_batch_runner.js      # Động cơ Batch: MediaRecorder kép (Full + Clean), ghi âm PCM/WAV, wake lock
     ├── 8c_batch_exporter.js    # Xuất báo cáo Excel 2 Sheet (Tổng quan + Timeline ms), File Picker API lưu file
+    ├── 9_offline_render.js     # Chế độ Render Siêu Tốc: đồng hồ ảo 30fps + WebCodecs VideoEncoder + OfflineAudioContext
     └── app.js                  # Khởi động ứng dụng (DOMContentLoaded), điều hướng tab, phím tắt, thông báo
 ```
 
@@ -160,7 +161,12 @@ Dự án tạo video tự động từ file Excel & ảnh, hỗ trợ xem trư�
     - *Sheet 2 (Chi Tiết Timeline)*: Chi tiết từng câu luyện tập (drills), từ gợi mở (cue), thời điểm bắt đầu (start ms), kết thúc (end ms) chuẩn xác theo đồng hồ thực tế.
   - `triggerFilePickerSave()`: Hỗ trợ lưu video đơn lẻ qua File Picker dialog.
 
-### 11. `js/app.js`
+### 11. `js/9_offline_render.js`
+- **Chuyên môn:** Chế độ Render Siêu Tốc (Offline Turbo Render) sử dụng đồng hồ ảo + WebCodecs.
+- Tự động thay thế `performance.now()`, `startStudioRenderClock()` và `MediaRecorder` bằng đồng hồ ảo 30 fps và `VideoEncoder` + ghép container MP4 (`mp4-muxer`).
+- Sử dụng AudioContext ghi sổ và `OfflineAudioContext` để trộn âm thanh TTS/SFX chính xác theo giờ ảo, loa ngoài không phát tiếng, kết xuất video tốc độ cao không cần chờ thời gian thực.
+
+### 12. `js/app.js`
 - **Chuyên môn:** Điểm khởi động ứng dụng và quản lý tương tác cấp hệ thống.
 - Lắng nghe `DOMContentLoaded`, khởi tạo Canvas, render danh sách phông chữ, nạp trạng thái từ IndexedDB.
 - `openVersionChangelogModal()`, `closeVersionChangelogModal()`: Quản lý hộp thoại hiển thị số hiệu phiên bản và nhật ký chi tiết các tính năng mới cập nhật.
